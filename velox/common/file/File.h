@@ -56,7 +56,7 @@ class ReadFile {
   // Reads the data at [offset, offset + length) into the provided pre-allocated
   // buffer 'buf'. The bytes are returned as a string_view pointing to 'buf'.
   //
-  // 'stats' is an IoStatistics pointer passed in by the caller to collect stats
+  // 'stats' is an 'IoStats' pointer passed in by the caller to collect stats
   // for this read operation.
   //
   // This method should be thread safe.
@@ -82,13 +82,13 @@ class ReadFile {
   // Ranges in 'buffers'. The buffers are filled left to right. A
   // buffer with nullptr data will cause its size worth of bytes to be skipped.
   //
-  // 'stats' is an IoStatistics pointer passed in by the caller to collect stats
+  // 'stats' is an 'IoStats' pointer passed in by the caller to collect stats
   // for this read operation.
   //
   // This method should be thread safe.
   virtual uint64_t preadv(
-      uint64_t /*offset*/,
-      const std::vector<folly::Range<char*>>& /*buffers*/,
+      uint64_t offset,
+      const std::vector<folly::Range<char*>>& buffers,
       filesystems::File::IoStats* stats = nullptr,
       const folly::F14FastMap<std::string, std::string>& fileReadOps = {})
       const;
@@ -103,7 +103,7 @@ class ReadFile {
   // Returns the total number of bytes read, which might be different than the
   // sum of all buffer sizes (for example, if coalescing was used).
   //
-  // 'stats' is an IoStatistics pointer passed in by the caller to collect stats
+  // 'stats' is an 'IoStats' pointer passed in by the caller to collect stats
   // for this read operation.
   //
   // This method should be thread safe.
@@ -118,7 +118,7 @@ class ReadFile {
   /// exception via SemiFuture. Use hasPreadvAsync() to check if the
   /// implementation is in fact asynchronous.
   ///
-  /// 'stats' is an IoStatistics pointer passed in by the caller to collect
+  /// 'stats' is an 'IoStats' pointer passed in by the caller to collect
   /// stats for this read operation.
   ///
   /// This method should be thread safe.
@@ -191,11 +191,8 @@ class WriteFile {
   ///
   /// NOTE: this is only supported on local file system and used by SSD cache
   /// for now. For filesystem like S3, it is not supported.
-  virtual void write(
-      const std::vector<iovec>& /* iovecs */,
-      int64_t /* offset */,
-      int64_t /* length */
-  ) {
+  virtual void
+  write(const std::vector<iovec>& iovecs, int64_t offset, int64_t length) {
     VELOX_NYI("{} is not implemented", __FUNCTION__);
   }
 
@@ -225,9 +222,9 @@ class WriteFile {
   /// Closes the file. Any cleanup (disk flush, etc.) will be done here.
   virtual void close() = 0;
 
-  /// Current file size, i.e. the sum of all previous Appends.  No flush should
-  /// be needed to get the exact size written, and this should be able to be
-  /// called after the file close.
+  /// Current file size, i.e. the sum of all previous 'append()'s.  No flush
+  /// should be needed to get the exact size written, and this should be able to
+  /// be called after the file close.
   virtual uint64_t size() const = 0;
 
   virtual const std::string getName() const {

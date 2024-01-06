@@ -61,7 +61,8 @@ class TrackingId {
 namespace std {
 template <>
 struct hash<::facebook::velox::cache::TrackingId> {
-  size_t operator()(const ::facebook::velox::cache::TrackingId id) const {
+  size_t operator()(
+      const ::facebook::velox::cache::TrackingId id) const noexcept {
     return id.hash();
   }
 };
@@ -96,7 +97,7 @@ class ScanTracker {
   ScanTracker(
       std::string_view id,
       std::function<void(ScanTracker*)> unregisterer,
-      int32_t loadQuantum,
+      int32_t /*loadQuantum*/,
       FileGroupStats* fileGroupStats = nullptr)
       : id_(id),
         unregisterer_(std::move(unregisterer)),
@@ -111,18 +112,15 @@ class ScanTracker {
   /// Records that a scan references 'bytes' bytes of the stream given by 'id'.
   /// This is called when preparing to read a stripe.
   void recordReference(
-      const TrackingId id,
+      TrackingId id,
       uint64_t bytes,
       uint64_t fileId,
       uint64_t groupId);
 
   /// Records that 'bytes' bytes have actually been read from the stream given
   /// by 'id'.
-  void recordRead(
-      const TrackingId id,
-      uint64_t bytes,
-      uint64_t fileId,
-      uint64_t groupId);
+  void
+  recordRead(TrackingId id, uint64_t bytes, uint64_t fileId, uint64_t groupId);
 
   /// True if 'trackingId' is read at least 'minReadPct' % of the time.
   bool shouldPrefetch(TrackingId id, int32_t minReadPct) {
@@ -156,7 +154,7 @@ class ScanTracker {
   std::string toString() const;
 
  private:
-  // Id of query + scan operator to track.
+  // Id of 'task + scan operator' to track.
   const std::string id_;
   const std::function<void(ScanTracker*)> unregisterer_{nullptr};
   FileGroupStats* const fileGroupStats_;

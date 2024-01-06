@@ -18,6 +18,8 @@
 
 #include "velox/common/testutil/TestValue.h"
 
+#include <utility>
+
 using facebook::velox::common::testutil::TestValue;
 
 namespace facebook::velox::exec {
@@ -29,20 +31,21 @@ SerializedPage::SerializedPage(
     : iobuf_(std::move(iobuf)),
       iobufBytes_(chainBytes(*iobuf_.get())),
       numRows_(numRows),
-      onDestructionCb_(onDestructionCb) {
+      onDestructionCb_(std::move(onDestructionCb)) {
   VELOX_CHECK_NOT_NULL(iobuf_);
   for (auto& buf : *iobuf_) {
     int32_t bufSize = buf.size();
-    ranges_.push_back(ByteRange{
-        const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(buf.data())),
-        bufSize,
-        0});
+    ranges_.push_back(
+        ByteRange{
+            const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(buf.data())),
+            bufSize,
+            0});
   }
 }
 
 SerializedPage::~SerializedPage() {
   if (onDestructionCb_) {
-    onDestructionCb_(*iobuf_.get());
+    onDestructionCb_(*iobuf_);
   }
 }
 
@@ -70,11 +73,12 @@ void ExchangeQueue::close() {
 }
 
 int64_t ExchangeQueue::minOutputBatchBytesLocked() const {
-  // always allow to unblock when at end
+  // Always allow to unblock when at end.
   if (atEnd_) {
     return 0;
   }
-  // At most 1% of received bytes so far to minimize latency for small exchanges
+  // At most 1% of received bytes so far to minimize latency for small
+  // exchanges.
   return std::min<int64_t>(minOutputBatchBytes_, receivedBytes_ / 100);
 }
 
@@ -101,6 +105,14 @@ void ExchangeQueue::enqueueLocked(
 
   queue_.push_back(std::move(page));
   const auto minBatchSize = minOutputBatchBytesLocked();
+  if (!promises_.empty() && totalBytes_ >= minBatchSize) {
+    // Resume one of the waiting drivers.
+    auto it = promises_.begin();
+    promises.push_back(std::move(it->second));
+    promises_.erase(it);
+  }
+
+
   while (!promises_.empty()) {
     VELOX_CHECK_LE(promises_.size(), numberOfConsumers_);
     const int32_t unblockedConsumers = numberOfConsumers_ - promises_.size();
@@ -124,11 +136,11 @@ void ExchangeQueue::addPromiseLocked(
   *future = promise.getSemiFuture();
   auto it = promises_.find(consumerId);
   if (it != promises_.end()) {
-    // resolve stale promises outside the lock to avoid broken promises
+    // Resolve stale promises outside the lock to avoid broken promises.
     *stalePromise = std::move(it->second);
     it->second = std::move(promise);
   } else {
-    promises_[consumerId] = std::move(promise);
+    promises_.emplace(consumerId, std::move(promise));
   }
   VELOX_CHECK_LE(promises_.size(), numberOfConsumers_);
 }
@@ -150,7 +162,7 @@ std::vector<std::unique_ptr<SerializedPage>> ExchangeQueue::dequeueLocked(
   *atEnd = false;
 
   // If we don't have enough bytes to return, we wait for more data to be
-  // available
+  // available.
   if (totalBytes_ < minOutputBatchBytesLocked()) {
     addPromiseLocked(consumerId, future, stalePromise);
     return {};
@@ -190,8 +202,8 @@ void ExchangeQueue::setError(const std::string& error) {
     }
     error_ = error;
     atEnd_ = true;
-    // NOTE: clear the serialized page queue as we won't consume from an
-    // errored queue.
+    // NOTE: clear the serialized page queue as we won't consume from an errored
+    // queue.
     queue_.clear();
     promises = clearAllPromisesLocked();
   }

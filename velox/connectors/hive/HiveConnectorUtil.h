@@ -15,6 +15,7 @@
  */
 
 #pragma once
+
 #include <folly/Executor.h>
 #include <folly/container/F14Map.h>
 
@@ -106,7 +107,7 @@ std::unique_ptr<dwio::common::BufferedInput> createBufferedInput(
     const ConnectorQueryCtx* connectorQueryCtx,
     std::shared_ptr<io::IoStatistics> ioStats,
     std::shared_ptr<filesystems::File::IoStats> fsStats,
-    folly::Executor* executor,
+    folly::Executor* ioExecutor,
     const folly::F14FastMap<std::string, std::string>& fileReadOps = {});
 
 core::TypedExprPtr extractFiltersFromRemainingFilter(

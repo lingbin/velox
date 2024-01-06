@@ -41,7 +41,7 @@ class UniqueValue {
     if (size <= sizeof(data_)) {
       memcpy(&data_, value, size);
     } else {
-      data_ = reinterpret_cast<int64_t>(value);
+      data_ = reinterpret_cast<uintptr_t>(value);
     }
   }
 
@@ -68,7 +68,7 @@ class UniqueValue {
  private:
   uint64_t data_;
   uint32_t size_;
-  uint32_t id_;
+  uint32_t id_{};
 };
 
 struct UniqueValueHasher {
@@ -79,7 +79,7 @@ struct UniqueValueHasher {
     }
 
     uint32_t hash = 0;
-    auto data = reinterpret_cast<const uint64_t*>(value.data());
+    const auto* data = reinterpret_cast<const uint64_t*>(value.data());
 
     size_t wordIndex = 0;
     auto numFullWords = size / 8;
@@ -130,6 +130,8 @@ class VectorHasher {
   // reservePct to enableValueIds().
   static constexpr int32_t kNoLimit = -1;
 
+  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
+
   VectorHasher(TypePtr type, column_index_t channel)
       : channel_(channel), type_(std::move(type)), typeKind_(type_->kind()) {
     if (typeKind_ == TypeKind::BOOLEAN) {
@@ -159,8 +161,6 @@ class VectorHasher {
     return typeKind_;
   }
 
-  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
-
   // Decodes the 'vector' in preparation for calling hash() or
   // computeValueIds(). The decoded vector can be accessed via decodedVector()
   // getter.
@@ -177,7 +177,7 @@ class VectorHasher {
     return decoded_;
   }
 
-  // Computes a hash for 'rows' in the vector previously decoded via decode()
+  // Computes a hash for 'rows' in the vector previously decoded via 'decode()'
   // call and stores it in 'result'. If 'mix' is true, mixes the hash with
   // existing value in 'result'.
   void
@@ -199,7 +199,7 @@ class VectorHasher {
   // decode() call and stores this in 'result'. If this is not the first hasher
   // with normalized keys, updates the partially computed normalized key in
   // 'result'. Returns true if all the values could be mapped to the
-  // normalized key range. If some values could not be mapped
+  // normalized key range. If some values could not be mapped,
   // the statistics are updated to reflect the new values. This
   // behavior corresponds to group by, where we must rehash if all the
   // new keys could not be represented.
@@ -257,7 +257,7 @@ class VectorHasher {
   // produce. Does not accept kNoLimit for 'reservePct'.
   uint64_t enableValueRange(uint64_t multiplier, int32_t reservePct);
 
-  // Sets this to 'value ids' mode, where each distinct value has an
+  // Sets 'this' to 'value ids' mode, where each distinct value has an
   // integer id times 'multiplier'. Leaves 'reservePct' % values at
   // the end of the distinct ids range. Returns 'multiplier' times the
   // number of distinct values reserved. 'reservePct' = kNoLimit means
@@ -305,7 +305,7 @@ class VectorHasher {
   // and distinct values are unioned.
   void merge(const VectorHasher& other);
 
-  // true if no values have been added.
+  // True if no values have been added.
   bool empty() const {
     return !hasRange_ && uniqueValues_.empty();
   }
@@ -324,13 +324,14 @@ class VectorHasher {
   // Maps a binary string of up to 7 bytes to int64_t. Each size maps
   // to a different numeric range, so leading zeros are considered.
   static inline int64_t stringAsNumber(const char* data, int32_t size) {
+    VELOX_DCHECK_LE(size, kStringASRangeMaxSize);
     int64_t word =
         bits::loadPartialWord(reinterpret_cast<const uint8_t*>(data), size);
-    return size == 0 ? word : word + (1L << (size * 8));
+    return size == 0 ? 0 : word + (1L << (size * 8));
   }
 
   template <typename T>
-  inline int64_t toInt64(T value) const {
+  static inline int64_t toInt64(T value) {
     return value;
   }
 
@@ -509,6 +510,7 @@ class VectorHasher {
       }
       return int64Value - min_ + 1;
     }
+
     UniqueValue unique(value);
     auto iter = uniqueValues_.find(unique);
     if (iter != uniqueValues_.end()) {
@@ -702,12 +704,6 @@ inline bool VectorHasher::tryMapToRange(
   });
   return true;
 }
-
-template <>
-bool VectorHasher::tryMapToRange(
-    const StringView* /*values*/,
-    const SelectivityVector& /*rows*/,
-    uint64_t* /*result*/);
 
 template <>
 bool VectorHasher::makeValueIdsFlatNoNulls<bool>(

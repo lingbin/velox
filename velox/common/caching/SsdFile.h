@@ -32,16 +32,18 @@ class SsdFileTestHelper;
 class SsdCacheTestHelper;
 } // namespace test
 
-/// A 64 bit word describing a SSD cache entry in an SsdFile. The low 23 bits
-/// are the size, for a maximum entry size of 8MB. The high bits are the offset.
+/// The 'fileBits_' field is a 64 bit word describing a SSD cache entry in an
+/// SsdFile. The low 23 bits are the size, for a maximum entry size of 8MB. The
+/// high 41 bits are the offset. The 'checksum_' field is optional and is used
+/// only when the checksum feature is enabled, otherwise, its value is always 0.
 class SsdRun {
  public:
-  static constexpr int32_t kSizeBits = 23;
+  static constexpr uint32_t kSizeBits = 23;
 
-  SsdRun() : fileBits_(0) {}
+  SsdRun() = default;
 
   SsdRun(uint64_t offset, uint32_t size, uint32_t checksum)
-      : fileBits_((offset << kSizeBits) | ((size - 1))), checksum_(checksum) {
+      : fileBits_((offset << kSizeBits) | (size - 1)), checksum_(checksum) {
     VELOX_CHECK_LT(offset, 1L << (64 - kSizeBits));
     VELOX_CHECK_NE(size, 0);
     VELOX_CHECK_LE(size, 1 << kSizeBits);
@@ -58,9 +60,11 @@ class SsdRun {
     checksum_ = other.checksum_;
   }
 
-  void operator=(SsdRun&& other) {
+  void operator=(SsdRun&& other) noexcept {
     fileBits_ = other.fileBits_;
     checksum_ = other.checksum_;
+    other.fileBits_ = 0;
+    other.checksum_ = 0;
   }
 
   uint64_t offset() const {
@@ -81,10 +85,15 @@ class SsdRun {
     return fileBits_;
   }
 
+  void clear() {
+    fileBits_ = 0;
+    checksum_ = 0;
+  }
+
  private:
   // Contains the file offset and size.
-  uint64_t fileBits_;
-  uint32_t checksum_;
+  uint64_t fileBits_{0};
+  uint32_t checksum_{0};
 };
 
 /// Represents an SsdFile entry that is planned for load or being loaded. This
@@ -101,24 +110,25 @@ class SsdPin {
 
   SsdPin(const SsdPin& other) = delete;
 
-  void operator=(const SsdPin& OTHER) = delete;
-
   SsdPin(SsdPin&& other) noexcept {
     run_ = other.run_;
     file_ = other.file_;
     other.file_ = nullptr;
+    other.run_.clear();
   }
 
   ~SsdPin();
 
+  void operator=(const SsdPin& other) = delete;
+  void operator=(SsdPin&&) noexcept;
+
   // Resets 'this' to default-constructed state.
   void clear();
-
-  void operator=(SsdPin&&);
 
   bool empty() const {
     return file_ == nullptr;
   }
+
   SsdFile* file() const {
     return file_;
   }
@@ -136,7 +146,7 @@ class SsdPin {
 
 /// Metrics for SSD cache. Maintained by SsdFile and aggregated by SsdCache.
 struct SsdCacheStats {
-  SsdCacheStats() {}
+  SsdCacheStats() = default;
 
   SsdCacheStats(const SsdCacheStats& other) {
     *this = other;
@@ -226,6 +236,7 @@ struct SsdCacheStats {
   tsan_atomic<uint64_t> entriesAgedOut{0};
   tsan_atomic<uint64_t> regionsAgedOut{0};
   tsan_atomic<uint64_t> regionsEvicted{0};
+
   tsan_atomic<uint32_t> openFileErrors{0};
   tsan_atomic<uint32_t> openCheckpointErrors{0};
   tsan_atomic<uint32_t> openLogErrors{0};
@@ -243,9 +254,9 @@ struct SsdCacheStats {
 /// A shard of SsdCache. Corresponds to one file on SSD. The data backed by each
 /// SsdFile is selected on a hash of the storage file number of the cached data.
 /// Each file consists of an integer number of 64MB regions. Each region has a
-/// pin count and an read count. Cache replacement takes place region by region,
+/// pin count and a read count. Cache replacement takes place region by region,
 /// preferring regions with a smaller read count. Entries do not span regions.
-/// Otherwise entries are consecutive byte ranges inside their region.
+/// Instead, entries are consecutive byte ranges inside their region.
 class SsdFile {
  public:
   struct Config {
@@ -279,19 +290,19 @@ class SsdFile {
 
     /// Checkpoint after every 'checkpointIntervalBytes' written into this
     /// file. 0 means no checkpointing. This is set to 0 if checkpointing fails.
-    uint64_t checkpointIntervalBytes;
+    const uint64_t checkpointIntervalBytes;
 
     /// True if copy on write should be disabled.
-    bool disableFileCow;
+    const bool disableFileCow;
 
     /// If true, checksum write to SSD is enabled.
-    bool checksumEnabled;
+    const bool checksumEnabled;
 
     /// If true, checksum read verification from SSD is enabled.
-    bool checksumReadVerificationEnabled;
+    const bool checksumReadVerificationEnabled;
 
     /// Executor for async fsync in checkpoint.
-    folly::Executor* executor;
+    folly::Executor* const executor;
   };
 
   static constexpr uint64_t kRegionSize = 1 << 26; // 64MB
@@ -302,14 +313,15 @@ class SsdFile {
 
   /// Adds entries of 'pins' to this file. 'pins' must be in read mode and
   /// those pins that are successfully added to SSD are marked as being on SSD.
-  /// The file of the entries must be a file that is backed by 'this'.
+  /// The file of the entries must be the file that is backed by 'this'.
   void write(std::vector<CachePin>& pins);
 
   /// Finds an entry for 'key'. If no entry is found, the returned pin is empty.
   SsdPin find(RawFileCacheKey key);
 
-  /// Erases 'key'
+  /// Erases the entry for 'key'.
   bool erase(RawFileCacheKey key);
+
   /// Copies the data in 'ssdPins' into 'pins'. Coalesces IO for nearby
   /// entries if they are in ascending order and near enough.
   CoalesceIoStats load(
@@ -374,7 +386,7 @@ class SsdFile {
     return fileName_ + kCheckpointExtension;
   }
 
-  /// Resets this' to a post-construction empty state. See SsdCache::clear().
+  /// Resets 'this' to a post-construction empty state. See SsdCache::clear().
   ///
   /// NOTE: this is only used by test and Prestissimo worker operation.
   void clear();
@@ -382,7 +394,7 @@ class SsdFile {
  private:
   // Magic number separating file names from cache entry data in checkpoint
   // file.
-  static constexpr int64_t kCheckpointMapMarker = 0xfffffffffffffffe;
+  static constexpr uint64_t kCheckpointMapMarker = 0xfffffffffffffffe;
   // Magic number at end of completed checkpoint file.
   static constexpr int64_t kCheckpointEndMarker = 0xcbedf11e;
 
@@ -394,12 +406,12 @@ class SsdFile {
   }
 
   // Returns the region number corresponding to 'offset'.
-  static int32_t regionIndex(uint64_t offset) {
+  static constexpr int32_t regionIndex(uint64_t offset) {
     return offset / kRegionSize;
   }
 
   // Returns the offset within a region corresponding to 'offset'.
-  static int32_t regionOffset(uint64_t offset) {
+  static constexpr int32_t regionOffset(uint64_t offset) {
     return offset % kRegionSize;
   }
 
@@ -424,10 +436,10 @@ class SsdFile {
       int32_t begin);
 
   // Removes all 'entries_' that reference data in regions described by
-  // 'regionIndices'.
+  // 'regions'.
   void clearRegionEntriesLocked(const std::vector<int32_t>& regions);
 
-  // Clears one or more  regions for accommodating new entries. The regions are
+  // Clears one or more regions for accommodating new entries. The regions are
   // added to 'writableRegions_'. Returns true if regions could be cleared.
   bool growOrEvictLocked();
 
@@ -461,7 +473,7 @@ class SsdFile {
   void logEviction(std::vector<int32_t>& regions);
 
   // Computes the checksum of data in cache 'entry'.
-  uint32_t checksumEntry(const AsyncDataCacheEntry& entry) const;
+  static uint32_t checksumEntry(const AsyncDataCacheEntry& entry);
 
   // Returns true if checkpoint has been enabled.
   bool checkpointEnabled() const {
@@ -485,7 +497,7 @@ class SsdFile {
   void disableFileCow();
 
   // Truncates the given file to 0.
-  void truncateFile(WriteFile* file);
+  static void truncateFile(WriteFile* file);
 
   // Deletes the given file if it exists.
   void deleteFile(std::unique_ptr<WriteFile> file);
@@ -569,7 +581,7 @@ class SsdFile {
   // Indices of regions available for writing new entries.
   std::vector<int32_t> writableRegions_;
 
-  // Tracker for access frequencies and eviction.
+  // Tracker for access frequencies and eviction scores.
   SsdFileTracker tracker_;
 
   // Pin count for each region.
@@ -604,7 +616,7 @@ class SsdFile {
   int64_t checkpointIntervalBytes_{0};
 
   // Executor for async fsync in checkpoint.
-  folly::Executor* executor_;
+  folly::Executor* const executor_;
 
   // Count of bytes written after last checkpoint.
   std::atomic<uint64_t> bytesAfterCheckpoint_{0};

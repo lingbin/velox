@@ -87,6 +87,7 @@ void HashAggregation::initialize() {
         core::AggregationNode::toName(aggregationNode_->step()));
   }
 
+  // 这里的实现是错误的，应该修正下
   for (auto i = 0; i < hashers.size(); ++i) {
     identityProjections_.emplace_back(
         hashers[groupingKeyOutputChannels[i]]->channel(), i);
@@ -156,7 +157,7 @@ void HashAggregation::setupGroupingKeyChannelProjections(
   groupingKeyOutputChannels.resize(groupingKeys.size());
   if (!reorderGroupingKeys) {
     // If there is no reorder, then grouping key output channels are the same as
-    // the column index order int he grouping set.
+    // the column index order in the grouping set.
     std::iota(
         groupingKeyOutputChannels.begin(), groupingKeyOutputChannels.end(), 0);
     return;
@@ -327,7 +328,7 @@ RowVectorPtr HashAggregation::getOutput() {
     if (noMoreInput_) {
       finished_ = true;
     }
-    if (!input_) {
+    if (input_ == nullptr) {
       return nullptr;
     }
     prepareOutput(input_->size());

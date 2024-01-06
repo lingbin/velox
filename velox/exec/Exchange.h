@@ -74,7 +74,7 @@ class Exchange : public SourceOperator {
   // much.
   static constexpr uint64_t kInitialOutputRows = 64;
 
-  // Invoked to create exchange client for remote tasks. The function shuffles
+  // Invoked to create exchange sources for remote tasks. The function shuffles
   // the source task ids first to randomize the source tasks we fetch data from.
   // This helps to avoid different tasks fetching from the same source task in a
   // distributed system.

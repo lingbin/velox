@@ -226,9 +226,9 @@ class SequenceVector : public SimpleVector<T> {
   // Caches 'sequenceLengths_->as<vector_size_t>()'
   const vector_size_t* lengths_ = nullptr;
 
-  // manage the state of the offset index operations to allow for the common
+  // Manage the state of the offset index operations to allow for the common
   // path of iterating in order to not require repeated trips through the
-  // sequenceLengths_ array
+  // sequenceLengths_ array.
   mutable vector_size_t lastIndexRangeStart_ = 0;
   mutable vector_size_t lastIndexRangeEnd_ = 0;
   mutable vector_size_t lastRangeIndex_ = 0;

@@ -296,16 +296,14 @@ class ByteOutputStream {
         isNegateBits_(isNegateBits) {}
 
   ByteOutputStream(const ByteOutputStream& other) = delete;
-
   void operator=(const ByteOutputStream& other) = delete;
 
   // Forcing a move constructor to be able to return ByteOutputStream objects
   // from a function.
   ByteOutputStream(ByteOutputStream&&) = default;
 
-  /// Sets 'this' to range over 'range'. If this is for purposes of writing,
-  /// lastWrittenPosition specifies the end of any pre-existing content in
-  /// 'range'.
+  /// Sets 'this' to range over 'range'. lastWrittenPosition specifies the end
+  /// of any pre-existing content in 'range'.
   void setRange(ByteRange range, int32_t lastWrittenPosition) {
     ranges_.resize(1);
     ranges_[0] = range;
@@ -361,9 +359,10 @@ class ByteOutputStream {
     }
 
     if (current_->position + sizeof(T) * values.size() > current_->size) {
-      appendStringView(std::string_view(
-          reinterpret_cast<const char*>(&values[0]),
-          values.size() * sizeof(T)));
+      appendStringView(
+          std::string_view(
+              reinterpret_cast<const char*>(&values[0]),
+              values.size() * sizeof(T)));
       return;
     }
     auto* target = current_->buffer + current_->position;
@@ -437,9 +436,8 @@ class ByteOutputStream {
 
   void flush(OutputStream* stream);
 
-  /// Returns the next byte that would be written to by a write. This
-  /// is used after an append to release the remainder of the reserved
-  /// space.
+  /// Returns the next byte that would be written to by a write. This is used
+  /// after an append to release the remainder of the reserved space.
   char* writePosition();
 
   int32_t testingAllocatedBytes() const {
@@ -516,9 +514,9 @@ class ByteOutputStream {
   ByteRange* current_{nullptr};
 
   // Number of bits/bytes that have been written in the last element
-  // of 'ranges_'. In a write situation, all non-last ranges are full
+  // of 'ranges_'. In write situation, all non-last ranges are full
   // and the last may be partly full. The position in the last range
-  // is not necessarily the the end if there has been a seek.
+  // is not necessarily the end if there has been a seek.
   mutable int64_t lastRangeEnd_{0};
 
   template <typename T>
@@ -537,13 +535,14 @@ class AppendWindow {
   ~AppendWindow() noexcept {
     if (scratchPtr_.size()) {
       try {
-        stream_.appendStringView(std::string_view(
-            reinterpret_cast<const char*>(scratchPtr_.get()),
-            scratchPtr_.size() * sizeof(T)));
+        stream_.appendStringView(
+            std::string_view(
+                reinterpret_cast<const char*>(scratchPtr_.get()),
+                scratchPtr_.size() * sizeof(T)));
       } catch (const std::exception& e) {
         // This is impossible because construction ensures there is space for
         // the bytes in the stream.
-        LOG(FATAL) << "throw from AppendWindo append: " << e.what();
+        LOG(FATAL) << "throw from AppendWindow append: " << e.what();
       }
     }
   }

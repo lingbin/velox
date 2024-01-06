@@ -268,8 +268,8 @@ void checkColumnNameLowerCase(const TypePtr& type) {
     case TypeKind::MAP: {
       checkColumnNameLowerCase(type->asMap().keyType());
       checkColumnNameLowerCase(type->asMap().valueType());
-
-    } break;
+      break;
+    }
     case TypeKind::ROW: {
       for (const auto& outputName : type->asRow().names()) {
         VELOX_CHECK(
@@ -278,7 +278,8 @@ void checkColumnNameLowerCase(const TypePtr& type) {
       for (auto& childType : type->asRow().children()) {
         checkColumnNameLowerCase(childType);
       }
-    } break;
+      break;
+    }
     default:
       VLOG(1) << "No need to check type lowercase mode" << type->toString();
   }
@@ -554,6 +555,7 @@ void configureReaderOptions(
   readerOptions.setFileColumnNamesReadAsLowerCase(
       hiveConfig->isFileColumnNamesReadAsLowerCase(sessionProperties));
   readerOptions.setAllowEmptyFile(true);
+
   bool useColumnNamesForColumnMapping = false;
   switch (hiveSplit->fileFormat) {
     case dwio::common::FileFormat::DWRF:
@@ -578,6 +580,7 @@ void configureReaderOptions(
   readerOptions.setFilePreloadThreshold(hiveConfig->filePreloadThreshold());
   readerOptions.setPrefetchRowGroups(hiveConfig->prefetchRowGroups());
   readerOptions.setNoCacheRetention(!hiveSplit->cacheable);
+
   const auto& sessionTzName = connectorQueryCtx->sessionTimezone();
   if (!sessionTzName.empty()) {
     const auto timezone = tz::locateZone(sessionTzName);
@@ -763,7 +766,7 @@ std::unique_ptr<dwio::common::BufferedInput> createBufferedInput(
     const ConnectorQueryCtx* connectorQueryCtx,
     std::shared_ptr<io::IoStatistics> ioStats,
     std::shared_ptr<filesystems::File::IoStats> fsStats,
-    folly::Executor* executor,
+    folly::Executor* ioExecutor,
     const folly::F14FastMap<std::string, std::string>& fileReadOps) {
   if (connectorQueryCtx->cache()) {
     return std::make_unique<dwio::common::CachedBufferedInput>(
@@ -776,7 +779,7 @@ std::unique_ptr<dwio::common::BufferedInput> createBufferedInput(
         fileHandle.groupId,
         ioStats,
         std::move(fsStats),
-        executor,
+        ioExecutor,
         readerOpts,
         fileReadOps);
   }
@@ -804,7 +807,7 @@ std::unique_ptr<dwio::common::BufferedInput> createBufferedInput(
       fileHandle.groupId,
       std::move(ioStats),
       std::move(fsStats),
-      executor,
+      ioExecutor,
       readerOpts,
       fileReadOps);
 }

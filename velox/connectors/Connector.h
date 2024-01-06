@@ -80,7 +80,7 @@ struct ConnectorSplit : public ISerializable {
     return 0;
   }
 
-  virtual ~ConnectorSplit() {}
+  virtual ~ConnectorSplit() = default;
 
   virtual std::string toString() const {
     return fmt::format(
@@ -109,8 +109,7 @@ class ColumnHandle : public ISerializable {
 
 using ColumnHandlePtr = std::shared_ptr<const ColumnHandle>;
 
-using ColumnHandleMap =
-    std::unordered_map<std::string, connector::ColumnHandlePtr>;
+using ColumnHandleMap = std::unordered_map<std::string, ColumnHandlePtr>;
 
 class ConnectorTableHandle;
 using ConnectorTableHandlePtr = std::shared_ptr<const ConnectorTableHandle>;
@@ -147,10 +146,10 @@ class ConnectorTableHandle : public ISerializable {
   const std::string connectorId_;
 };
 
-/// Represents a request for writing to connector
+/// Represents a request for writing to connector.
 class ConnectorInsertTableHandle : public ISerializable {
  public:
-  virtual ~ConnectorInsertTableHandle() {}
+  virtual ~ConnectorInsertTableHandle() = default;
 
   /// Whether multi-threaded write is supported by this connector. Planner uses
   /// this flag to determine number of drivers.
@@ -205,7 +204,7 @@ class DataSink {
   virtual void appendData(RowVectorPtr input) = 0;
 
   /// Called after all data has been added via possibly multiple calls to
-  /// appendData() This function finishes the data procesing like sort all the
+  /// appendData(). This function finishes the data processing like sort all the
   /// added data and write them to the file writer. The finish might take long
   /// time so it returns false to yield in the middle of processing. The
   /// function returns true if it has processed all data. This call is blocking.
@@ -216,8 +215,8 @@ class DataSink {
   /// form. We don't expect any appendData() calls on a closed data sink object.
   virtual std::vector<std::string> close() = 0;
 
-  /// Called to abort this data sink object and we don't expect any appendData()
-  /// calls on an aborted data sink object.
+  /// Called to abort this data sink object, and we don't expect any
+  /// appendData() calls on an aborted data sink object.
   virtual void abort() = 0;
 
   /// Returns the stats of this data sink.
@@ -231,15 +230,16 @@ class DataSink {
 class DataSource {
  public:
   static constexpr int64_t kUnknownRowSize = -1;
+
   virtual ~DataSource() = default;
 
-  /// Add split to process, then call next multiple times to process the split.
-  /// A split must be fully processed by next before another split can be
-  /// added. Next returns nullptr to indicate that current split is fully
+  /// Add split to process, then call 'next' multiple times to process the
+  /// split. A split must be fully processed by 'next' before another split can
+  /// be added. 'next' returns nullptr to indicate that current split is fully
   /// processed.
   virtual void addSplit(std::shared_ptr<ConnectorSplit> split) = 0;
 
-  /// Process a split added via addSplit. Returns nullptr if split has been
+  /// Process a split added via 'addSplit'. Returns nullptr if split has been
   /// fully processed. Returns std::nullopt and sets the 'future' if started
   /// asynchronous work and needs to wait for it to complete to continue
   /// processing. The caller will wait for the 'future' to complete before
@@ -283,7 +283,7 @@ class DataSource {
     return false;
   }
 
-  /// Initializes this from 'source'. 'source' is effectively moved into 'this'
+  /// Initializes this from 'source'. 'source' is effectively moved into 'this'.
   /// Adaptation like dynamic filters stay in effect but the parts dealing with
   /// open files, prefetched data etc. are moved. 'source' is freed after the
   /// move.
@@ -292,10 +292,10 @@ class DataSource {
   }
 
   /// Returns a connector dependent row size if available. This can be
-  /// called after addSplit().  This estimates uncompressed data
-  /// sizes. This is better than getCompletedBytes()/getCompletedRows()
+  /// called after 'addSplit()'.  This estimates uncompressed data
+  /// sizes. This is better than 'getCompletedBytes()'/'getCompletedRows()'
   /// since these track sizes before decompression and may include
-  /// read-ahead and extra IO from coalescing reads and  will not
+  /// read-ahead and extra IO from coalescing reads and will not
   /// fully account for size of sparsely accessed columns.
   virtual int64_t estimatedRowSize() {
     return kUnknownRowSize;
@@ -594,8 +594,8 @@ class Connector {
 
   /// Creates index source for index join lookup.
   /// @param inputType The list of probe-side columns that either used in
-  /// equi-clauses or join conditions.
-  /// @param numJoinKeys The number of key columns used in join equi-clauses.
+  /// equal-clauses or join conditions.
+  /// @param numJoinKeys The number of key columns used in join equal-clauses.
   /// The first 'numJoinKeys' columns in 'inputType' form a prefix of the
   /// index, and the rest of the columns in inputType are expected to be used in
   /// 'joinConditions'.
@@ -713,7 +713,7 @@ connectorFactories() {
 } // namespace detail
 
 /// Adds a factory for creating connectors to the registry using connector
-/// name as the key. Throws if factor with the same name is already present.
+/// name as the key. Throws if factory with the same name is already present.
 /// Always returns true. The return value makes it easy to use with
 /// FB_ANONYMOUS_VARIABLE.
 inline bool registerConnectorFactory(

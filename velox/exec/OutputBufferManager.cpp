@@ -105,7 +105,8 @@ bool OutputBufferManager::getData(
     DataAvailableCallback notify,
     DataConsumerActiveCheckCallback activeCheck) {
   if (auto buffer = getBufferIfExists(taskId)) {
-    buffer->getData(destination, maxBytes, sequence, notify, activeCheck);
+    buffer->getData(
+        destination, maxBytes, sequence, std::move(notify), activeCheck);
     return true;
   }
   return false;
@@ -172,8 +173,8 @@ std::string OutputBufferManager::toString() {
   return buffers_.withLock([](const auto& buffers) {
     std::stringstream out;
     out << "[BufferManager:" << std::endl;
-    for (const auto& pair : buffers) {
-      out << pair.first << ": " << pair.second->toString() << std::endl;
+    for (const auto& [taskId, buffer] : buffers) {
+      out << taskId << ": " << buffer->toString() << std::endl;
     }
     out << "]";
     return out.str();
