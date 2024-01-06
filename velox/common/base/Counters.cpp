@@ -135,7 +135,7 @@ void registerVeloxMetrics() {
   DEFINE_METRIC(
       kMetricMemoryCacheNumPrefetchedEntries, facebook::velox::StatType::AVG);
 
-  // Total number of bytes of the cached data that is much smaller than
+  // Total number of bytes of the cached data that is smaller than
   // kTinyDataSize.
   DEFINE_METRIC(
       kMetricMemoryCacheTotalTinyBytes, facebook::velox::StatType::AVG);

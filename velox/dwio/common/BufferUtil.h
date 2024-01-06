@@ -29,7 +29,7 @@ inline void ensureCapacity(
     bool clearBits = false) {
   size_t oldSize = 0;
   size_t newCapacity = BaseVector::byteSize<T>(numElements);
-  if (!data) {
+  if (data == nullptr) {
     data = AlignedBuffer::allocate<T>(numElements, pool);
   } else {
     oldSize = data->size();
@@ -46,19 +46,16 @@ inline void ensureCapacity(
   }
 
   if (clearBits && newCapacity > oldSize) {
-    std::memset(
-        (void*)(data->asMutable<int8_t>() + oldSize),
-        0L,
-        newCapacity - oldSize);
+    std::memset(data->asMutable<int8_t>() + oldSize, 0L, newCapacity - oldSize);
   }
 }
 
 template <typename T>
 inline T* resetIfWrongVectorType(VectorPtr& result) {
   if (result) {
-    auto casted = result->as<T>();
+    auto* casted = result->as<T>();
     // We only expect vector to be used by a single thread.
-    if (casted && result.use_count() == 1) {
+    if (casted != nullptr && result.use_count() == 1) {
       return casted;
     }
     result.reset();
@@ -69,7 +66,9 @@ inline T* resetIfWrongVectorType(VectorPtr& result) {
 template <typename... T>
 inline void resetIfNotWritable(VectorPtr& result, T&... buffer) {
   // The result vector and the buffer both hold reference, so refCount is at
-  // least 2
+  // least 2.
+  // TODO(lingbin): 提示信息：Declaration of 'buffer' inside a lambda hides a
+  // previous uncaptured local declaration
   auto resetIfShared = [](auto& buffer) {
     const bool reset = buffer->refCount() > 2;
     if (reset) {

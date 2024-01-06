@@ -77,7 +77,7 @@ namespace detail {
 /// Returns true if source nodes must run in a separate pipeline.
 bool mustStartNewPipeline(
     const std::shared_ptr<const core::PlanNode>& planNode,
-    int sourceId) {
+    int sourceIdx) {
   if (auto localMerge =
           std::dynamic_pointer_cast<const core::LocalMergeNode>(planNode)) {
     // LocalMerge's source runs on its own pipeline.
@@ -89,7 +89,7 @@ bool mustStartNewPipeline(
   }
 
   // Non-first sources always run in their own pipeline.
-  return sourceId != 0;
+  return sourceIdx != 0;
 }
 
 // Creates the customized local partition operator for table writer scaling.
@@ -224,7 +224,7 @@ void plan(
     const std::shared_ptr<const core::PlanNode>& consumerNode,
     OperatorSupplier operatorSupplier,
     std::vector<std::unique_ptr<DriverFactory>>* driverFactories) {
-  if (!currentPlanNodes) {
+  if (currentPlanNodes == nullptr) {
     auto driverFactory = std::make_unique<DriverFactory>();
     currentPlanNodes = &driverFactory->planNodes;
     driverFactory->operatorSupplier = std::move(operatorSupplier);
@@ -266,7 +266,7 @@ uint32_t maxDrivers(
     const core::QueryConfig& queryConfig) {
   uint32_t count = maxDriversForConsumer(driverFactory.consumerNode);
   if (count == 1) {
-    return count;
+    return 1;
   }
   for (auto& node : driverFactory.planNodes) {
     if (auto topN = std::dynamic_pointer_cast<const core::TopNNode>(node)) {

@@ -29,7 +29,7 @@ namespace facebook::velox::dwio::common {
 enum class ReadState { kPartial, kAll };
 
 // A utility function to extract column name and expression
-// from a augmented column names in current spec.
+// from an augmented column names in current spec.
 std::pair<std::string_view, std::string_view> extractColumnName(
     const std::string_view& name);
 

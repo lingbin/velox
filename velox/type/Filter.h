@@ -303,7 +303,6 @@ class Filter : public velox::ISerializable {
 
   folly::dynamic serializeBase() const;
 
- protected:
   template <typename T, typename F>
   static xsimd::batch_bool<T> genericTestValues(
       xsimd::batch<T> batch,

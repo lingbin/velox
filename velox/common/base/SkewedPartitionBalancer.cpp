@@ -44,7 +44,7 @@ SkewedPartitionRebalancer::SkewedPartitionRebalancer(
   partitionBytesSinceLastRebalancePerTask_.resize(numPartitions_, 0);
   estimatedTaskBytesSinceLastRebalance_.resize(numTasks_, 0);
 
-  // Assigns one task for each partition intitially.
+  // Assigns one task for each partition initially.
   for (auto partition = 0; partition < numPartitions_; ++partition) {
     const uint32_t taskId = partition % numTasks_;
     partitionAssignments_[partition].addTaskId(taskId);

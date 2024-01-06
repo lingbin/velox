@@ -262,7 +262,7 @@ class QueryConfig {
 
   /// Preferred size of batches in bytes to be returned by operators from
   /// Operator::getOutput. It is used when an estimate of average row size is
-  /// known. Otherwise kPreferredOutputBatchRows is used.
+  /// known. Otherwise, kPreferredOutputBatchRows is used.
   static constexpr const char* kPreferredOutputBatchBytes =
       "preferred_output_batch_bytes";
 

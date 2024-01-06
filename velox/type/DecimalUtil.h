@@ -253,7 +253,7 @@ class DecimalUtil {
     const auto fractionDigits = std::max(digits - integralDigits, 0);
 
     // Scales up the input value with all the precise fractional digits kept.
-    // Convert value as long double type because 1) double * int128_t returns
+    // Convert value as 'long double' type because 1) double * int128_t returns
     // int128_t and fractional digits are lost. 2) we could also convert the
     // int128_t value as double to avoid 'double * int128_t', but double
     // multiplication gives inaccurate result on large numbers. For example,
@@ -421,7 +421,7 @@ class DecimalUtil {
     bool isRhsNegative = rhs < 0;
     int64_t overflow = 0;
     if (isLhsNegative == isRhsNegative) {
-      // Both inputs of same time.
+      // Both inputs of same sign.
       if (isLhsNegative) {
         // Both negative, ignore signs and add.
         VELOX_DCHECK_NE(lhs, std::numeric_limits<int128_t>::min());
@@ -432,13 +432,13 @@ class DecimalUtil {
         overflow = addUnsignedValues(result, lhs, rhs, false);
       }
     } else {
-      // If one of them is negative, use addition.
+      // Only one of them is negative, use addition.
       result = lhs + rhs;
     }
     return overflow;
   }
 
-  /// Corrects the sum result calculated using addWithOverflow. Since the sum
+  /// Corrects the sum result calculated using 'addWithOverflow'. Since the sum
   /// calculated by addWithOverflow only retains the lower 127 bits,
   /// it may miss one calculation of +(1 << 127) or -(1 << 127).
   /// Therefore, we need to make the following adjustments:
