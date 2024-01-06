@@ -21,6 +21,8 @@
 #include "velox/common/memory/Memory.h"
 
 namespace facebook::velox::memory {
+
+// static
 uint64_t MmapArena::roundBytes(uint64_t bytes) {
   return bits::nextPowerOfTwo(bytes);
 }

@@ -43,7 +43,7 @@ namespace facebook::velox {
 #endif
 #endif
 
-/// Define tsan_atomic<T> to be std::atomic<T?> for tsan builds and
+/// Define tsan_atomic<T> to be std::atomic<T> for tsan builds and
 /// T otherwise. This allows declaring variables like statistics
 /// counters that do not have to be exact nor have synchronized
 /// semantics. This deals with san errors while not incurring the

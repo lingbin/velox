@@ -33,8 +33,7 @@ DECLARE_bool(velox_exception_system_stacktrace_enabled);
 DECLARE_int32(velox_exception_user_stacktrace_rate_limit_ms);
 DECLARE_int32(velox_exception_system_stacktrace_rate_limit_ms);
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 namespace error_source {
 using namespace folly::string_literals;
@@ -445,5 +444,4 @@ class ExceptionContextSetter {
  private:
   ExceptionContext prev_;
 };
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

@@ -16,6 +16,7 @@
 #include "velox/exec/tests/utils/LocalExchangeSource.h"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <atomic>
+#include <utility>
 #include "velox/common/testutil/TestValue.h"
 #include "velox/exec/OutputBufferManager.h"
 
@@ -29,7 +30,7 @@ class LocalExchangeSource : public exec::ExchangeSource {
       int destination,
       std::shared_ptr<exec::ExchangeQueue> queue,
       memory::MemoryPool* pool)
-      : ExchangeSource(taskId, destination, queue, pool) {}
+      : ExchangeSource(taskId, destination, std::move(queue), pool) {}
 
   bool supportsMetrics() const override {
     return true;
@@ -75,7 +76,7 @@ class LocalExchangeSource : public exec::ExchangeSource {
       }
 
       if (requestedSequence > sequence && !data.empty()) {
-        VLOG(2) << "Receives earlier sequence than requested: task " << taskId_
+        VLOG(2) << "Receives earlier sequence than requested: task " << remoteTaskId_
                 << ", destination " << destination_ << ", requested "
                 << sequence << ", received " << requestedSequence;
         int64_t nExtra = requestedSequence - sequence;
@@ -140,7 +141,7 @@ class LocalExchangeSource : public exec::ExchangeSource {
       }
       // Outside of queue mutex.
       if (atEnd_) {
-        buffers->deleteResults(taskId_, destination_);
+        buffers->deleteResults(remoteTaskId_, destination_);
       }
 
       if (!requestPromise.isFulfilled()) {
@@ -151,7 +152,7 @@ class LocalExchangeSource : public exec::ExchangeSource {
     registerTimeout(self, resultCallback, maxWait);
 
     buffers->getData(
-        taskId_, destination_, maxBytes, sequence_, resultCallback);
+        remoteTaskId_, destination_, maxBytes, sequence_, resultCallback);
 
     return future;
   }
@@ -171,14 +172,14 @@ class LocalExchangeSource : public exec::ExchangeSource {
       std::lock_guard<std::mutex> l(queue_->mutex());
       ackSequence = sequence_;
     }
-    buffers->acknowledge(taskId_, destination_, ackSequence);
+    buffers->acknowledge(remoteTaskId_, destination_, ackSequence);
   }
 
   void close() override {
     checkSetRequestPromise();
 
     auto buffers = OutputBufferManager::getInstance().lock();
-    buffers->deleteResults(taskId_, destination_);
+    buffers->deleteResults(remoteTaskId_, destination_);
   }
 
   folly::F14FastMap<std::string, RuntimeMetric> metrics() const override {

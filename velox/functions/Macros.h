@@ -51,6 +51,7 @@
   using VarbinaryVal = arg_type<::facebook::velox::Varbinary>;          \
   template <typename... TArgss>                                         \
   using RowVal = arg_type<::facebook::velox::Row<TArgss...>>;           \
+                                                                        \
   template <typename TKey, typename TVal>                               \
   using MapWriter = out_type<::facebook::velox::Map<TKey, TVal>>;       \
   template <typename TElement>                                          \

@@ -56,7 +56,7 @@ class TraceContext {
   // Starts a trace context. isTemporary is false if this is a generic
   // operation for which records should be kept for the lifetime of
   // the process, like opening a file. This is true if we are
-  // recording a one off event like 'reading file <filename>' for
+  // recording a one-off event like 'reading file <filename>' for
   // which the record should be dropped once the last thread finishes.
   explicit TraceContext(std::string label, bool isTemporary = false);
 
@@ -65,7 +65,7 @@ class TraceContext {
 
   ~TraceContext();
 
-  // Produces a human readable report of all TraceContexts in existence at the
+  // Produces a human-readable report of all TraceContexts in existence at the
   // time.
   static std::string statusLine();
 

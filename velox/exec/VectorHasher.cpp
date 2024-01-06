@@ -82,7 +82,6 @@ void VectorHasher::hashValues(
     const SelectivityVector& rows,
     bool mix,
     uint64_t* result) {
-  using T = typename TypeTraits<Kind>::NativeType;
   if (decoded_.isConstantMapping()) {
     auto hash = decoded_.isNullAt(rows.begin())
         ? kNullHash
@@ -143,16 +142,14 @@ bool VectorHasher::makeValueIds(
   if (decoded_.isIdentityMapping()) {
     if (decoded_.mayHaveNulls()) {
       return makeValueIdsFlatWithNulls<T>(rows, result);
-    } else {
-      return makeValueIdsFlatNoNulls<T>(rows, result);
     }
+    return makeValueIdsFlatNoNulls<T>(rows, result);
   }
 
   if (decoded_.mayHaveNulls()) {
     return makeValueIdsDecoded<T, true>(rows, result);
-  } else {
-    return makeValueIdsDecoded<T, false>(rows, result);
   }
+  return makeValueIdsDecoded<T, false>(rows, result);
 }
 
 template <>
@@ -600,7 +597,7 @@ void VectorHasher::analyze(
 
 template <>
 void VectorHasher::analyzeValue(StringView value) {
-  int size = value.size();
+  size_t size = value.size();
   auto data = value.data();
   if (!rangeOverflow_) {
     if (size > kStringASRangeMaxSize) {
@@ -649,7 +646,7 @@ void VectorHasher::copyStringToLocal(const UniqueValue* unique) {
   str->resize(start + size);
   memcpy(str->data() + start, reinterpret_cast<char*>(unique->data()), size);
   const_cast<UniqueValue*>(unique)->setData(
-      reinterpret_cast<int64_t>(str->data() + start));
+      reinterpret_cast<intptr_t>(str->data() + start));
 }
 
 void VectorHasher::setDistinctOverflow() {
@@ -691,9 +688,9 @@ std::unique_ptr<common::Filter> VectorHasher::getFilter(
 }
 
 namespace {
-template <typename T>
 // Adds 'reserve' to either end of the range between 'min' and 'max' while
 // staying in the range of T.
+template <typename T>
 void extendRange(int64_t reserve, int64_t& min, int64_t& max) {
   int64_t kMin = std::numeric_limits<T>::min();
   int64_t kMax = std::numeric_limits<T>::max();
@@ -709,16 +706,15 @@ void extendRange(int64_t reserve, int64_t& min, int64_t& max) {
   }
 }
 
-// Adds 'reservePct' % to either end of the range between 'min' and 'max'
-// while staying in the range of 'kind'.
+// Adds 'reservePct' % to either end of the range between 'min' and 'max' while
+// staying in the range of 'kind'.
 void extendRange(
     TypeKind kind,
     int32_t reservePct,
     int64_t& min,
     int64_t& max) {
-  // The reserve is 2 + reservePct % of the range. Add 2 to make sure
-  // that a non-0 peercentage actually adds something for a small
-  // range.
+  // The reserve is 2 + reservePct % of the range. Add 2 to make sure that a
+  // non-0 percentage actually adds something for a small range.
   int64_t reserve =
       reservePct == 0 ? 0 : 2 + (max - min) * (reservePct / 100.0);
   switch (kind) {
@@ -804,7 +800,7 @@ uint64_t VectorHasher::enableValueIds(uint64_t multiplier, int32_t reservePct) {
   VELOX_CHECK_NE(
       typeKind_,
       TypeKind::BOOLEAN,
-      "A boolean VectorHasher should  always be by range");
+      "A boolean VectorHasher should always be by range");
   multiplier_ = multiplier;
   rangeSize_ = addIdReserve(uniqueValues_.size(), reservePct) + 1;
   isRange_ = false;

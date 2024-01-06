@@ -125,7 +125,7 @@ void FlatVector<StringView>::set(vector_size_t idx, StringView value) {
 /// buffers and avoid copying.
 template <>
 void FlatVector<StringView>::setNoCopy(
-    const vector_size_t idx,
+    vector_size_t idx,
     const StringView& value) {
   VELOX_DCHECK_LT(idx, BaseVector::length_);
   ensureValues();
@@ -150,7 +150,7 @@ void FlatVector<StringView>::acquireSharedStringBuffers(
   switch (source->encoding()) {
     case VectorEncoding::Simple::FLAT: {
       auto* flat = source->asUnchecked<FlatVector<StringView>>();
-      for (auto& buffer : flat->stringBuffers_) {
+      for (const auto& buffer : flat->stringBuffers_) {
         addStringBuffer(buffer);
       }
       break;
@@ -271,7 +271,7 @@ void FlatVector<StringView>::copy(
     return;
   }
 
-  auto leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
+  auto* leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
 
   if (pool_ == leaf->pool()) {
     // We copy referencing the storage of 'source'.

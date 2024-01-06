@@ -724,11 +724,10 @@ void HashTable<ignoreNullKeys>::allocateTables(
   // The total size is 8 bytes per slot, in groups of 16 slots with 16 bytes of
   // tags and 16 * 6 bytes of pointers and a padding of 16 bytes to round up the
   // cache line.
-  const auto numPages =
-      memory::AllocationTraits::numPages(size * tableSlotSize());
+  const auto numPages = memory::AllocationTraits::numPages(byteSize);
   rows_->pool()->allocateContiguous(numPages, tableAllocation_);
   table_ = tableAllocation_.data<char*>();
-  ::memset(table_, 0, capacity_ * sizeof(char*));
+  ::memset(table_, 0, byteSize);
 }
 
 template <bool ignoreNullKeys>

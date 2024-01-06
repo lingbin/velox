@@ -34,7 +34,7 @@ namespace facebook::velox {
 template <typename T>
 class FlatVector final : public SimpleVector<T> {
  public:
-  using value_type = T;
+  // using value_type = T;
   FlatVector(const FlatVector&) = delete;
   FlatVector& operator=(const FlatVector&) = delete;
 
@@ -85,7 +85,7 @@ class FlatVector final : public SimpleVector<T> {
     VELOX_CHECK(
         values_ || BaseVector::nulls_,
         "FlatVector needs to either have values or nulls");
-    if (!values_) {
+    if (values_ == nullptr) {
       // Make sure that all rows are null.
       auto cnt =
           bits::countNonNulls(BaseVector::rawNulls_, 0, BaseVector::length_);
@@ -125,9 +125,9 @@ class FlatVector final : public SimpleVector<T> {
   /// Note this method is implemented on each vector type, but is intentionally
   /// not virtual for performance reasons.
   /// 'index' indicates the byte offset to load from
-  xsimd::batch<T> loadSIMDValueBufferAt(size_t index) const;
+  xsimd::batch<T> loadSIMDValueBufferAt(size_t byteOffset) const;
 
-  /// dictionary vector makes internal usehere for SIMD functions
+  /// dictionary vector makes internal use here for SIMD functions
   template <typename X>
   friend class DictionaryVector;
 
@@ -147,9 +147,8 @@ class FlatVector final : public SimpleVector<T> {
   /// the new size > old size.
   ///
   /// If 'values_' is nullptr, read-only, not uniquely-referenced, or doesn't
-  /// have capacity for 'size' elements allocates new buffer and copies data to
-  /// it. Updates 'rawValues_' to point to element 0 of
-  /// values_->as<T>().
+  /// have capacity for 'size' elements, allocates new buffer and copies data to
+  /// it. Updates 'rawValues_' to point to element 0 of values_->as<T>().
   BufferPtr mutableValues(vector_size_t size) {
     const auto numNewBytes = BaseVector::byteSize<T>(size);
     if (values_ && !values_->isView() && values_->unique()) {
@@ -242,7 +241,7 @@ class FlatVector final : public SimpleVector<T> {
     }
   }
 
-  void setNoCopy(const vector_size_t /* unused */, const T& /* unused */) {
+  void setNoCopy(vector_size_t /* unused */, const T& /* unused */) {
     VELOX_UNREACHABLE();
   }
 
@@ -467,12 +466,14 @@ class FlatVector final : public SimpleVector<T> {
     return true;
   }
 
-  /// Acquire ownership for any string buffer that appears in source, the
+  /// This API is available only for string vectors (T = StringView).
+  /// Acquire ownership for any string buffer that appears in 'source', the
   /// function does nothing if the vector type is not Varchar or Varbinary.
   /// The function throws if input encoding is lazy.
   void acquireSharedStringBuffers(const BaseVector* source);
 
-  /// Acquire ownership for any string buffer that appears in source or any
+  /// This API is available only for string vectors (T = StringView).
+  /// Acquire ownership for any string buffer that appears in 'source' or any
   /// of its children recursively. The function throws if input encoding is
   /// lazy.
   void acquireSharedStringBuffersRecursive(const BaseVector* source);
@@ -481,13 +482,14 @@ class FlatVector final : public SimpleVector<T> {
   /// Prefer getRawStringBufferWithSpace(bytes) API as it is easier to use
   /// safely.
   ///
-  /// Returns a string buffer with enough capacity to fit 'size' more bytes.
-  /// This could be an existing or newly allocated buffer. The caller must not
-  /// assume that the buffer is empty and must use Buffer::size() API to find
-  /// the start of the writable memory. The caller must also call
-  /// Buffer::setSize(n) to update the size of the buffer to include newly
-  /// written content ('n' cannot exceed 'size', but can be less than 'size').
-  /// The caller must ensure not to write more then 'size' bytes.
+  /// Returns a string buffer that's singly-referenced (not shared) and have
+  /// enough unused capacity to fit 'size' more bytes. This could be an existing
+  /// or newly allocated buffer. The caller must not assume that the buffer is
+  /// empty and must use Buffer::size() API to find the start of the writable
+  /// memory. The caller must also call Buffer::setSize(n) to update the size of
+  /// the buffer to include newly written content ('n' cannot exceed 'size', but
+  /// can be less than 'size'). The caller must ensure not to write more than
+  /// 'size' bytes.
   ///
   /// If allocates new buffer and 'exactSize' is true, allocates 'size' bytes.
   /// Otherwise, allocates at least kInitialStringSize bytes.
@@ -497,13 +499,12 @@ class FlatVector final : public SimpleVector<T> {
 
   /// This API is available only for string vectors (T = StringView).
   ///
-  /// Finds an existing string buffer that's singly-referenced (not shared)
-  /// and have enough unused capacity to fit 'size' bytes. If found, resizes
-  /// the buffer to add 'size' bytes and returns a pointer to the start of
-  /// writable memory. If not found, allocates new buffer, adds it to
-  /// 'stringBuffers', sets buffer size to 'size' and returns a pointer to the
-  /// start of writable memory. The caller must ensure not to write more then
-  /// 'size' bytes.
+  /// Finds an existing string buffer that's singly-referenced (not shared) and
+  /// have enough unused capacity to fit 'size' bytes. If found, resizes the
+  /// buffer to add 'size' bytes and returns a pointer to the start of writable
+  /// memory. If not found, allocates new buffer, adds it to 'stringBuffers',
+  /// sets buffer size to 'size' and returns a pointer to the start of writable
+  /// memory. The caller must ensure not to write more than 'size' bytes.
   ///
   /// If allocates new buffer and 'exactSize' is true, allocates 'size' bytes.
   /// Otherwise, allocates at least kInitialStringSize bytes.
@@ -517,7 +518,7 @@ class FlatVector final : public SimpleVector<T> {
     return this->isNullsWritable() && (!values_ || values_->isMutable());
   }
 
-  /// Calls BaseVector::prapareForReuse() to check and reset nulls buffer if
+  /// Calls BaseVector::prepareForReuse() to check and reset nulls buffer if
   /// needed, checks and resets values buffer. Resets all strings buffers
   /// except the first one. Keeps the first string buffer if singly-referenced
   /// and mutable. Resizes the buffer to zero to allow for reuse instead of
@@ -608,15 +609,15 @@ template <>
 Range<bool> FlatVector<bool>::asRange() const;
 
 template <>
+void FlatVector<bool>::set(vector_size_t idx, bool value);
+
+template <>
 void FlatVector<StringView>::set(vector_size_t idx, StringView value);
 
 template <>
 void FlatVector<StringView>::setNoCopy(
-    const vector_size_t idx,
+    vector_size_t idx,
     const StringView& value);
-
-template <>
-void FlatVector<bool>::set(vector_size_t idx, bool value);
 
 template <>
 void FlatVector<StringView>::copy(

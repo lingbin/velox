@@ -85,7 +85,7 @@ inline std::string statTypeString(StatType stat) {
 /// different implementations.
 class BaseStatsReporter {
  public:
-  virtual ~BaseStatsReporter() {}
+  virtual ~BaseStatsReporter() = default;
 
   /// Register a stat of the given stat type.
   /// @param key The key to identify the stat.

@@ -15,6 +15,8 @@
  */
 #include "velox/exec/ExchangeQueue.h"
 
+#include <utility>
+
 namespace facebook::velox::exec {
 
 SerializedPage::SerializedPage(
@@ -24,7 +26,7 @@ SerializedPage::SerializedPage(
     : iobuf_(std::move(iobuf)),
       iobufBytes_(chainBytes(*iobuf_.get())),
       numRows_(numRows),
-      onDestructionCb_(onDestructionCb) {
+      onDestructionCb_(std::move(onDestructionCb)) {
   VELOX_CHECK_NOT_NULL(iobuf_);
   for (auto& buf : *iobuf_) {
     int32_t bufSize = buf.size();
@@ -37,7 +39,7 @@ SerializedPage::SerializedPage(
 
 SerializedPage::~SerializedPage() {
   if (onDestructionCb_) {
-    onDestructionCb_(*iobuf_.get());
+    onDestructionCb_(*iobuf_);
   }
 }
 
@@ -140,8 +142,8 @@ void ExchangeQueue::setError(const std::string& error) {
     }
     error_ = error;
     atEnd_ = true;
-    // NOTE: clear the serialized page queue as we won't consume from an
-    // errored queue.
+    // NOTE: clear the serialized page queue as we won't consume from an errored
+    // queue.
     queue_.clear();
     promises = clearAllPromisesLocked();
   }

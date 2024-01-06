@@ -112,11 +112,11 @@ class LocalFileSystem : public FileSystem {
   }
 
   void remove(std::string_view path) override {
-    auto file = extractPath(path);
-    int32_t rc = std::remove(std::string(file).c_str());
-    if (rc < 0 && std::filesystem::exists(file)) {
+    auto filePath = extractPath(path);
+    int32_t rc = std::remove(std::string(filePath).c_str());
+    if (rc < 0 && std::filesystem::exists(filePath)) {
       VELOX_USER_FAIL(
-          "Failed to delete file {} with errno {}", file, strerror(errno));
+          "Failed to delete file {} with errno {}", filePath, strerror(errno));
     }
     VLOG(1) << "LocalFileSystem::remove " << path;
   }
@@ -129,14 +129,14 @@ class LocalFileSystem : public FileSystem {
     auto newFile = extractPath(newPath);
     if (!overwrite && exists(newPath)) {
       VELOX_USER_FAIL(
-          "Failed to rename file {} to {} with as {} exists.",
+          "Failed to rename file {} to {} as {} exists.",
           oldFile,
           newFile,
           newFile);
       return;
     }
     int32_t rc =
-        ::rename(std::string(oldFile).c_str(), std::string(newFile).c_str());
+        std::rename(std::string(oldFile).c_str(), std::string(newFile).c_str());
     if (rc != 0) {
       VELOX_USER_FAIL(
           "Failed to rename file {} to {} with errno {}",

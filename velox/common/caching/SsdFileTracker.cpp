@@ -67,6 +67,7 @@ std::vector<int32_t> SsdFileTracker::findEvictionCandidates(
         return regionScores_[left] < regionScores_[right];
       });
   candidates.resize(std::min<int32_t>(candidates.size(), numCandidates));
+  candidates.shrink_to_fit();
   return candidates;
 }
 
