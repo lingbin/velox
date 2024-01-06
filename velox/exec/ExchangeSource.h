@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <utility>
+
 #include "velox/common/base/RuntimeMetrics.h"
 #include "velox/exec/ExchangeQueue.h"
 
@@ -86,7 +88,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
       std::chrono::microseconds maxWait) = 0;
 
   /// Ask for available data sizes that can be fetched.  Normally should not
-  /// fetching any actual data (i.e. Response::bytes should be 0).  However for
+  /// fetch any actual data (i.e. Response::bytes should be 0).  However, for
   /// backward compatibility (e.g. communicating with coordinator), we allow
   /// small data (1MB) to be returned.
   virtual folly::SemiFuture<Response> requestDataSizes(
@@ -111,10 +113,9 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
     VELOX_UNREACHABLE();
   }
 
-  /// Returns runtime statistics. ExchangeSource is expected to report
-  /// Specify units of individual counters in ExchangeSource.
-  /// for an example: 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB,
-  /// min:  1.16GB'
+  /// Returns runtime statistics. ExchangeSource is expected to report specific
+  /// units of individual counters in ExchangeSource. For example:
+  /// 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB, min:  1.16GB'
   virtual folly::F14FastMap<std::string, RuntimeMetric> metrics() const {
     VELOX_NYI();
   }
@@ -165,7 +166,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   // to be accessed by external components after the query task is destroyed.
   // For instance, in Prestissimo, there might be a pending http request issued
   // by PrestoExchangeSource to fetch data from the remote task. When the http
-  // response returns back, the task might have already terminated and deleted
+  // response returns back, the task might have already terminated and deleted,
   // so we need to hold an additional shared reference on the memory pool to
   // keeps it alive.
   const std::shared_ptr<memory::MemoryPool> pool_;

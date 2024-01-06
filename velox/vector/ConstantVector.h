@@ -85,7 +85,7 @@ class ConstantVector final : public SimpleVector<T> {
       }
     }
 #ifdef VELOX_ENABLE_LOAD_SIMD_VALUE_BUFFER
-    // If this is not encoded integer, or string, set value buffer
+    // If this is not encoded integer, or string, set value buffer.
     if constexpr (can_simd) {
       valueBuffer_ = simd::setAll(value_);
     }
@@ -161,12 +161,12 @@ class ConstantVector final : public SimpleVector<T> {
     VELOX_FAIL("setNull not supported on ConstantVector");
   }
 
-  const T value() const {
+  T value() const {
     VELOX_DCHECK(initialized_);
     return value_;
   }
 
-  const T valueAtFast(vector_size_t /*idx*/) const {
+  T valueAtFast(vector_size_t /*idx*/) const {
     return value();
   }
 
@@ -192,7 +192,7 @@ class ConstantVector final : public SimpleVector<T> {
   }
 
 #ifdef VELOX_ENABLE_LOAD_SIMD_VALUE_BUFFER
-  /// Loads a 256bit vector of data at the virtual byteOffset given
+  /// Loads a 256bit vector of data at the virtual byteOffset given.
   /// Note this method is implemented on each vector type, but is intentionally
   /// not virtual for performance reasons
   xsimd::batch<T> loadSIMDValueBufferAt(size_t /* byteOffset */) const {
@@ -236,7 +236,7 @@ class ConstantVector final : public SimpleVector<T> {
   const BufferPtr& wrapInfo() const override {
     static const DummyReleaser kDummy;
     auto* wrapInfo = wrapInfo_.load();
-    if (FOLLY_UNLIKELY(!wrapInfo)) {
+    if (FOLLY_UNLIKELY(wrapInfo == nullptr)) {
       wrapInfo = new BufferPtr(
           BufferView<DummyReleaser>::create(
               reinterpret_cast<const uint8_t*>(&index_),
@@ -428,7 +428,7 @@ class ConstantVector final : public SimpleVector<T> {
       // Do not load Lazy vector
       return;
     }
-    // Ensure any internal state in valueVector_ is initialized, and it points
+    // Ensure any internal state in 'valueVector_' is initialized, and it points
     // to the loaded vector underneath any lazy layers.
     valueVector_ = BaseVector::loadedVectorShared(valueVector_);
 
@@ -436,8 +436,9 @@ class ConstantVector final : public SimpleVector<T> {
     BaseVector::distinctValueCount_ = isNull_ ? 0 : 1;
     const vector_size_t vectorSize = BaseVector::length_;
     BaseVector::nullCount_ = isNull_ ? vectorSize : 0;
+
     if (valueVector_->isScalar()) {
-      auto simple = valueVector_->loadedVector()->as<SimpleVector<T>>();
+      const auto* simple = valueVector_->loadedVector()->as<SimpleVector<T>>();
       isNull_ = simple->isNullAt(index_);
       if (!isNull_) {
         value_ = simple->valueAt(index_);
@@ -446,7 +447,8 @@ class ConstantVector final : public SimpleVector<T> {
           StringView* valuePtr = reinterpret_cast<StringView*>(&value_);
           setValue(std::string(valuePtr->data(), valuePtr->size()));
 
-          auto stringVector = simple->template as<SimpleVector<StringView>>();
+          const auto* stringVector =
+              simple->template as<SimpleVector<StringView>>();
           if (auto ascii = stringVector->isAscii(index_)) {
             SimpleVector<T>::setAllIsAscii(ascii.value());
           }
@@ -454,6 +456,7 @@ class ConstantVector final : public SimpleVector<T> {
       }
       valueVector_ = nullptr;
     }
+
     makeNullsBuffer();
     initialized_ = true;
   }
@@ -494,7 +497,7 @@ class ConstantVector final : public SimpleVector<T> {
   // value. 'valueVector_' is nullptr if the constant is scalar.
   VectorPtr valueVector_;
   // The index of the represented value in 'valueVector_'.
-  vector_size_t index_ = 0;
+  const vector_size_t index_ = 0;
   // Holds the memory for backing non-inlined values represented by StringView.
   BufferPtr stringBuffer_;
   T value_;

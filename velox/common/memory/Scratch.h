@@ -64,7 +64,7 @@ class Scratch {
     retainedSize_ = 0;
   }
 
-  size_t retainedSize() {
+  size_t retainedSize() const {
     return retainedSize_;
   }
 
@@ -80,7 +80,7 @@ class Scratch {
     folly::assume(capacity_ >= 0);
     if (newCapacity > capacity_) {
       auto* newItems =
-          reinterpret_cast<uint8_t*>(::malloc(sizeof(Item) * newCapacity));
+          static_cast<uint8_t*>(::malloc(sizeof(Item) * newCapacity));
       if (fill_ > 0) {
         ::memcpy(newItems, items_, fill_ * sizeof(Item));
       }
@@ -116,7 +116,7 @@ class ScratchPtr {
   ScratchPtr(const ScratchPtr& other) = delete;
   ScratchPtr(ScratchPtr&& other) = delete;
 
-  inline ~ScratchPtr() {
+  ~ScratchPtr() {
     if (data_.data() != nullptr) {
       scratch_->release(std::move(data_));
     }

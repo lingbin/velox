@@ -44,7 +44,7 @@ std::unique_ptr<Subfield::PathElement> Tokenizer::next() {
   return std::move(next_);
 }
 
-bool Tokenizer::hasNextCharacter() {
+bool Tokenizer::hasNextCharacter() const {
   return index_ < path_.length();
 }
 
@@ -62,12 +62,9 @@ std::unique_ptr<Subfield::PathElement> Tokenizer::computeNext() {
 
   if (tryMatchSeparator(separators_->openBracket)) {
     // These empty comments only needs to make clang-format happy.
-    auto token = //
-        tryMatchSeparator(separators_->quote) //
-        ? matchQuotedSubscript()
-        : tryMatchSeparator(separators_->wildCard) //
-            ? matchWildcardSubscript()
-            : matchUnquotedSubscript();
+    auto token = tryMatchSeparator(separators_->quote) ? matchQuotedSubscript()
+        : tryMatchSeparator(separators_->wildCard) ? matchWildcardSubscript()
+                                                   : matchUnquotedSubscript();
 
     match(separators_->closeBracket);
     firstSegment_ = false;
@@ -105,22 +102,22 @@ void Tokenizer::nextCharacter() {
   index_++;
 }
 
-char Tokenizer::peekCharacter() {
+char Tokenizer::peekCharacter() const {
   return path_[index_];
 }
 
 std::unique_ptr<Subfield::PathElement> Tokenizer::matchPathSegment() {
-  // seek until we see a special character or whitespace
-  int start = index_;
+  // Seek until we see a special character or whitespace.
+  const int32_t start = index_;
   while (hasNextCharacter() && !separators_->isSeparator(peekCharacter()) &&
          isUnquotedPathCharacter(peekCharacter())) {
     nextCharacter();
   }
-  int end = index_;
+  const int32_t end = index_;
 
   std::string token = path_.substr(start, end - start);
 
-  // an empty unquoted token is not allowed
+  // An empty unquoted token is not allowed.
   if (token.empty()) {
     invalidSubfieldPath();
   }
@@ -129,16 +126,16 @@ std::unique_ptr<Subfield::PathElement> Tokenizer::matchPathSegment() {
 }
 
 std::unique_ptr<Subfield::PathElement> Tokenizer::matchUnquotedSubscript() {
-  // seek until we see a special character or whitespace
+  // Seek until we see a special character.
   int start = index_;
   while (hasNextCharacter() && isUnquotedSubscriptCharacter(peekCharacter())) {
     nextCharacter();
   }
   int end = index_;
 
-  std::string token = path_.substr(start, end);
+  const std::string token = path_.substr(start, end - start);
 
-  // an empty unquoted token is not allowed
+  // An empty unquoted token is not allowed.
   if (token.empty()) {
     invalidSubfieldPath();
   }
@@ -146,7 +143,7 @@ std::unique_ptr<Subfield::PathElement> Tokenizer::matchUnquotedSubscript() {
   try {
     index = std::stol(token);
   } catch (...) {
-    VELOX_FAIL("Invalid index {}", token);
+    VELOX_FAIL("Invalid subscript index: {}", token);
   }
   return std::make_unique<Subfield::LongSubscript>(index);
 }
@@ -161,9 +158,9 @@ bool Tokenizer::isUnquotedSubscriptCharacter(char c) {
 }
 
 std::unique_ptr<Subfield::PathElement> Tokenizer::matchQuotedSubscript() {
-  // quote has already been matched
+  // Open quote has already been matched.
 
-  // seek until we see the close quote
+  // Seek until we see the close quote.
   std::string token;
   bool escaped = false;
 

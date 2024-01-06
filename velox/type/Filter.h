@@ -300,7 +300,6 @@ class Filter : public velox::ISerializable {
 
   folly::dynamic serializeBase() const;
 
- protected:
   const bool nullAllowed_;
 
  private:

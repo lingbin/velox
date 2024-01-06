@@ -105,7 +105,7 @@ HiveDataSource::HiveDataSource(
       hiveTableHandle_, "TableHandle must be an instance of HiveTableHandle");
 
   folly::F14FastMap<std::string_view, const HiveColumnHandle*> columnHandles;
-  // Column handled keyed on the column alias, the name used in the query.
+  // Column handles keyed on the column alias, the name used in the query.
   for (const auto& [canonicalizedName, columnHandle] : assignments) {
     auto handle =
         std::dynamic_pointer_cast<const HiveColumnHandle>(columnHandle);
@@ -341,7 +341,7 @@ void HiveDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
 
   VLOG(1) << "Adding split " << split_->toString();
 
-  if (splitReader_) {
+  if (splitReader_ != nullptr) {
     splitReader_.reset();
   }
 
@@ -357,8 +357,8 @@ void HiveDataSource::addSplit(std::shared_ptr<ConnectorSplit> split) {
   if (!bucketChannels.empty()) {
     splitReader_->setBucketConversion(std::move(bucketChannels));
   }
-  // Split reader subclasses may need to use the reader options in prepareSplit
-  // so we initialize it beforehand.
+  // Split reader subclasses may need to use the reader options in
+  // 'prepareSplit()' so we initialize it beforehand.
   splitReader_->configureReaderOptions(randomSkip_);
   splitReader_->prepareSplit(metadataFilter_, runtimeStats_);
   readerOutputType_ = splitReader_->readerOutputType();
@@ -383,7 +383,7 @@ std::optional<RowVectorPtr> HiveDataSource::next(
     return output_->asUnchecked<RowVector>()->childrenSize() <
         readerOutputType_->size();
   };
-  if (!output_ || needsExtraColumn()) {
+  if (output_ == nullptr || needsExtraColumn()) {
     output_ = BaseVector::create(readerOutputType_, 0, pool_);
   }
 
@@ -399,7 +399,7 @@ std::optional<RowVectorPtr> HiveDataSource::next(
       !output_->mayHaveNulls(), "Top-level row vector cannot have nulls");
   auto rowsRemaining = output_->size();
   if (rowsRemaining == 0) {
-    // no rows passed the pushed down filters.
+    // No rows passed the pushed down filters.
     return getEmptyOutput();
   }
 

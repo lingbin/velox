@@ -25,6 +25,7 @@ int128_t HugeInt::parse(const std::string& str) {
 
   VELOX_CHECK(!str.empty(), "Empty string cannot be converted to int128_t.");
 
+  // Skip leading spaces.
   for (; idx < str.length() && str.at(idx) == ' '; ++idx) {
   }
 
@@ -35,8 +36,8 @@ int128_t HugeInt::parse(const std::string& str) {
     negative = true;
   }
 
-  int128_t max = std::numeric_limits<int128_t>::max();
-  int128_t min = std::numeric_limits<int128_t>::min();
+  constexpr int128_t kMax = std::numeric_limits<int128_t>::max();
+  constexpr int128_t kMin = std::numeric_limits<int128_t>::min();
   for (; idx < str.size(); ++idx) {
     VELOX_CHECK(
         std::isdigit(str[idx]),
@@ -48,23 +49,23 @@ int128_t HugeInt::parse(const std::string& str) {
     // min or max value of int128_t to avoid the potential overflow issue making
     // it more robust.
     int128_t cur = str[idx] - '0';
-    if ((result > max / 10)) {
+    if (result > kMax / 10) {
       VELOX_FAIL(fmt::format("{} is out of range of int128_t", str));
     }
 
-    int128_t num = cur - (max % 10);
-    if (result == (max / 10)) {
+    int128_t num = cur - (kMax % 10);
+    if (result == kMax / 10) {
       if (negative) {
         if (num > 1) {
           VELOX_FAIL(fmt::format("{} is out of range of int128_t", str));
         } else if (num == 1) {
-          return min;
+          return kMin;
         }
       } else {
         if (num > 0) {
           VELOX_FAIL(fmt::format("{} is out of range of int128_t", str));
         } else if (num == 0) {
-          return max;
+          return kMax;
         }
       }
     }
