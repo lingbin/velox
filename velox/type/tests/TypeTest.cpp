@@ -256,6 +256,11 @@ TEST(TypeTest, shortDecimal) {
   VELOX_ASSERT_THROW(
       DECIMAL(0, 0), "Precision of decimal type must be at least 1");
 
+  VELOX_ASSERT_THROW(
+      DECIMAL(19, 5), "Precision of decimal type must not exceed 18");
+  VELOX_ASSERT_THROW(
+      DECIMAL(10, 11), "Scale of decimal type must not exceed its precision");
+
   EXPECT_STREQ(shortDecimal->name(), "DECIMAL");
   ASSERT_EQ(shortDecimal->parameters().size(), 2);
   ASSERT_TRUE(
@@ -361,15 +366,15 @@ TEST(TypeTest, parseStringToDate) {
 
 TEST(TypeTest, dateFormat) {
   auto parseDate = [](const std::string& dateStr) {
-    return DATE()->toString(DATE()->toDays(dateStr));
+    return DATE()->toDays(dateStr);
   };
 
-  EXPECT_EQ(fmt::format("{}", parseDate("2015-12-24")), "2015-12-24");
-  EXPECT_EQ(fmt::format("{}", parseDate("1970-01-01")), "1970-01-01");
-  EXPECT_EQ(fmt::format("{}", parseDate("2000-03-10")), "2000-03-10");
-  EXPECT_EQ(fmt::format("{}", parseDate("1945-05-20")), "1945-05-20");
-  EXPECT_EQ(fmt::format("{}", parseDate("2135-11-09")), "2135-11-09");
-  EXPECT_EQ(fmt::format("{}", parseDate("1812-04-15")), "1812-04-15");
+  EXPECT_EQ(DATE()->toString(parseDate("2015-12-24")), "2015-12-24");
+  EXPECT_EQ(DATE()->toString(parseDate("1970-01-01")), "1970-01-01");
+  EXPECT_EQ(DATE()->toString(parseDate("2000-03-10")), "2000-03-10");
+  EXPECT_EQ(DATE()->toString(parseDate("1945-05-20")), "1945-05-20");
+  EXPECT_EQ(DATE()->toString(parseDate("2135-11-09")), "2135-11-09");
+  EXPECT_EQ(DATE()->toString(parseDate("1812-04-15")), "1812-04-15");
 }
 
 TEST(TypeTest, map) {
@@ -765,7 +770,7 @@ TEST(TypeTest, equality) {
   EXPECT_FALSE(*MAP(REAL(), INTEGER()) == *MAP(REAL(), BIGINT()));
   EXPECT_FALSE(*MAP(REAL(), INTEGER()) == *MAP(BIGINT(), INTEGER()));
 
-  // arr
+  // array
   EXPECT_TRUE(*ARRAY(INTEGER()) == *ARRAY(INTEGER()));
   EXPECT_FALSE(*ARRAY(INTEGER()) == *ARRAY(REAL()));
   EXPECT_FALSE(*ARRAY(INTEGER()) == *ARRAY(ARRAY(INTEGER())));
@@ -820,7 +825,6 @@ TEST(TypeTest, cpp2Type) {
 TEST(TypeTest, equivalent) {
   EXPECT_TRUE(ROW({{"a", BIGINT()}})->equivalent(*ROW({{"b", BIGINT()}})));
   EXPECT_FALSE(ROW({{"a", BIGINT()}})->equivalent(*ROW({{"a", INTEGER()}})));
-  EXPECT_TRUE(ROW({{"a", BIGINT()}})->equivalent(*ROW({{"b", BIGINT()}})));
   EXPECT_TRUE(MAP(BIGINT(), BIGINT())->equivalent(*MAP(BIGINT(), BIGINT())));
   EXPECT_FALSE(
       MAP(BIGINT(), BIGINT())->equivalent(*MAP(BIGINT(), ARRAY(BIGINT()))));
@@ -953,7 +957,7 @@ TEST(TypeTest, follySformat) {
   EXPECT_EQ(
       "MAP<VARCHAR,BIGINT>", folly::sformat("{}", MAP(VARCHAR(), BIGINT())));
   EXPECT_EQ(
-      "ROW<\"\":BOOLEAN,\"\":VARCHAR,\"\":BIGINT>",
+      R"(ROW<"":BOOLEAN,"":VARCHAR,"":BIGINT>)",
       folly::sformat("{}", ROW({BOOLEAN(), VARCHAR(), BIGINT()})));
   EXPECT_EQ(
       "ROW<a:BOOLEAN,b:VARCHAR,c:BIGINT>",
@@ -969,6 +973,11 @@ TEST(TypeTest, unknownArray) {
   testTypeSerde(unknownArray);
 
   ASSERT_EQ(0, unknownArray->elementType()->cppSizeInBytes());
+}
+
+TEST(TypeTest, xxx) {
+  TypePtr type = UNKNOWN();
+  EXPECT_EQ(type->cppSizeInBytes(), 0);
 }
 
 TEST(TypeTest, isVariadicType) {

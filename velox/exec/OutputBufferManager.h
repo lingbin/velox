@@ -127,7 +127,7 @@ class OutputBufferManager {
   std::optional<OutputBuffer::Stats> stats(const std::string& taskId);
 
   // Retrieves the set of buffers for a query if exists.
-  // Returns NULL if task not found.
+  // Returns nullptr if task not found.
   std::shared_ptr<OutputBuffer> getBufferIfExists(const std::string& taskId);
 
  private:

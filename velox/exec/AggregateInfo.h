@@ -38,7 +38,7 @@ struct AggregateInfo {
   std::optional<column_index_t> mask;
 
   /// Optional list of input columns that should be used to sort input rows
-  /// before aggregating. Thes column may or may not overlap with 'inputs'.
+  /// before aggregating. These columns may or may not overlap with 'inputs'.
   std::vector<column_index_t> sortingKeys;
 
   /// Optional list of sorting orders that goes with 'sortingKeys'.
@@ -82,7 +82,7 @@ std::vector<AggregateInfo> toAggregateInfo(
     bool isStreaming = false);
 
 /// Extract index of the 'mask' column for each aggregation from aggregations.
-/// Aggregations without masks use std::nullopt.
+/// Aggregations without masks use 'std::nullopt'.
 std::vector<std::optional<column_index_t>> extractMaskChannels(
     const std::vector<AggregateInfo>& aggregates);
 
