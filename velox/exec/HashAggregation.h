@@ -99,7 +99,7 @@ class HashAggregation : public Operator {
   // set.
   // For 'groupingKeyInputChannels', the index is the key column index from
   // the grouping set, and the value is the key column channel from the input.
-  // For 'outputChannelProjections', the index is the key column channel from
+  // For 'groupingKeyOutputChannels', the index is the key column channel from
   // the output, and the value is the key column index from the grouping set.
   void setupGroupingKeyChannelProjections(
       std::vector<column_index_t>& groupingKeyInputChannels,

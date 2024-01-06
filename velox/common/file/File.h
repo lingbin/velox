@@ -123,7 +123,8 @@ class ReadFile {
   // buffer with nullptr data will cause its size worth of bytes to be skipped.
   // This method should be thread safe.
   virtual uint64_t preadv(
-      uint64_t /*offset*/,
+      uint64_t offset,
+      const std::vector<folly::Range<char*>>& buffers,
       const std::vector<folly::Range<char*>>& /*buffers*/,
       const FileIoContext& context = {}) const;
 
@@ -230,11 +231,8 @@ class WriteFile {
   ///
   /// NOTE: this is only supported on local file system and used by SSD cache
   /// for now. For filesystem like S3, it is not supported.
-  virtual void write(
-      const std::vector<iovec>& /* iovecs */,
-      int64_t /* offset */,
-      int64_t /* length */
-  ) {
+  virtual void
+  write(const std::vector<iovec>& iovecs, int64_t offset, int64_t length) {
     VELOX_NYI("{} is not implemented", __FUNCTION__);
   }
 
@@ -264,9 +262,9 @@ class WriteFile {
   /// Closes the file. Any cleanup (disk flush, etc.) will be done here.
   virtual void close() = 0;
 
-  /// Current file size, i.e. the sum of all previous Appends.  No flush should
-  /// be needed to get the exact size written, and this should be able to be
-  /// called after the file close.
+  /// Current file size, i.e. the sum of all previous 'append()'s.  No flush
+  /// should be needed to get the exact size written, and this should be able to
+  /// be called after the file close.
   virtual uint64_t size() const = 0;
 
   virtual const std::string getName() const {

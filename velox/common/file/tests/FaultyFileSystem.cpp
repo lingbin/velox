@@ -28,8 +28,7 @@ inline std::string faultyPath(const std::string& path) {
 }
 
 std::function<bool(std::string_view)> schemeMatcher() {
-  // Note: presto behavior is to prefix local paths with 'file:'.
-  // Check for that prefix and prune to absolute regular paths as needed.
+  // Check for 'faulty:' prefix and prune to absolute regular paths as needed.
   return [](std::string_view filePath) {
     return filePath.find(FaultyFileSystem::scheme()) == 0;
   };

@@ -25,11 +25,9 @@ namespace facebook::velox::dwio::common {
 
 void printBuffer(std::ostream& out, const char* buffer, uint64_t length);
 
-/**
- * A subclass of Google's ZeroCopyInputStream that supports seek.
- * By extending Google's class, we get the ability to pass it directly
- * to the protobuf readers.
- */
+/// A subclass of Google's ZeroCopyInputStream that supports seek. By extending
+/// Google's class, we get the ability to pass it directly to the protobuf
+/// readers.
 class SeekableInputStream : public google::protobuf::io::ZeroCopyInputStream {
  public:
   ~SeekableInputStream() override = default;
@@ -51,35 +49,34 @@ class SeekableInputStream : public google::protobuf::io::ZeroCopyInputStream {
   void readFully(char* buffer, size_t bufferSize);
 };
 
-/**
- * Create a seekable input stream based on a memory range.
- */
+/// Create a seekable input stream based on a memory range.
 class SeekableArrayInputStream : public SeekableInputStream {
  public:
   SeekableArrayInputStream(
-      const unsigned char* list,
+      const unsigned char* data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
   SeekableArrayInputStream(
-      const char* list,
+      const char* data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
   // Same as above, but takes ownership of the underlying data.
   SeekableArrayInputStream(
-      std::unique_ptr<char[]> list,
+      std::unique_ptr<char[]> data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
 
   explicit SeekableArrayInputStream(
       std::function<std::tuple<const char*, uint64_t>()> dataRead,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
 
   ~SeekableArrayInputStream() override = default;
 
-  virtual bool Next(const void** data, int32_t* size) override;
+  virtual bool Next(const void** buffer, int32_t* size) override;
   virtual void BackUp(int32_t count) override;
   virtual bool SkipInt64(int64_t count) override;
   virtual int64_t ByteCount() const override;
+
   virtual void seekToPosition(PositionProvider& position) override;
   virtual std::string getName() const override;
   virtual size_t positionSize() const override;
@@ -93,25 +90,24 @@ class SeekableArrayInputStream : public SeekableInputStream {
  private:
   void loadIfAvailable();
 
-  // data may optionally be owned by *this via ownedData.
+  // 'data_' may optionally be owned by *this via ownedData_.
   const std::unique_ptr<char[]> ownedData_;
   const char* data_;
   std::function<std::tuple<const char*, uint64_t>()> dataRead_;
   uint64_t length_;
-  uint64_t position_;
+  uint64_t position_{0};
   uint64_t blockSize_;
-  int64_t totalRead_ = 0;
+
+  int64_t totalRead_{0};
 };
 
-/**
- * Create a seekable input stream based on an io stream.
- */
+/// Create a seekable input stream based on an io stream.
 class SeekableFileInputStream : public SeekableInputStream {
  public:
   SeekableFileInputStream(
       std::shared_ptr<ReadFileInputStream> input,
       uint64_t offset,
-      uint64_t byteCount,
+      uint64_t length,
       memory::MemoryPool& pool,
       LogType logType,
       uint64_t blockSize = 0);
@@ -121,6 +117,7 @@ class SeekableFileInputStream : public SeekableInputStream {
   virtual void BackUp(int32_t count) override;
   virtual bool SkipInt64(int64_t count) override;
   virtual int64_t ByteCount() const override;
+
   virtual void seekToPosition(PositionProvider& position) override;
   virtual std::string getName() const override;
   virtual size_t positionSize() const override;
@@ -133,8 +130,8 @@ class SeekableFileInputStream : public SeekableInputStream {
   const uint64_t blockSize_;
 
   DataBuffer<char> buffer_;
-  uint64_t position_;
-  uint64_t pushback_;
+  uint64_t position_{0};
+  uint64_t pushback_{0};
 };
 
 } // namespace facebook::velox::dwio::common

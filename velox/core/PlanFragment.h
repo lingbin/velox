@@ -19,7 +19,6 @@
 #include <optional>
 #include <string_view>
 #include <unordered_set>
-#include <vector>
 #include "velox/core/PlanNode.h"
 
 namespace facebook::velox::core {

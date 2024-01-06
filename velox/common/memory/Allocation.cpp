@@ -28,7 +28,7 @@ Allocation::~Allocation() {
     pool_->freeNonContiguous(*this);
   }
   // NOTE: exception throw on object destruction will cause process crash.
-  if ((numPages_ != 0) || !runs_.empty()) {
+  if (numPages_ != 0 || !runs_.empty()) {
     VELOX_FAIL("Bad Allocation state on destruction: {}", toString());
   }
 }
@@ -53,8 +53,7 @@ void Allocation::appendMove(Allocation& other) {
     numPages_ += run.numPages();
     runs_.push_back(std::move(run));
   }
-  other.runs_.clear();
-  other.numPages_ = 0;
+  other.clear();
 }
 
 /*static*/ void
@@ -96,7 +95,7 @@ void Allocation::findRun(uint64_t offset, int32_t* index, int32_t* offsetInRun)
     const {
   uint64_t skipped = 0;
   for (int32_t i = 0; i < runs_.size(); ++i) {
-    uint64_t size = AllocationTraits::pageBytes(runs_[i].numPages());
+    uint64_t size = runs_[i].numBytes();
     if (offset - skipped < size) {
       *index = i;
       *offsetInRun = static_cast<int32_t>(offset - skipped);
@@ -151,9 +150,9 @@ MachinePageCount ContiguousAllocation::numPages() const {
 }
 
 std::optional<folly::Range<char*>> ContiguousAllocation::hugePageRange() const {
-  auto begin = reinterpret_cast<uintptr_t>(data_);
-  auto roundedBegin = bits::roundUp(begin, AllocationTraits::kHugePageSize);
-  auto roundedEnd = (begin + maxSize_) / AllocationTraits::kHugePageSize *
+  const auto begin = reinterpret_cast<uintptr_t>(data_);
+  const auto roundedBegin = bits::roundUp(begin, AllocationTraits::kHugePageSize);
+  const auto roundedEnd = (begin + maxSize_) / AllocationTraits::kHugePageSize *
       AllocationTraits::kHugePageSize;
   if (roundedEnd <= roundedBegin) {
     return std::nullopt;

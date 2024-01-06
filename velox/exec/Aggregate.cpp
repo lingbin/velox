@@ -161,14 +161,8 @@ const AggregateFunctionMetadata& getAggregateFunctionMetadata(
   VELOX_USER_FAIL("Aggregate function not found: {}", name);
 }
 
-std::unordered_map<
-    std::string,
-    std::vector<std::shared_ptr<AggregateFunctionSignature>>>
-getAggregateFunctionSignatures() {
-  std::unordered_map<
-      std::string,
-      std::vector<std::shared_ptr<AggregateFunctionSignature>>>
-      map;
+AggregateFunctionSignatureMap getAggregateFunctionSignatures() {
+  AggregateFunctionSignatureMap map;
   exec::aggregateFunctions().withRLock([&](const auto& aggregateFunctions) {
     for (const auto& aggregateFunction : aggregateFunctions) {
       map[aggregateFunction.first] = aggregateFunction.second.signatures;

@@ -20,8 +20,8 @@
 
 namespace facebook::velox::exec {
 
-// Handle for a set of producers. This may be shared by multiple Exchanges, one
-// per consumer thread.
+/// Handle for a set of producers. This may be shared by multiple Exchanges, one
+/// per consumer thread.
 class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
  public:
   static constexpr int32_t kDefaultMaxQueuedBytes = 32 << 20; // 32 MB.
@@ -51,8 +51,8 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
         // See comment in 'pickSourcesToRequestLocked' for why this is needed
         // for 'minOutputBatchBytes_'. Note: ExchangeQueue does not need max(1,
         // minOutputBatchBytes) because for 'MergeExchangeSource', we want
-        // ExchangeQueue 'minOutputBatchBytes' to be be 0 so that it always
-        // unblocks. In short, 0 has a special meaning for ExchangeQueue
+        // ExchangeQueue 'minOutputBatchBytes' to be 0 so that it always
+        // unblocks. In short, 0 has a special meaning for ExchangeQueue.
         minOutputBatchBytes_(
             std::max(static_cast<uint64_t>(1), minOutputBatchBytes)),
         skipRequestDataSizeWithSingleSource_(
@@ -90,7 +90,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   // Closes exchange sources.
   void close();
 
-  // Returns runtime statistics aggregated across all of the exchange sources.
+  // Returns runtime statistics aggregated across all the exchange sources.
   // ExchangeClient is expected to report background CPU time by including a
   // runtime metric named Operator::kBackgroundCpuTimeNanos.
   folly::F14FastMap<std::string, RuntimeMetric> stats();
@@ -126,7 +126,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   struct RequestSpec {
     std::shared_ptr<ExchangeSource> source;
 
-    // How much bytes to request from this source.  0 bytes means request data
+    // How many bytes to request from this source.  0 bytes means request data
     // sizes only.
     int64_t maxBytes;
   };
@@ -156,6 +156,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   // capacity is unavailable or requests are already pending, returns empty
   // vector.
   std::vector<RequestSpec> pickupSingleSourceToRequestLocked();
+
   void request(std::vector<RequestSpec>&& requestSpecs);
 
   /// Returns true if skip request data size optimization is enabled for single

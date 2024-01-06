@@ -27,7 +27,7 @@ class SkewedPartitionRebalancerTestHelper;
 
 /// This class is used to auto-scale partition processing by assigning more
 /// tasks to busy partition measured by processed data size. This is used by
-/// local partition to scale table writers for now.
+/// LocalPartition to scale table writers for now.
 class SkewedPartitionRebalancer {
  public:
   /// 'numPartitions' is the number of partitions to process. 'numTasks' is

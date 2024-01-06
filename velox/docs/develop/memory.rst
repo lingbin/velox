@@ -736,7 +736,7 @@ chosen *SizeClass* objects based on the allocation plan. The allocation result i
 returned in an *Allocation* object which consists of 4 page runs: two runs from
 *SizeClass/64* (the two allocated class pages are not contiguous in memory), one
 from *SizeClass/16* and one from *SizeClass/4* (the two allocated class pages are
-contiguous in memory).
+not contiguous in memory).
 
 Each *SizeClass* object sets up its own memory space using std::mmap with the
 same size of the system memory limit. The setup memory space doesn’t cause any

@@ -402,12 +402,12 @@ void HashProbe::pushdownDynamicFilters() {
           }
         }
         filter = hasher.getFilter(false);
-        if (!filter) {
+        if (filter == nullptr) {
           filter = hasher.getBloomFilter();
-          if (!filter) {
+          if (filter == nullptr) {
             return false;
           }
-          auto* bloomFilter =
+          const auto* bloomFilter =
               checkedPointerCast<const common::BigintValuesUsingBloomFilter>(
                   filter.get());
           addRuntimeStat(
@@ -420,6 +420,7 @@ void HashProbe::pushdownDynamicFilters() {
         }
         return true;
       });
+
   // The join can be completely replaced with a pushed down filter when the
   // following conditions are met:
   //  * hash table has a single key with unique values,

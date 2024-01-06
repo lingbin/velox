@@ -73,11 +73,11 @@ class InputStream {
   /**
    * Read length bytes from the file starting at offset into
    * the buffer starting at buf.
-   * @param buf the starting position of a buffer.
+   * @param buff the starting position of a buffer.
    * @param length the number of bytes to read.
    * @param offset the position in the stream to read from.
    */
-  virtual void read(void*, uint64_t, uint64_t, LogType) = 0;
+  virtual void read(void* buff, uint64_t length, uint64_t offset, LogType) = 0;
 
   /**
    * Read starting at offset into buffers, filling the buffers left to right. A
@@ -116,7 +116,7 @@ class InputStream {
 
   /**
    * Take advantage of vectorized read API provided by some file system.
-   * Allow file system to do optimzied reading plan to disk to minimize
+   * Allow file system to do optimized reading plan to disk to minimize
    * total bytes transferred through network. Stores the result in an IOBuf
    * range named at `iobufs`, which must have the same size as `regions`.
    */
@@ -130,7 +130,7 @@ class InputStream {
   virtual void logRead(uint64_t offset, uint64_t length, LogType purpose);
 
  protected:
-  std::string path_;
+  const std::string path_;
   MetricsLogPtr metricsLog_;
   IoStatistics* stats_;
   velox::IoStats* ioStats_;
@@ -158,7 +158,7 @@ class ReadFileInputStream final : public InputStream {
     return readFile_->getNaturalReadSize();
   }
 
-  void read(void*, uint64_t, uint64_t, LogType) override;
+  void read(void* buff, uint64_t length, uint64_t offset, LogType) override;
 
   void read(
       const std::vector<folly::Range<char*>>& buffers,

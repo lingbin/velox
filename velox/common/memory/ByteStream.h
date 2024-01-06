@@ -46,8 +46,9 @@ std::vector<ByteRange> byteRangesFromIOBuf(folly::IOBuf* iobuf);
 
 class OutputStreamListener {
  public:
-  virtual void onWrite(const char* /* s */, std::streamsize /* count */) {}
   virtual ~OutputStreamListener() = default;
+
+  virtual void onWrite(const char* /* data */, std::streamsize /* size */) {}
 };
 
 class OutputStream {
@@ -57,7 +58,7 @@ class OutputStream {
 
   virtual ~OutputStream() = default;
 
-  virtual void write(const char* s, std::streamsize count) = 0;
+  virtual void write(const char* src, std::streamsize count) = 0;
 
   virtual std::streampos tellp() const = 0;
 
@@ -86,23 +87,23 @@ class BufferedOutputStream : public OutputStream {
     arena->newRange(bufferSize, nullptr, &buffer_);
   }
 
-  ~BufferedOutputStream() {
+  ~BufferedOutputStream() override {
     flush();
   }
 
-  void write(const char* s, std::streamsize count) override {
-    int64_t remaining = count;
-    while (remaining > 0) {
+  void write(const char* src, std::streamsize count) override {
+    int64_t offset = 0;
+    while (offset < count) {
       const int64_t copyLength =
-          std::min(remaining, buffer_.size - buffer_.position);
+          std::min(count - offset, buffer_.size - buffer_.position);
       simd::memcpy(
-          buffer_.buffer + buffer_.position, s + count - remaining, copyLength);
+          buffer_.buffer + buffer_.position, src + offset, copyLength);
       buffer_.position += copyLength;
-      remaining -= copyLength;
+      offset += copyLength;
       if (buffer_.position == buffer_.size) {
         flush();
-        if (remaining >= buffer_.size) {
-          out_->write(s + count - remaining, remaining);
+        if (count - offset >= buffer_.size) {
+          out_->write(src + offset, count - offset);
           break;
         }
       }
@@ -140,10 +141,10 @@ class OStreamOutputStream : public OutputStream {
       OutputStreamListener* listener = nullptr)
       : OutputStream(listener), out_(out) {}
 
-  void write(const char* s, std::streamsize count) override {
-    out_->write(s, count);
+  void write(const char* src, std::streamsize count) override {
+    out_->write(src, count);
     if (listener_) {
-      listener_->onWrite(s, count);
+      listener_->onWrite(src, count);
     }
   }
 
@@ -164,16 +165,17 @@ class ByteInputStream {
  public:
   virtual ~ByteInputStream() = default;
 
-  /// Returns total number of bytes available in the stream.
+  /// Returns the total number of bytes available in the stream.
   virtual size_t size() const = 0;
 
   /// Returns true if all input has been read.
   virtual bool atEnd() const = 0;
 
-  /// Returns current position (number of bytes from the start) in the stream.
+  /// Returns the current position (number of bytes from the start) in the
+  /// stream.
   virtual std::streampos tellp() const = 0;
 
-  /// Moves current position to specified one.
+  /// Moves current position to the specified one.
   virtual void seekp(std::streampos pos) = 0;
 
   /// Returns the remaining size left from current reading position.
@@ -181,7 +183,11 @@ class ByteInputStream {
 
   virtual uint8_t readByte() = 0;
 
-  virtual void readBytes(uint8_t* bytes, int32_t size) = 0;
+  /// Reads 'size' bytes from the stream into 'dest'. If there are not enough
+  /// bytes remaining in the current buffer range, continues reading from
+  /// subsequent ranges until 'size' bytes have been read or end of stream is
+  /// reached.
+  virtual void readBytes(uint8_t* dest, int32_t size) = 0;
 
   template <typename T>
   T read() {
@@ -191,14 +197,17 @@ class ByteInputStream {
       current_->position += sizeof(T);
       return folly::loadUnaligned<T>(source);
     }
+
     T value;
     readBytes(&value, sizeof(T));
     return value;
   }
 
+  /// Template overload for reading bytes into any character type. Converts the
+  /// input pointer to uint8_t* and delegates to the base 'readBytes()' method.
   template <typename Char>
-  void readBytes(Char* data, int32_t size) {
-    readBytes(reinterpret_cast<uint8_t*>(data), size);
+  void readBytes(Char* dest, int32_t size) {
+    readBytes(reinterpret_cast<uint8_t*>(dest), size);
   }
 
   /// Returns a view over the read buffer for up to 'size' next bytes. The size
@@ -241,7 +250,7 @@ class BufferInputStream : public ByteInputStream {
 
   uint8_t readByte() override;
 
-  void readBytes(uint8_t* bytes, int32_t size) override;
+  void readBytes(uint8_t* dest, int32_t size) override;
 
   std::string_view nextView(int64_t size) override;
 
@@ -286,7 +295,6 @@ inline int128_t ByteInputStream::read<int128_t>() {
 /// seeking back to start to write a length header.
 class ByteOutputStream {
  public:
-  /// For output.
   explicit ByteOutputStream(
       StreamArena* arena,
       bool isBits = false,
@@ -298,21 +306,19 @@ class ByteOutputStream {
         isNegateBits_(isNegateBits) {}
 
   ByteOutputStream(const ByteOutputStream& other) = delete;
-
   void operator=(const ByteOutputStream& other) = delete;
 
   // Forcing a move constructor to be able to return ByteOutputStream objects
   // from a function.
   ByteOutputStream(ByteOutputStream&&) = default;
 
-  /// Sets 'this' to range over 'range'. If this is for purposes of writing,
-  /// lastWrittenPosition specifies the end of any pre-existing content in
-  /// 'range'.
+  /// Sets 'this' to range over 'range'. 'lastWrittenPosition' specifies the end
+  /// of any pre-existing content in 'range'.
   void setRange(ByteRange range, int32_t lastWrittenPosition) {
     ranges_.resize(1);
     ranges_[0] = range;
     current_ = ranges_.data();
-    VELOX_CHECK_GE(ranges_.back().size, lastWrittenPosition);
+    VELOX_CHECK_GE(range.size, lastWrittenPosition);
     lastRangeEnd_ = lastWrittenPosition;
   }
 
@@ -362,16 +368,17 @@ class ByteOutputStream {
       VELOX_FAIL("Cannot serialize OPAQUE data");
     }
 
-    if (current_->position + sizeof(T) * values.size() > current_->size) {
+    if (current_->position + values.size() * sizeof(T) > current_->size) {
       appendStringView(
           std::string_view(
               reinterpret_cast<const char*>(&values[0]),
               values.size() * sizeof(T)));
       return;
     }
+
     auto* target = current_->buffer + current_->position;
-    memcpy(target, values.data(), values.size() * sizeof(T));
-    current_->position += sizeof(T) * values.size();
+    std::memcpy(target, values.data(), values.size() * sizeof(T));
+    current_->position += values.size() * sizeof(T);
   }
 
   inline void appendBool(bool value, int64_t count) {
@@ -440,10 +447,9 @@ class ByteOutputStream {
 
   void flush(OutputStream* stream);
 
-  /// Returns the next byte that would be written to by a write. This
-  /// is used after an append to release the remainder of the reserved
-  /// space.
-  char* writePosition();
+  /// Returns the next byte that would be written to by a write. This is used
+  /// after an append to release the remainder of the reserved space.
+  char* writePosition() const;
 
   int32_t testingAllocatedBytes() const {
     return allocatedBytes_;
@@ -457,31 +463,31 @@ class ByteOutputStream {
 
  private:
   // Returns a range of 'size' items of T. If there is no contiguous space in
-  // 'this', uses 'scratch' to make a temp block that is appended to 'this' in
+  // 'this', uses 'scratch' to make a temp block that is copied back to 'this'
+  // upon AppendWindow destruction.
   template <typename T>
   uint8_t* getAppendWindow(int32_t size, ScratchPtr<T>& scratchPtr) {
-    const int32_t bytes = sizeof(T) * size;
-    if (!current_) {
+    const int32_t bytes = size * sizeof(T);
+    if (current_ == nullptr) {
       extend(bytes);
     }
-    auto available = current_->size - current_->position;
+    const auto available = current_->size - current_->position;
     if (available >= bytes) {
       current_->position += bytes;
       return current_->buffer + current_->position - bytes;
     }
-    // If the tail is not large enough, make  temp of the right size
-    // in scratch. Extend the stream so that there is guaranteed space to copy
-    // the scratch to the stream. This copy takes place in destruction of
-    // AppendWindow and must not allocate so that it is noexcept.
+    // If the tail is not large enough, make temp of the right size in scratch.
+    // Extend the stream so that there is guaranteed space to copy the scratch
+    // to the stream. This copy takes place in destruction of AppendWindow and
+    // must not allocate so that it is noexcept.
     ensureSpace(bytes);
     return reinterpret_cast<uint8_t*>(scratchPtr.get(size));
   }
 
   void extend(int64_t bytes);
 
-  // Calls extend() enough times to make sure 'bytes' bytes can be
-  // appended without new allocation. Does not change the append
-  // position.
+  // Calls extend() enough times to make sure 'bytes' bytes can be appended
+  // without new allocation. Does not change the append position.
   void ensureSpace(int32_t bytes);
 
   int64_t newRangeSize(int64_t bytes) const;
@@ -518,10 +524,10 @@ class ByteOutputStream {
   // Pointer to the current element of 'ranges_'.
   ByteRange* current_{nullptr};
 
-  // Number of bits/bytes that have been written in the last element
-  // of 'ranges_'. In a write situation, all non-last ranges are full
-  // and the last may be partly full. The position in the last range
-  // is not necessarily the the end if there has been a seek.
+  // Number of bits/bytes that have been written in the last element of
+  // 'ranges_'. In a write situation, all non-last ranges are full and the last
+  // may be partly full. The position in the last range is not necessarily the
+  // end if there has been a seek.
   mutable int64_t lastRangeEnd_{0};
 
   template <typename T>
@@ -545,9 +551,9 @@ class AppendWindow {
                 reinterpret_cast<const char*>(scratchPtr_.get()),
                 scratchPtr_.size() * sizeof(T)));
       } catch (const std::exception& e) {
-        // This is impossible because construction ensures there is space for
-        // the bytes in the stream.
-        LOG(FATAL) << "throw from AppendWindo append: " << e.what();
+        // This is impossible because 'getAppendWindow()' ensures there is space
+        // for the bytes in the stream.
+        LOG(FATAL) << "throw from AppendWindow append: " << e.what();
       }
     }
   }

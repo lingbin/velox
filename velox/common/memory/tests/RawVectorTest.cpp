@@ -155,7 +155,7 @@ TEST_P(RawVectorTest, iota) {
   constexpr int kSizeThreshold = 1'000'000;
   raw_vector<int32_t> storage =
       makeRawVector(0, GetParam().useMemoryPool ? pool_.get() : nullptr);
-  // Small sizes are preallocated.
+  // Small sizes are pre-allocated.
   EXPECT_EQ(11, iota(12, storage)[11]);
   EXPECT_EQ(6, iota(12, storage, 5)[1]);
   EXPECT_EQ(

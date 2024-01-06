@@ -44,7 +44,7 @@ struct LoadRequest {
   velox::common::Region region;
   cache::TrackingId trackingId;
 
-  const SeekableInputStream* stream;
+  const SeekableInputStream* stream{nullptr};
 
   /// Buffers to be handed to 'stream' after load.
   memory::Allocation data;

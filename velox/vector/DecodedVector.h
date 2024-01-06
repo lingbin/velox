@@ -48,8 +48,9 @@ namespace facebook::velox {
 /// 3. Next, If it encounters a non-constant base layer:
 ///    ** It combines the nulls from that base layer into the set of nulls that
 ///    it is tracking
-///    ** Additionally, it will flatten the base layer if its not already flat.
-///    Currently, such a transformation is only supported for bias encoding.
+///    ** Additionally, it will flatten the base layer if it is not already
+///    flat. Currently, such a transformation is only supported for bias
+///    encoding.
 ///
 /// Having access to a flat base’s data buffer and a single level of indices and
 /// nulls (or a constant index) means that we can read all values in constant
@@ -101,9 +102,10 @@ class DecodedVector {
   /// LazyVector only for the necessary rows. This uses ValueHook which adds
   /// values to aggregation accumulators without intermediate materialization.
   ///
+  /// if `rows` is not passed then the vector is decoded for its size.
+  ///
   /// Limitations: Decoding a constant vector wrapping a lazy vector that has
   /// not been loaded yet with is not supported loadLazy = false.
-  /// if `rows` is not passed then the vector is decoded for its size.
   DecodedVector(
       const BaseVector& vector,
       const SelectivityVector& rows,
@@ -140,9 +142,8 @@ class DecodedVector {
   ///
   ///  nulls() ? bits::isBitNull(nulls(), i) : false
   ///
-  /// Only bit positions for decoded rows are valid. If 'rows' were
-  /// specified with decode(), the same rows have to be specified
-  /// here.
+  /// Only bit positions for decoded rows are valid. If 'rows' were specified
+  /// with decode(), the same rows have to be specified here.
   const uint64_t* nulls(const SelectivityVector* rows = nullptr);
 
   /// Returns true if wrappings may have added nulls.
@@ -156,7 +157,7 @@ class DecodedVector {
   /// NOTE: This method allocates non-trivial amount of memory and should not
   /// be called if encoding is constant or flat.
   const vector_size_t* indices() const {
-    if (!indices_) {
+    if (indices_ == nullptr) {
       fillInIndices();
     }
     return &indices_[0];
@@ -193,7 +194,7 @@ class DecodedVector {
 
   /// Return null flag for the top-level row.
   bool isNullAt(vector_size_t idx) const {
-    if (!nulls_) {
+    if (nulls_ == nullptr) {
       return false;
     }
 
@@ -293,7 +294,7 @@ class DecodedVector {
     return baseVector_;
   }
 
-  /// Returns true if the decoded vector was flat.
+  /// Returns true if the decoded vector was no wrap.
   bool isIdentityMapping() const {
     return isIdentityMapping_;
   }
@@ -481,8 +482,8 @@ class DecodedVector {
 
   void reset(vector_size_t size);
 
-  // If `rows` is null applies the `func` to all rows in [0, size_)
-  // otherwise, applies it to selected rows only.
+  // If `rows` is null applies the `func` to all rows in [0, size_), otherwise,
+  // applies it to selected rows only.
   template <typename Func>
   void applyToRows(const SelectivityVector* rows, Func&& func) const;
 

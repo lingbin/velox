@@ -227,7 +227,7 @@ class HiveConfig : public FileConfig {
       "Maximum rows per index lookup request. 0 means no limit.")
   // --- Server-only properties (no macro) ---
 
-  /// Whether new data can be inserted into an unpartition table.
+  /// Whether new data can be inserted into an un-partitioned table.
   /// Velox currently does not support appending data to existing partitions.
   static constexpr const char* kImmutablePartitions = "immutable-partitions";
 

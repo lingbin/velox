@@ -251,6 +251,19 @@ TEST(DecimalTest, addUnsignedValues) {
   ASSERT_EQ(587747, overflow);
   ASSERT_EQ(HugeInt::upper(sum), 0x1673df52e37f2410);
   ASSERT_EQ(HugeInt::lower(sum), 0x11d0ffffff0bdc0);
+
+  constexpr int128_t kInt128Max = std::numeric_limits<int128_t>::max();
+  overflow = DecimalUtil::addWithOverflow(sum, kInt128Max, 1);
+  ASSERT_EQ(overflow, 1);
+
+  // INT128_MIN is regarded as a downward overflow.
+  constexpr int128_t kInt128MinPlusOne =
+      std::numeric_limits<int128_t>::min() + 1;
+  overflow = DecimalUtil::addWithOverflow(sum, kInt128MinPlusOne, -1);
+  ASSERT_EQ(overflow, -1);
+
+  overflow = DecimalUtil::addWithOverflow(sum, kInt128MinPlusOne, -2);
+  ASSERT_EQ(overflow, -1);
 }
 
 TEST(DecimalTest, longDecimalSerDe) {

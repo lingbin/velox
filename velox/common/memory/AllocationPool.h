@@ -15,10 +15,13 @@
  */
 #pragma once
 
+#include <folly/Range.h>
+
 #include "velox/common/memory/Memory.h"
 
 namespace facebook::velox::memory {
-/// A set of Allocations holding the fixed width payload ows. The Runs are
+
+/// A set of Allocations holding the fixed width payload rows. The Runs are
 /// filled to the end except for the last one. This is used for iterating over
 /// the payload for rehashing, returning results etc. This is used via
 /// HashStringAllocator for variable length allocation for backing ByteStreams
@@ -48,7 +51,7 @@ class AllocationPool {
     return allocations_.size() + largeAllocations_.size();
   }
 
-  /// Returns the indexth contiguous range. If the range is a large allocation,
+  /// Returns the index-th contiguous range. If the range is a large allocation,
   /// returns the hugepage aligned range of contiguous huge pages in the range.
   /// For the last range, i.e. the one allocations come from, the size is the
   /// distance from start to first byte after last allocation.
@@ -91,8 +94,8 @@ class AllocationPool {
 
   /// Returns true if 'ptr' is inside the range allocations are made from.
   bool isInCurrentRange(void* ptr) const {
-    return reinterpret_cast<char*>(ptr) >= startOfRun_ &&
-        reinterpret_cast<char*>(ptr) < startOfRun_ + bytesInRun_;
+    return static_cast<char*>(ptr) >= startOfRun_ &&
+        static_cast<char*>(ptr) < startOfRun_ + bytesInRun_;
   }
 
   int64_t hugePageThreshold() const {
@@ -109,14 +112,14 @@ class AllocationPool {
   }
 
  private:
-  static constexpr int64_t kDefaultHugePageThreshold = 256 * 1024;
+  static constexpr int64_t kDefaultHugePageThreshold = 256 << 10; // 256 KB
   static constexpr int64_t kMaxMmapBytes = 512 << 20; // 512 MB
 
-  // Returns the offset from 'startOfRun_' after which the last large
-  // allocation must be grown. There are mapped addresses all the way
-  // to 'bytesInRun_' ut they are not marked used by the
-  // pool/allocator. So use growContiguous() to update this.
-  int64_t endOfReservedRun() {
+  // Returns the offset from 'startOfRun_' after which the last large allocation
+  // must be grown. There are mapped addresses all the way to 'bytesInRun_' but
+  // they are not marked used by the pool/allocator. So use 'growContiguous()'
+  // to update this.
+  int64_t endOfReservedRun() const {
     if (largeAllocations_.empty()) {
       return bytesInRun_;
     }
@@ -137,7 +140,7 @@ class AllocationPool {
 
   void newRunImpl(memory::MachinePageCount numPages);
 
-  memory::MemoryPool* pool_;
+  memory::MemoryPool* const pool_;
   std::vector<memory::Allocation> allocations_;
   std::vector<memory::ContiguousAllocation> largeAllocations_;
 
@@ -145,14 +148,15 @@ class AllocationPool {
   char* startOfRun_{nullptr};
 
   // Total addressable bytes from 'startOfRun_'. Not all are necessarily
-  // declared allocated in 'pool_'. See growLastAllocation().
+  // declared allocated in 'pool_'. See maybeGrowLastAllocation().
   int64_t bytesInRun_{0};
 
   // Offset of first unused byte from 'startOfRun_'.
   int64_t currentOffset_ = 0;
 
-  // Total space returned to users. Size of allocations can be larger specially
-  // if mmapped in advance of use.
+  // Total space returned to users. This may be less than the actual mapped
+  // virtual address space, since large allocations pre-mmap a bigger region and
+  // commit physical pages on demand via 'maybeGrowLastAllocation()'.
   int64_t usedBytes_{0};
 
   // Start using large mmaps with huge pages after 'usedBytes_' exceeds this.

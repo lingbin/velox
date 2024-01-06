@@ -55,7 +55,7 @@ class Destination {
   }
 
   /// Serializes row from 'output' till either 'maxBytes' have been serialized
-  /// or
+  /// or blocked.
   BlockingReason advance(
       uint64_t maxBytes,
       const std::vector<vector_size_t>& sizes,
@@ -119,9 +119,9 @@ class Destination {
   const bool eagerFlush_;
   const std::function<void(uint64_t bytes, uint64_t rows)> recordEnqueued_;
 
-  // Bytes serialized in 'current_'
+  // Bytes serialized in 'current_'.
   uint64_t bytesInCurrent_{0};
-  // Number of rows serialized in 'current_'
+  // Number of rows serialized in 'current_'.
   vector_size_t rowsInCurrent_{0};
   raw_vector<vector_size_t> rows_;
 
@@ -185,7 +185,7 @@ class PartitionedOutput : public Operator {
   /// a non-blocked state, otherwise blocked.
   RowVectorPtr getOutput() override;
 
-  /// always true but the caller will check isBlocked before adding input, hence
+  /// Always true but the caller will check isBlocked before adding input, hence
   /// the blocked state does not accumulate input.
   bool needsInput() const override {
     return true;
@@ -247,7 +247,7 @@ class PartitionedOutput : public Operator {
   // Contains pointers to 'rowSize_' elements. 'sizePointers_[i]' contains a
   // pointer to 'rowSize_[i]'.
   std::vector<vector_size_t*> sizePointers_;
-  // The estimated row size for each row. Index maps back to 'output_' index
+  // The estimated row size for each row. Index maps back to 'output_' index.
   std::vector<vector_size_t> rowSize_;
   std::vector<std::unique_ptr<detail::Destination>> destinations_;
   bool replicatedAny_{false};

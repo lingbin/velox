@@ -157,7 +157,7 @@ class PlanNode : public ISerializable {
  public:
   explicit PlanNode(PlanNodeId id) : id_{std::move(id)} {}
 
-  virtual ~PlanNode() {}
+  virtual ~PlanNode() = default;
 
   const PlanNodeId& id() const {
     return id_;
@@ -194,7 +194,7 @@ class PlanNode : public ISerializable {
   }
 
   /// Returns true if this is a leaf plan node and corresponding operator
-  /// requires splits to make progress. ValueNode is a leaf node that doesn't
+  /// requires splits to make progress. ValuesNode is a leaf node that doesn't
   /// require splits, but TableScanNode and ExchangeNode are leaf nodes that
   /// require splits.
   virtual bool requiresSplits() const {
@@ -246,7 +246,7 @@ class PlanNode : public ISerializable {
       bool recursive = false,
       const AddContextFunc& addContext = nullptr) const {
     std::stringstream stream;
-    toString(stream, detailed, recursive, 0, addContext);
+    toString(stream, detailed, recursive, 0, std::move(addContext));
     return stream.str();
   }
 
@@ -751,7 +751,7 @@ class AbstractProjectNode : public PlanNode {
       std::vector<TypedExprPtr>&& projections,
       PlanNodePtr source)
       : PlanNode(id),
-        sources_{source},
+        sources_{std::move(source)},
         names_(std::move(names)),
         projections_(std::move(projections)),
         outputType_(makeOutputType(names_, projections_)) {}
@@ -762,7 +762,7 @@ class AbstractProjectNode : public PlanNode {
       const std::vector<TypedExprPtr>& projections,
       PlanNodePtr source)
       : PlanNode(id),
-        sources_{source},
+        sources_{std::move(source)},
         names_(names),
         projections_(projections),
         outputType_(makeOutputType(names_, projections_)) {}
@@ -1159,7 +1159,7 @@ class AggregationNode : public PlanNode {
   /// @param groupId Group ID key produced by the preceding GroupId node. Must
   /// be set if globalGroupingSets is not empty. Must not be set otherwise. Must
   /// be one of the groupingKeys.
-
+  ///
   /// GlobalGroupingSets and groupId trigger special handling when the input
   /// data set is empty (no rows). In that case, aggregation generates a single
   /// row with the default global aggregate value per global grouping set.
@@ -2535,7 +2535,7 @@ class LocalPartitionNode : public PlanNode {
   VELOX_DECLARE_EMBEDDED_ENUM_NAME(Type);
 
   /// If 'scaleWriter' is true, the local partition is used to scale the table
-  /// writer prcessing.
+  /// writer processing.
   LocalPartitionNode(
       const PlanNodeId& id,
       Type type,

@@ -149,7 +149,7 @@ enum class SerDeSeparator {
   MAP_KEY_DELIM = 2,
 };
 
-class SerDeOptions {
+struct SerDeOptions {
  public:
   /// The following members control how data is separated in TEXT format files:
   ///
@@ -178,7 +178,7 @@ class SerDeOptions {
   std::array<uint8_t, 8> separators;
   uint8_t newLine;
 
-  /// Null values are represented by 'nullString'
+  /// Null values are represented by 'nullString'.
   std::string nullString;
   bool lastColumnTakesRest;
   uint8_t escapeChar;
@@ -211,7 +211,7 @@ struct TableParameter {
   /// to skip the column header row(s).
   static constexpr const char* kSkipHeaderLineCount = "skip.header.line.count";
   /// If present in the table parameters, the option overrides the default value
-  /// of the SerDeOptions::nullString. It causes any field read from the file
+  /// of the 'SerDeOptions::nullString'. It causes any field read from the file
   /// (usually of the TEXT format) to be considered NULL if it is equal to this
   /// string.
   static constexpr const char* kSerializationNullFormat =
@@ -220,7 +220,7 @@ struct TableParameter {
 
 /// Implicit row number column to be added.  This column will be removed in the
 /// output of split reader.  Should use the ScanSpec::ColumnType::kRowIndex if
-/// the column is suppose to be explicit and kept in the output.
+/// the column is supposed to be explicit and kept in the output.
 struct RowNumberColumnInfo {
   column_index_t insertPosition;
   std::string name;

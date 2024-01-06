@@ -78,8 +78,7 @@ class PrestoVectorSerde : public VectorSerde {
     /// Serializes nulls of structs before the columns. Used to allow
     /// single pass reading of in spilling.
     ///
-    /// TODO: Make Presto also serialize nulls before columns of
-    /// structs.
+    /// TODO: Make Presto also serialize nulls before columns of structs.
     bool nullsFirst{false};
 
     /// If true, the serializer will not employ any optimizations that can
@@ -214,9 +213,9 @@ class PrestoVectorSerde : public VectorSerde {
 
 class PrestoOutputStreamListener : public OutputStreamListener {
  public:
-  void onWrite(const char* s, std::streamsize count) override {
+  void onWrite(const char* data, std::streamsize size) override {
     if (not paused_) {
-      crc_.process_bytes(s, count);
+      crc_.process_bytes(data, size);
     }
   }
 

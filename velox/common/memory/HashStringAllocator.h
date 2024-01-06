@@ -142,7 +142,7 @@ class HashStringAllocator : public StreamArena {
     /// Returns the header of the next block in a multi-part allocation. The
     /// caller must ensure that isContinued() returns true before calling this
     /// method.
-    HashStringAllocator::Header* nextContinued() {
+    Header* nextContinued() {
       VELOX_DCHECK(isContinued());
       return *reinterpret_cast<Header**>(end() - kContinuedPtrSize);
     }
@@ -182,7 +182,7 @@ class HashStringAllocator : public StreamArena {
   explicit HashStringAllocator(memory::MemoryPool* pool)
       : StreamArena(pool), state_(pool) {}
 
-  ~HashStringAllocator();
+  ~HashStringAllocator() override;
 
   // Copies the StringView 'srcStr' to storage owned by 'this'. Creates a new
   // StringView at 'offset' in 'group' pointing to the copy. A large string may
@@ -213,13 +213,36 @@ class HashStringAllocator : public StreamArena {
     return allocate(std::max(size, kMinAlloc), true);
   }
 
-  /// Allocates a block that is independently freeable but is freed on
-  /// destruction of 'this'. The block has no header and must be freed by
-  /// freeToPool() if to be freed before destruction of 'this'.
+  /// Allocates memory directly from the underlying MemoryPool, bypassing the
+  /// free list mechanism. This is used for:
+  /// 1. Large allocations (size > kMaxAlloc) via 'allocate()', which adds a
+  ///    Header before the returned pointer.
+  /// 2. Direct calls from StlAllocator for STL container allocations, where no
+  ///    Header is added and a raw pointer is returned.
+  ///
+  /// The allocated block is independent of other allocations (no coalescing
+  /// with adjacent blocks) and is tracked in 'allocationsFromPool_' for proper
+  /// cleanup. It will be automatically freed when 'this' is destroyed, but can
+  /// be freed earlier by calling 'freeToPool()' with the same pointer and size.
+  ///
+  /// NOTE: If freeing before destruction, must use 'freeToPool()' instead of
+  /// 'pool()->free()' directly to maintain internal state consistency. Using
+  /// the wrong free method will cause:
+  /// - Double free when 'this' is destroyed.
+  /// - Incorrect memory statistics ('currentBytes_', 'sizeFromPool_').
+  ///
+  /// @param size Number of bytes to allocate.
+  /// @return Pointer to the allocated memory.
   void* allocateFromPool(size_t size);
 
-  /// Frees a block allocated with allocateFromPool(). The pointer and size must
-  /// match.
+  /// Frees a block previously allocated by 'allocateFromPool()'. The pointer
+  /// and size must match exactly what was returned/requested from
+  /// 'allocateFromPool()'.
+  ///
+  /// @param ptr Pointer returned by 'allocateFromPool()'.
+  /// @param size Size that was passed to 'allocateFromPool()'.
+  /// @throws VeloxException if ptr was not allocated by this allocator, or if
+  ///         size does not match the recorded size.
   void freeToPool(void* ptr, size_t size);
 
   /// Returns the header immediately below 'data'.
@@ -230,11 +253,11 @@ class HashStringAllocator : public StreamArena {
   /// Returns the header below 'data'.
   static Header* castToHeader(const void* data) {
     return reinterpret_cast<Header*>(
-        const_cast<char*>(reinterpret_cast<const char*>(data)));
+        const_cast<char*>(static_cast<const char*>(data)));
   }
 
   /// Returns the byte size of block pointed by 'header'.
-  inline size_t blockBytes(const Header* header) const {
+  static size_t blockBytes(const Header* header) {
     return header->size() + kHeaderSize;
   }
 
@@ -253,7 +276,7 @@ class HashStringAllocator : public StreamArena {
 
   /// Ensures that one can write at least 'bytes' data starting at 'position'
   /// without allocating more space. 'position' can be changed but will
-  /// logically point at the same data. Data to the right of 'position is not
+  /// logically point at the same data. Data to the right of 'position' is not
   /// preserved.
   void ensureAvailable(int32_t bytes, Position& position);
 
@@ -404,7 +427,7 @@ class HashStringAllocator : public StreamArena {
   bool storeStringFast(const char* bytes, int32_t size, char* destination);
 
   // Returns the free list index for 'size'.
-  int32_t freeListIndex(int size);
+  static int32_t freeListIndex(int size);
 
   /// A class that wraps any fields in the HashStringAllocator, it's main
   /// purpose is to simplify the freeze/unfreeze mechanic.  Fields are exposed
@@ -464,14 +487,14 @@ class HashStringAllocator : public StreamArena {
     // Circular list of free blocks.
     DECLARE_FIELD(FreeList, freeLists);
 
-    // Bitmap with a 1 if the corresponding list in 'free_' is not empty.
+    // Bitmap with a 1 if the corresponding list in 'freeLists_' is not empty.
     DECLARE_FIELD_WITH_INIT_VALUE(FreeNonEmptyBitMap, freeNonEmpty, {});
 
-    // Count of elements in 'free_'. This is 0 when all free_[i].next() ==
-    // &free_[i].
+    // Count of elements in 'freeLists_'. This is 0 when all
+    // freeLists_[i].next() == &freeLists_[i].
     DECLARE_FIELD_WITH_INIT_VALUE(uint64_t, numFree, 0);
 
-    // Sum of the size of blocks in 'free_', excluding headers.
+    // Sum of the size of blocks in 'freeLists_', including headers.
     DECLARE_FIELD_WITH_INIT_VALUE(uint64_t, freeBytes, 0);
 
     // Counter of allocated bytes. The difference of two point in time values
@@ -579,17 +602,17 @@ class HashStringAllocator::InputStream : public ByteInputStream {
     return byte;
   }
 
-  void readBytes(uint8_t* bytes, int32_t size) final {
+  void readBytes(uint8_t* dest, int32_t size) final {
     nextHeaderIfNeed();
     for (;;) {
-      auto available = range_.size - range_.position;
+      const auto available = range_.size - range_.position;
       if (size <= available) {
-        std::memcpy(bytes, range_.buffer + range_.position, size);
+        std::memcpy(dest, range_.buffer + range_.position, size);
         range_.position += size;
         return;
       }
-      std::memcpy(bytes, range_.buffer + range_.position, available);
-      bytes += available;
+      std::memcpy(dest, range_.buffer + range_.position, available);
+      dest += available;
       size -= available;
       VELOX_CHECK(header_->isContinued(), "Reading past end of stream");
       setHeader(header_->nextContinued());

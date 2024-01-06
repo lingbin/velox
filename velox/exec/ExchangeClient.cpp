@@ -26,8 +26,7 @@ void ExchangeClient::addRemoteTaskId(const std::string& remoteTaskId) {
   {
     std::lock_guard<std::mutex> l(queue_->mutex());
 
-    bool duplicate = !remoteTaskIds_.insert(remoteTaskId).second;
-    if (duplicate) {
+    if (bool duplicate = !remoteTaskIds_.insert(remoteTaskId).second) {
       // Do not add sources twice. Presto protocol may add duplicate sources
       // and the task updates have no guarantees of arriving in order.
       return;
@@ -42,7 +41,7 @@ void ExchangeClient::addRemoteTaskId(const std::string& remoteTaskId) {
     } catch (const std::exception& e) {
       // 'remoteTaskId' can be very long. Truncate to 128 characters.
       VELOX_FAIL(
-          "Failed to create ExchangeSource: {}. Task ID: {}.",
+          "Failed to create ExchangeSource: {}. Remote Task ID: {}.",
           e.what(),
           remoteTaskId.substr(0, 128));
     }
@@ -183,7 +182,7 @@ std::vector<std::unique_ptr<SerializedPageBase>> ExchangeClient::next(
 
 void ExchangeClient::request(std::vector<RequestSpec>&& requestSpecs) {
   auto self = shared_from_this();
-  for (auto& spec : requestSpecs) {
+  for (const auto& spec : requestSpecs) {
     auto future = folly::SemiFuture<ExchangeSource::Response>::makeEmpty();
     if (spec.maxBytes == 0) {
       future = spec.source->requestDataSizes(requestDataSizesMaxWaitSec_);
@@ -272,7 +271,7 @@ ExchangeClient::pickSourcesToRequestLocked() {
   while (availableSpace > 0 && !producingSources_.empty()) {
     auto& source = producingSources_.front().source;
     int64_t requestBytes = 0;
-    for (auto bytes : producingSources_.front().remainingBytes) {
+    for (const auto bytes : producingSources_.front().remainingBytes) {
       availableSpace -= bytes;
       if (availableSpace < 0) {
         break;
@@ -289,7 +288,7 @@ ExchangeClient::pickSourcesToRequestLocked() {
     totalPendingBytes_ += requestBytes;
   }
 
-  if ((queue_->totalBytes() + totalPendingBytes_ < minOutputBatchBytes_) &&
+  if (queue_->totalBytes() + totalPendingBytes_ < minOutputBatchBytes_ &&
       !producingSources_.empty()) {
     // Two cases which we request an out-of-band data transfer:
     // 1. We have full capacity but still cannot initiate one single data
@@ -320,9 +319,9 @@ ExchangeClient::pickupSingleSourceToRequestLocked() {
   }
 
   VELOX_CHECK_EQ(totalPendingBytes_, 0);
-  VELOX_CHECK_LE(!!emptySources_.empty() + !!producingSources_.empty(), 1);
-  const auto requestBytes = maxQueuedBytes_ - queue_->totalBytes();
+  VELOX_CHECK_LE(emptySources_.size() + producingSources_.size(), 1);
 
+  const int64_t requestBytes = maxQueuedBytes_ - queue_->totalBytes();
   if (requestBytes <= 0) {
     return {};
   }
@@ -355,7 +354,7 @@ ExchangeClient::~ExchangeClient() {
 std::string ExchangeClient::toString() const {
   std::stringstream out;
   for (auto& source : sources_) {
-    out << source->toString() << std::endl;
+    out << source->toString() << '\n';
   }
   return out.str();
 }

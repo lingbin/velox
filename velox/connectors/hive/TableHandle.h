@@ -180,7 +180,7 @@ class HiveTableHandle : public FileTableHandle {
   /// 1.0 means no sampling. Default is no sampling.
   HiveTableHandle(
       std::string connectorId,
-      const std::string& tableName,
+      std::string tableName,
       common::SubfieldFilters subfieldFilters,
       const core::TypedExprPtr& remainingFilter,
       const RowTypePtr& dataColumns = nullptr,

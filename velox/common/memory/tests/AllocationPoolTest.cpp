@@ -40,7 +40,7 @@ class AllocationPoolTest : public testing::Test {
 
   // Writes a byte at pointer so we see RSS change.
   void setByte(void* ptr) {
-    *reinterpret_cast<char*>(ptr) = 1;
+    *static_cast<char*>(ptr) = 1;
   }
 
   std::shared_ptr<memory::MemoryManager> manager_;
@@ -62,6 +62,7 @@ TEST_F(AllocationPoolTest, hugePages) {
     EXPECT_LE(128 << 10, pool_->usedBytes());
     allocationPool->allocateFixed(64 << 10);
     // Now at end of second 64K range, next will go to huge pages.
+
     setByte(allocationPool->allocateFixed(11));
     EXPECT_LE((2 << 20) - 11, allocationPool->testingFreeAddressableBytes());
     // The first 2MB of the hugepage run are marked reserved.
@@ -119,7 +120,7 @@ DEBUG_ONLY_TEST_F(AllocationPoolTest, oomCleanUp) {
   // AllocationPool, the AllocationPool is still in a valid state.
   auto test = [&](int32_t alignment) {
     auto allocationPool = std::make_unique<memory::AllocationPool>(pool_.get());
-    // Ensure we're beyond the huge page threshod.
+    // Ensure we're beyond the huge page threshold.
     allocationPool->setHugePageThreshold(32 << 10);
     allocationPool->allocateFixed(32 << 10, alignment);
 
@@ -154,3 +155,47 @@ DEBUG_ONLY_TEST_F(AllocationPoolTest, oomCleanUp) {
   // allocateFixed).
   test(2);
 }
+
+// Test that small allocations below the huge page threshold work correctly.
+// This tests the fix for the bug where maybeGrowLastAllocation() would crash
+// when called on small allocations before largeAllocations_ is initialized.
+TEST_F(AllocationPoolTest, smallAllocationGrowth) {
+  auto allocationPool = std::make_unique<memory::AllocationPool>(pool_.get());
+  
+  // Set a high threshold to ensure we stay in small allocation mode
+  allocationPool->setHugePageThreshold(1 << 20); // 1MB
+  
+  // Create a small run
+  allocationPool->newRun(64 << 10); // 64KB
+  
+  // Verify we're still in small allocation mode
+  EXPECT_EQ(1, allocationPool->numRanges());
+  
+  // Allocate many small chunks to fill up the run
+  // Each allocation should succeed without crashing
+  std::vector<char*> pointers;
+  constexpr int32_t kNumAllocations = 1000;
+  for (int i = 0; i < kNumAllocations; ++i) {
+    char* ptr = allocationPool->allocateFixed(60); // Small allocations
+    pointers.push_back(ptr);
+    // Write to the memory to ensure it's valid
+    *ptr = static_cast<char>(i & 0xFF);
+  }
+  
+  // Verify all pointers are unique and within the run
+  for (size_t i = 0; i < pointers.size(); ++i) {
+    EXPECT_TRUE(allocationPool->isInCurrentRange(pointers[i]));
+    if (i > 0) {
+      EXPECT_NE(pointers[i], pointers[i - 1]);
+    }
+  }
+  
+  // Verify we still have only one range (no large allocations)
+  EXPECT_EQ(1, allocationPool->numRanges());
+  
+  // The total allocated bytes should be reasonable
+  EXPECT_GT(allocationPool->allocatedBytes(), 0);
+  EXPECT_LE(allocationPool->allocatedBytes(), 1 << 20); // Less than threshold
+}
+
+} // namespace facebook::velox::memory

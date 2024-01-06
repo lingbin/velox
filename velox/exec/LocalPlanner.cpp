@@ -64,7 +64,7 @@ namespace {
 // If the upstream is partial limit, downstream is final limit and we want to
 // flush as soon as we can to reach the limit and do as little work as possible.
 bool eagerFlush(const core::PlanNode& node) {
-  if (auto* limit = dynamic_cast<const core::LimitNode*>(&node)) {
+  if (const auto* limit = dynamic_cast<const core::LimitNode*>(&node)) {
     return limit->isPartial() && limit->offset() + limit->count() < 10'000;
   }
   if (node.sources().empty()) {
@@ -79,7 +79,7 @@ bool eagerFlush(const core::PlanNode& node) {
 namespace detail {
 
 /// Returns true if source nodes must run in a separate pipeline.
-bool mustStartNewPipeline(const core::PlanNodePtr& planNode, int sourceId) {
+bool mustStartNewPipeline(const core::PlanNodePtr& planNode, int sourceIdx) {
   if (auto localMerge =
           std::dynamic_pointer_cast<const core::LocalMergeNode>(planNode)) {
     // LocalMerge's source runs on its own pipeline.
@@ -96,7 +96,7 @@ bool mustStartNewPipeline(const core::PlanNodePtr& planNode, int sourceId) {
   }
 
   // Non-first sources always run in their own pipeline.
-  return sourceId != 0;
+  return sourceIdx != 0;
 }
 
 // Creates the customized local partition operator for table writer scaling.
@@ -262,7 +262,7 @@ void plan(
     const core::PlanNodePtr& consumerNode,
     OperatorSupplier operatorSupplier,
     std::vector<std::unique_ptr<DriverFactory>>* driverFactories) {
-  if (!currentPlanNodes) {
+  if (currentPlanNodes == nullptr) {
     auto driverFactory = std::make_unique<DriverFactory>();
     currentPlanNodes = &driverFactory->planNodes;
     driverFactory->operatorSupplier = std::move(operatorSupplier);
@@ -303,7 +303,7 @@ uint32_t maxDrivers(
     const core::QueryConfig& queryConfig) {
   uint32_t count = maxDriversForConsumer(driverFactory.consumerNode);
   if (count == 1) {
-    return count;
+    return 1;
   }
   for (auto& node : driverFactory.planNodes) {
     if (node->requiresSingleThread()) {

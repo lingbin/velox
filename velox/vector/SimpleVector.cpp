@@ -42,7 +42,7 @@ bool SimpleVector<StringView>::computeAndSetIsAscii<StringView>(
   bool isAllAscii = true;
   rows.applyToSelected([&](auto row) {
     if (!isNullAt(row)) {
-      auto string = valueAt(row);
+      StringView string = valueAt(row);
       isAllAscii &=
           functions::stringCore::isAscii(string.data(), string.size());
     }

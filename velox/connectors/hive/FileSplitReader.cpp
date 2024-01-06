@@ -364,7 +364,7 @@ bool FileSplitReader::checkIfSplitIsEmpty(
   if (emptySplit_) {
     return true;
   }
-  if (!baseReader_ || baseReader_->numberOfRows() == 0 ||
+  if (baseReader_ == nullptr || baseReader_->numberOfRows() == 0 ||
       !filterOnStats(runtimeStats)) {
     emptySplit_ = true;
   }

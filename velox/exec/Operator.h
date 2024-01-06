@@ -28,8 +28,8 @@
 
 namespace facebook::velox::exec {
 
-/// Represents a column that is copied from input to output, possibly
-/// with cardinality change, i.e. values removed or duplicated.
+/// Represents a column that is copied from input to output, possibly with
+/// cardinality change, i.e. values removed or duplicated.
 struct IdentityProjection {
   IdentityProjection(
       column_index_t _inputChannel,
@@ -105,7 +105,7 @@ class OperatorCtx {
   const core::PlanNodeId planNodeId_;
   int32_t operatorId_;
   const std::string operatorType_;
-  velox::memory::MemoryPool* const pool_;
+  memory::MemoryPool* const pool_;
 
   // Per-resource-tag leaf pools mirroring 'pool_' under each registered
   // custom root pool. Empty when no custom pools are registered.
@@ -373,7 +373,7 @@ class Operator : public BaseRuntimeStatWriter {
     return stats_;
   }
 
-  void recordBlockingTime(uint64_t start, BlockingReason reason);
+  void recordBlockingTime(uint64_t startMicros, BlockingReason reason);
 
   virtual std::string toString() const;
 
@@ -682,8 +682,8 @@ class Operator : public BaseRuntimeStatWriter {
 
   bool noMoreInput_ = false;
   std::vector<IdentityProjection> identityProjections_;
-  std::vector<VectorPtr> results_;
 
+  std::vector<VectorPtr> results_;
   /// Maps between index in results_ and index in output RowVector.
   std::vector<IdentityProjection> resultProjections_;
 

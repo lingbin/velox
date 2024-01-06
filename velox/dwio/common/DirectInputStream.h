@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "velox/common/caching/FileIds.h"
 #include "velox/common/caching/ScanTracker.h"
 #include "velox/common/io/IoStatistics.h"
 #include "velox/dwio/common/InputStream.h"
