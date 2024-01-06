@@ -19,10 +19,12 @@
 
 namespace facebook::velox::dwio::common::exception {
 
+namespace {
 std::unique_ptr<ExceptionLogger>& exceptionLogger() {
   static std::unique_ptr<ExceptionLogger> logger(nullptr);
   return logger;
 }
+} // namespace
 
 bool registerExceptionLogger(std::unique_ptr<ExceptionLogger> logger) {
   VELOX_CHECK(

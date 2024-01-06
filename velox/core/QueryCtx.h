@@ -466,21 +466,21 @@ class ExecCtx {
     /// enabled, including VectorPool, DecodedVectorPool, SelectivityVectorPool
     /// and dictionary memoization.
     bool exprEvalCacheEnabled;
-    /// True if dictionary memoization optimization is enabled during experssion
+    /// True if dictionary memoization optimization is enabled during expression
     /// evaluation, whichallows the reuse of results between consecutive input
     /// batches if they are dictionary encoded and have the same
     /// alphabet(undelying flat vector).
     bool dictionaryMemoizationEnabled;
-    /// True if peeling is enabled during experssion evaluation.
+    /// True if peeling is enabled during expression evaluation.
     bool peelingEnabled;
-    /// True if shared subexpression reuse is enabled during experssion
+    /// True if shared subexpression reuse is enabled during expression
     /// evaluation.
     bool sharedSubExpressionReuseEnabled;
     /// True if loading lazy inputs are deferred till they need to be
-    /// accessed during experssion evaluation.
+    /// accessed during expression evaluation.
     bool deferredLazyLoadingEnabled;
     /// The maximum number of distinct inputs to cache results in a
-    /// given shared subexpression during experssion evaluation.
+    /// given shared subexpression during expression evaluation.
     uint32_t maxSharedSubexprResultsCached;
   };
 
@@ -492,7 +492,7 @@ class ExecCtx {
     return queryCtx_;
   }
 
-  /// Returns an uninitialized  SelectivityVector from a pool. Allocates new one
+  /// Returns an uninitialized SelectivityVector from a pool. Allocates new one
   /// if none is available. Make sure to call 'releaseSelectivityVector' when
   /// done using the vector to allow for reuse.
   ///
@@ -511,9 +511,8 @@ class ExecCtx {
     return vector;
   }
 
-  // Returns an arbitrary SelectivityVector with undefined
-  // content. The caller is responsible for setting the size and
-  // assigning the contents.
+  // Returns an arbitrary SelectivityVector with undefined content. The caller
+  // is responsible for setting the size and assigning the contents.
   std::unique_ptr<SelectivityVector> getSelectivityVector() {
     VELOX_CHECK(
         optimizationParams_.exprEvalCacheEnabled ||
@@ -559,7 +558,7 @@ class ExecCtx {
     return vectorPool_.get();
   }
 
-  /// Gets a possibly recycled vector of 'type and 'size'. Allocates from
+  /// Gets a possibly recycled vector of 'type' and 'size'. Allocates from
   /// 'pool_' if no pre-allocated vector.
   VectorPtr getVector(const TypePtr& type, vector_size_t size) {
     if (vectorPool_) {
@@ -597,11 +596,11 @@ class ExecCtx {
   QueryCtx* const queryCtx_;
 
   const OptimizationParams optimizationParams_;
-  // A pool of preallocated DecodedVectors for use by expressions and
+  // A pool of pre-allocated DecodedVectors for use by expressions and
   // operators.
   std::vector<std::unique_ptr<DecodedVector>> decodedVectorPool_;
-  // A pool of preallocated SelectivityVectors for use by expressions
-  // and operators.
+  // A pool of pre-allocated SelectivityVectors for use by expressions and
+  // operators.
   std::vector<std::unique_ptr<SelectivityVector>> selectivityVectorPool_;
   std::unique_ptr<VectorPool> vectorPool_;
 };

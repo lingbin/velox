@@ -36,7 +36,7 @@ class raw_vector {
   static_assert(
       std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>);
 
-  explicit raw_vector() {}
+  explicit raw_vector() = default;
 
   explicit raw_vector(int64_t size) {
     resize(size);
@@ -55,7 +55,7 @@ class raw_vector {
     free();
   }
 
-  // Constructs  a copy of 'other'. See operator=. 'data_' must be copied.
+  // Constructs a copy of 'other'. See operator=. 'data_' must be copied.
   raw_vector(const raw_vector<T>& other) {
     *this = other;
   }
@@ -82,8 +82,7 @@ class raw_vector {
     }
   }
 
-  // Moves 'other' to this, leaves 'other' empty, as after default
-  // construction.
+  // Moves 'other' to this, leaves 'other' empty, as after default construction.
   void operator=(raw_vector<T>&& other) noexcept {
     free();
     data_ = other.data_;
@@ -196,8 +195,8 @@ class raw_vector {
 
   // Size with one full width SIMD load worth data above and below, rounded to
   // power of 2.
-  static inline int64_t paddedSize(int64_t size) {
-    return bits::nextPowerOfTwo(size + (2 * simd::kPadding));
+  static inline int32_t paddedSize(int64_t byteSize) {
+    return bits::nextPowerOfTwo(byteSize + (2 * simd::kPadding));
   }
 
   T* allocateData(int64_t size) {
@@ -266,12 +265,12 @@ class raw_vector {
   int64_t capacity_{0};
 };
 
-// Returns a pointer to 'size' int32_t's with consecutive values
-// starting at 0. There are at least kPadding / sizeof(int32_t) values
-// past 'size', so that it is safe to access the returned pointer at maximum
-// SIMD width. Typically returns preallocated memory but if this is
-// not large enough,resizes and initializes 'storage' to the requested
-// size and returns storage.data().
+// Returns a pointer to 'size' int32_t's with consecutive values starting at 0.
+// There are at least kPadding / sizeof(int32_t) values past 'size', so that it
+// is safe to access the returned pointer at maximum SIMD width. Typically,
+// returns pre-allocated memory but if this is not large enough, otherwise,
+// resizes and initializes 'storage' to the requested size and returns
+// storage.data().
 const int32_t*
 iota(int32_t size, raw_vector<int32_t>& storage, int32_t offset = 0);
 

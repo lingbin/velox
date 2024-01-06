@@ -19,6 +19,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <string>
+#include <utility>
 
 #include "velox/common/base/Counters.h"
 #include "velox/common/base/StatsReporter.h"
@@ -137,6 +138,8 @@ void addRunningTimeOperatorMetrics(exec::OperatorStats& op) {
       RuntimeMetric(op.getOutputTiming.wallNanos, RuntimeCounter::Unit::kNanos);
   op.runtimeStats["runningFinishWallNanos"] =
       RuntimeMetric(op.finishTiming.wallNanos, RuntimeCounter::Unit::kNanos);
+  op.runtimeStats["runningIsBlockedWallNanos"] =
+      RuntimeMetric(op.isBlockedTiming.wallNanos, RuntimeCounter::Unit::kNanos);
 }
 
 void buildSplitStates(
@@ -325,7 +328,7 @@ bool unregisterSplitListenerFactory(
 
 // static
 std::shared_ptr<Task> Task::create(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -335,7 +338,7 @@ std::shared_ptr<Task> Task::create(
     std::optional<common::SpillDiskOptions> spillDiskOpts,
     std::function<void(std::exception_ptr)> onError) {
   return Task::create(
-      taskId,
+      std::move(taskId),
       std::move(planFragment),
       destination,
       std::move(queryCtx),
@@ -349,7 +352,7 @@ std::shared_ptr<Task> Task::create(
 
 // static
 std::shared_ptr<Task> Task::create(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -360,7 +363,7 @@ std::shared_ptr<Task> Task::create(
     std::function<void(std::exception_ptr)> onError) {
   VELOX_CHECK_NOT_NULL(planFragment.planNode);
   auto task = std::shared_ptr<Task>(new Task(
-      taskId,
+      std::move(taskId),
       std::move(planFragment),
       destination,
       std::move(queryCtx),
@@ -374,7 +377,7 @@ std::shared_ptr<Task> Task::create(
 }
 
 Task::Task(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -383,7 +386,7 @@ Task::Task(
     int32_t memoryArbitrationPriority,
     std::function<void(std::exception_ptr)> onError)
     : uuid_{makeUuid()},
-      taskId_(taskId),
+      taskId_(std::move(taskId)),
       destination_(destination),
       mode_(mode),
       memoryArbitrationPriority_(memoryArbitrationPriority),
@@ -427,12 +430,12 @@ Task::~Task() {
   // TODO(spershin): Temporary code designed to reveal what causes SIGABRT in
   // jemalloc when destroying some Tasks.
   std::string clearStage;
-  facebook::velox::process::ThreadDebugInfo debugInfoForTask{
+  process::ThreadDebugInfo debugInfoForTask{
       queryCtx_->queryId(), taskId_, [&]() {
         LOG(ERROR) << "Task::~Task(" << taskId_
                    << "), failure during clearing stage: " << clearStage;
       }};
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(debugInfoForTask);
+  process::ScopedThreadDebugInfo scopedInfo(debugInfoForTask);
 
   TestValue::adjust("facebook::velox::exec::Task::~Task", this);
 
@@ -444,6 +447,7 @@ Task::~Task() {
 #define CLEAR(_action_)   \
   clearStage = #_action_; \
   _action_;
+
   CLEAR(threadFinishPromises_.clear());
   CLEAR(splitGroupStates_.clear());
   CLEAR(taskStats_ = TaskStats());
@@ -461,6 +465,9 @@ Task::~Task() {
   CLEAR(pool_.reset());
   CLEAR(planFragment_ = core::PlanFragment());
   CLEAR(queryCtx_.reset());
+
+#undef CLEAR
+
   clearStage = "exiting ~Task()";
 
   // Ful-fill the task deletion promises at the end.
@@ -549,11 +556,13 @@ void Task::setSpillDiskConfig(
   spillDirectoryCallback_ = std::move(spillDiskOpts->spillDirCreateCb);
 }
 
+// static
 Task::TaskList& Task::taskList() {
   static TaskList taskList;
   return taskList;
 }
 
+// static
 folly::SharedMutex& Task::taskListLock() {
   static folly::SharedMutex lock;
   return lock;
@@ -563,11 +572,13 @@ size_t Task::numCreatedTasks() {
   return numCreatedTasks_;
 }
 
+// static
 size_t Task::numRunningTasks() {
   std::shared_lock guard{taskListLock()};
   return taskList().size();
 }
 
+// static
 std::vector<std::shared_ptr<Task>> Task::getRunningTasks() {
   std::vector<std::shared_ptr<Task>> tasks;
   std::shared_lock guard(taskListLock());
@@ -951,20 +962,20 @@ void Task::recordBatchEndTime() {
 }
 
 void Task::start(uint32_t maxDrivers, uint32_t concurrentSplitGroups) {
-  facebook::velox::process::ThreadDebugInfo threadDebugInfo{
+  process::ThreadDebugInfo threadDebugInfo{
       queryCtx()->queryId(), taskId_, nullptr};
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(threadDebugInfo);
   checkExecutionMode(ExecutionMode::kParallel);
 
   try {
     VELOX_CHECK_GE(
         maxDrivers,
         1,
-        "maxDrivers parameter must be greater then or equal to 1");
+        "maxDrivers parameter must be greater than or equal to 1");
     VELOX_CHECK_GE(
         concurrentSplitGroups,
         1,
-        "concurrentSplitGroups parameter must be greater then or equal to 1");
+        "concurrentSplitGroups parameter must be greater than or equal to 1");
 
     {
       std::unique_lock<std::timed_mutex> l(mutex_);
@@ -1004,7 +1015,7 @@ std::shared_ptr<Driver> Task::getDriver(uint32_t driverId) const {
   return drivers_[driverId];
 }
 
-void Task::checkExecutionMode(ExecutionMode mode) {
+void Task::checkExecutionMode(ExecutionMode mode) const {
   VELOX_CHECK_EQ(mode, mode_, "Inconsistent task execution mode.");
 }
 
@@ -1115,10 +1126,8 @@ void Task::initializePartitionOutput() {
   auto bufferManager = bufferManager_.lock();
   VELOX_CHECK_NOT_NULL(
       bufferManager,
-      "Unable to initialize task. "
-      "PartitionedOutputBufferManager was already destructed");
-  std::shared_ptr<const core::PartitionedOutputNode> partitionedOutputNode{
-      nullptr};
+      "Unable to initialize task. OutputBufferManager was already destructed");
+  std::shared_ptr<const core::PartitionedOutputNode> partitionedOutputNode;
   int numOutputDrivers{0};
   {
     std::unique_lock<std::timed_mutex> l(mutex_);
@@ -1146,7 +1155,7 @@ void Task::initializePartitionOutput() {
       }
       // NOTE: MergeExchangeNode doesn't use the exchange client created here
       // to fetch data from the merge source but only uses it to send
-      // abortResults to the merge source of the split which is added after
+      // 'abortResults' to the merge source of the split which is added after
       // the task has failed. Correspondingly, MergeExchangeNode creates one
       // exchange client for each merge source to fetch data as we can't mix
       // the data from different sources for merging.
@@ -1186,7 +1195,7 @@ void Task::resume(std::shared_ptr<Task> self) {
   };
 
   std::lock_guard<std::timed_mutex> l(self->mutex_);
-  // Setting pause requested must be atomic with the resuming so that
+  // Setting 'pauseRequested_' must be atomic with the resuming so that
   // suspended sections do not go back on thread during resume.
   self->pauseRequested_ = false;
   if (self->isRunningLocked()) {
@@ -1247,7 +1256,7 @@ void Task::resume(std::shared_ptr<Task> self) {
   resumePromises.swap(self->resumePromises_);
 }
 
-void Task::validateGroupedExecutionLeafNodes() {
+void Task::validateGroupedExecutionLeafNodes() const {
   if (isGroupedExecution()) {
     VELOX_USER_CHECK(
         !planFragment_.groupedExecutionLeafNodeIds.empty(),
@@ -1270,8 +1279,7 @@ void Task::validateGroupedExecutionLeafNodes() {
       }
       VELOX_USER_CHECK(
           found,
-          "Grouped execution leaf node {} is not a leaf node in "
-          "any pipeline",
+          "Grouped execution leaf node {} is not a leaf node in any pipeline",
           leafNodeId);
     }
   } else {
@@ -1294,11 +1302,11 @@ void Task::createSplitGroupStateLocked(uint32_t splitGroupId) {
       continue;
     }
 
-    core::PlanNodePtr partitionNode;
-    if (factory->needsLocalExchange(partitionNode)) {
-      VELOX_CHECK_NOT_NULL(partitionNode);
+    core::PlanNodePtr localPartitionNode;
+    if (factory->needsLocalExchange(localPartitionNode)) {
+      VELOX_CHECK_NOT_NULL(localPartitionNode);
       createLocalExchangeQueuesLocked(
-          splitGroupId, partitionNode, factory->numDrivers);
+          splitGroupId, localPartitionNode, factory->numDrivers);
     }
     addHashJoinBridgesLocked(splitGroupId, factory->needsHashJoinBridges());
     addNestedLoopJoinBridgesLocked(
@@ -1362,7 +1370,7 @@ std::vector<std::shared_ptr<Driver>> Task::createDriversLocked(
     ++numRunningSplitGroups_;
   }
 
-  // Initialize operator stats using the 1st driver of each operator.
+  // Initialize operator stats using the 1st Driver of each pipeline.
   // We create drivers for grouped and ungrouped execution separately, so we
   // need to track down initialization of operator stats separately as well.
   if ((groupedExecutionDrivers & !initializedGroupedOpStats_) ||
@@ -1570,7 +1578,7 @@ void Task::addSplit(const core::PlanNodeId& planNodeId, exec::Split&& split) {
   }
 
   if (!isTaskRunning) {
-    // Safe because 'split' is moved away above only if 'isTaskRunning'.
+    // Safe because 'split' is moved away above only if 'isTaskRunning' is true.
     // @lint-ignore CLANGTIDY bugprone-use-after-move
     addRemoteSplit(planNodeId, split);
   }
@@ -1703,8 +1711,7 @@ void Task::noMoreSplits(const core::PlanNodeId& planNodeId) {
         VELOX_CHECK_EQ(
             splitsState.groupSplitsStores.size(),
             1,
-            "Expect 1 split store in a plan node in ungrouped execution mode, has {}",
-            splitsState.groupSplitsStores.size());
+            "Expect 1 split store in a plan node in ungrouped execution mode");
         auto it = splitsState.groupSplitsStores.begin();
         noMoreSplitsForStore(it->second.get(), splitPromises);
       } else {
@@ -1976,7 +1983,7 @@ BlockingReason Task::getSplitOrFuture(
   std::lock_guard<std::timed_mutex> l(mutex_);
   auto& splitsState = getPlanNodeSplitsStateLocked(planNodeId);
   auto& splitsStore = splitsState.groupSplitsStores[splitGroupId];
-  if (!splitsStore) {
+  if (splitsStore == nullptr) {
     setSplitsStore(
         splitsStore,
         std::make_unique<QueueSplitsStore>(!splitsState.sourceIsTableScan));
@@ -2052,14 +2059,6 @@ void Task::multipleSplitsFinished(
   }
 }
 
-bool Task::isGroupedExecution() const {
-  return planFragment_.isGroupedExecution();
-}
-
-bool Task::isUngroupedExecution() const {
-  return not isGroupedExecution();
-}
-
 bool Task::hasMixedExecutionGroupJoin(
     const core::HashJoinNode* joinNode) const {
   VELOX_CHECK_NOT_NULL(joinNode);
@@ -2129,11 +2128,11 @@ bool Task::isFinished() const {
 }
 
 bool Task::isRunningLocked() const {
-  return (state_ == TaskState::kRunning);
+  return state_ == TaskState::kRunning;
 }
 
 bool Task::isFinishedLocked() const {
-  return (state_ == TaskState::kFinished);
+  return state_ == TaskState::kFinished;
 }
 
 bool Task::updateOutputBuffers(int numBuffers, bool noMoreBuffers) {
@@ -2416,7 +2415,7 @@ std::shared_ptr<JoinBridge> Task::getCustomJoinBridgeInternal(
       splitGroupId, planNodeId, &SplitGroupState::customBridges);
 }
 
-//  static
+// static
 std::string Task::shortId(const std::string& id) {
   if (id.size() < 12) {
     return id;
@@ -3147,7 +3146,7 @@ void Task::setError(const std::exception_ptr& exception) {
   TestValue::adjust("facebook::velox::exec::Task::setError", this);
   {
     std::lock_guard<std::timed_mutex> l(mutex_);
-    if (not isRunningLocked()) {
+    if (!isRunningLocked()) {
       return;
     }
     if (exception_ != nullptr) {

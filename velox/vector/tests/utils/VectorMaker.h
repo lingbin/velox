@@ -252,7 +252,7 @@ class VectorMaker {
 
   /// Create a BiasVector<T>
   /// creates a BiasVector (vector encoded using bias encoding) based on a flat
-  /// input from an std::vector.
+  /// input from a std::vector.
   ///
   /// Elements are nullable.
   ///
@@ -264,7 +264,7 @@ class VectorMaker {
 
   /// Create a SequenceVector<T>
   /// creates a SequenceVector (vector encoded using RLE) based on a flat
-  /// input from an std::vector.
+  /// input from a std::vector.
   ///
   /// Elements are nullable.
   ///
@@ -292,7 +292,7 @@ class VectorMaker {
       const std::vector<std::optional<T>>& data);
 
   /// Create a DictionaryVector<T>
-  /// creates a dictionary encoded vector based on a flat input from an
+  /// creates a dictionary encoded vector based on a flat input from a
   /// std::vector.
   ///
   /// Elements are nullable.
@@ -304,7 +304,7 @@ class VectorMaker {
   DictionaryVectorPtr<EvalType<T>> dictionaryVector(
       const std::vector<std::optional<T>>& data);
 
-  /// Convenience function that creates an vector based on input std::vector
+  /// Convenience function that creates a vector based on input std::vector
   /// data, encoded with given `vecType`.
   template <typename T>
   SimpleVectorPtr<EvalType<T>> encodedVector(
@@ -328,7 +328,7 @@ class VectorMaker {
   }
 
   /// Create a ArrayVector<T>
-  /// size and null for individual array is determined by sizeAt and isNullAt
+  /// size and null for individual array is determined by sizeAt and isNullAt,
   /// value for individual array is determined by valueAt.
   template <typename T>
   ArrayVectorPtr arrayVector(
@@ -394,8 +394,9 @@ class VectorMaker {
   }
 
   /// Create a ArrayVector<T>
-  /// size and null for individual array is determined by sizeAt and isNullAt
-  /// value for elements of each array in a given row is determined by valueAt.
+  /// size and null for individual array is determined by 'sizeAt' and
+  /// 'isNullAt', value for elements of each array in a given row is determined
+  /// by 'valueAt'.
   template <typename T>
   ArrayVectorPtr arrayVector(
       vector_size_t size,
@@ -551,8 +552,7 @@ class VectorMaker {
   }
 
   /// Create a ArrayVector<T>
-  /// array elements are created based on input std::vectors and are
-  /// nullable.
+  /// array elements are created based on input std::vectors and are nullable.
   template <typename T>
   ArrayVectorPtr arrayVectorNullable(
       const std::vector<std::optional<std::vector<std::optional<T>>>>& data,
@@ -1060,7 +1060,7 @@ class VectorMaker {
       BufferPtr* sizes);
 
   template <typename T>
-  void appendElementsFromJsonArray(
+  static void appendElementsFromJsonArray(
       const folly::dynamic& arrayObject,
       std::vector<std::optional<T>>& elements) {
     for (const auto& element : arrayObject) {

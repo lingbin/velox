@@ -71,8 +71,8 @@ class RowReader {
       const Mutation* mutation = nullptr) = 0;
 
   /**
-   * Return the next row number that will be scanned in the next next() call,
-   * kAtEnd when at end of file.  This row number is relative to beginning of
+   * Return the next row number that will be scanned in the next 'next()' call,
+   * Return kAtEnd when at end of file. This row number is relative to beginning of
    * the file (0 for the first row), including all rows in the file, no matter
    * whether it's deleted or filtered during the previous next() call.
    *

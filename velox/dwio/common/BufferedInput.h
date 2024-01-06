@@ -73,8 +73,8 @@ class BufferedInput {
   }
 
   /// The previous API was taking a vector of regions. Now we allow callers to
-  /// enqueue region any time/place and we do final load into buffer in 2 steps
-  /// (enqueue....load). 'si' allows tracking which streams actually get read.
+  /// enqueue region any time/place, and we do final load into buffer in 2 steps
+  /// (enqueue....load). 'sid' allows tracking which streams actually get read.
   /// This may control read-ahead and caching for BufferedInput implementations
   /// supporting these.
   virtual std::unique_ptr<SeekableInputStream> enqueue(
@@ -86,19 +86,21 @@ class BufferedInput {
     return true;
   }
 
-  /// load all regions to be read in an optimized way (IO efficiency)
+  /// Load all regions to be read in an optimized way (IO efficiency).
   virtual void load(const LogType);
 
   virtual bool isBuffered(uint64_t offset, uint64_t length) const {
-    return !!readBuffer(offset, length);
+    return readBuffer(offset, length) != nullptr;
   }
 
   virtual std::unique_ptr<SeekableInputStream>
   read(uint64_t offset, uint64_t length, LogType logType) const {
+    // If the region is already in buffer - such as metadata.
     auto ret = readBuffer(offset, length);
     if (ret != nullptr) {
       return ret;
     }
+
     VLOG(1) << "Unplanned read. Offset: " << offset << ", Length: " << length;
     // We cannot do enqueue/load here because load() clears previously
     // loaded data. TODO: figure out how we can use the data cache for
@@ -167,6 +169,7 @@ class BufferedInput {
     const auto referencedBytes =
         trackingData.referencedBytes - trackingData.lastReferencedBytes;
     if (referencedBytes == 0) {
+      // TODO(lingbin): 应该是 100%, 这样第一个请求也会 进行预取？
       return 0;
     }
     const int pct = trackingData.readBytes / referencedBytes * 100;
@@ -177,12 +180,12 @@ class BufferedInput {
     return pct;
   }
 
-  // Move the requests in `noPrefetch' to `prefetch' if it is already covered by
-  // coalescing in `prefetch'.
+  // Move the requests in 'noPrefetch' to 'prefetch' if it is already covered by
+  // coalescing in 'prefetch'.
   template <typename Request, typename GetRegionOffset, typename GetRegionEnd>
   static void moveCoalesced(
       std::vector<Request>& prefetch,
-      std::vector<int32_t>& ends,
+      std::vector<int32_t>& groupEnds,
       std::vector<Request>& noPrefetch,
       GetRegionOffset getRegionOffset,
       GetRegionEnd getRegionEnd) {
@@ -193,10 +196,10 @@ class BufferedInput {
     auto* oldPrefetch = prefetch.data() + noPrefetch.size();
     int numMoved = 0;
     int i = 0; // index into noPrefetch for read
-    int j = 0; // index into oldPrefetch
-    int k = 0; // index into prefetch
+    int j = 0; // index into oldPrefetch for read
+    int k = 0; // index into prefetch(expanded) for write
     int l = 0; // index into noPrefetch for write
-    for (auto& end : ends) {
+    for (auto& end : groupEnds) {
       prefetch[k++] = oldPrefetch[j++];
       while (j < end) {
         auto coalesceStart = getRegionEnd(oldPrefetch[j - 1]);
@@ -222,9 +225,9 @@ class BufferedInput {
     while (i < noPrefetch.size()) {
       noPrefetch[l++] = noPrefetch[i++];
     }
-    VELOX_CHECK_EQ(k, numOldPrefetch + numMoved);
+    VELOX_DCHECK_EQ(k, numOldPrefetch + numMoved);
     prefetch.resize(k);
-    VELOX_CHECK_EQ(l + numMoved, noPrefetch.size());
+    VELOX_DCHECK_EQ(l + numMoved, noPrefetch.size());
     noPrefetch.resize(l);
   }
 
@@ -244,10 +247,10 @@ class BufferedInput {
   void readToBuffer(
       uint64_t offset,
       folly::Range<char*> allocated,
-      const LogType logType);
+      const LogType logType) const;
 
   folly::Range<char*> allocate(const velox::common::Region& region) {
-    // Save the file offset and the buffer to which we'll read it
+    // Save the file offset and the buffer to which we'll read it.
     offsets_.push_back(region.offset);
     buffers_.emplace_back(
         allocPool_->allocateFixed(region.length), region.length);
@@ -261,16 +264,16 @@ class BufferedInput {
   // tries and merges WS read regions into one
   bool tryMerge(
       velox::common::Region& first,
-      const velox::common::Region& second);
+      const velox::common::Region& second) const;
 
-  uint64_t maxMergeDistance_;
-  std::optional<bool> wsVRLoad_;
+  const uint64_t maxMergeDistance_;
+  const std::optional<bool> wsVRLoad_;
   std::unique_ptr<memory::AllocationPool> allocPool_;
 
-  // Regions enqueued for reading
+  // Regions enqueued for reading.
   std::vector<velox::common::Region> regions_;
 
-  // Offsets in the file to which the corresponding Region belongs
+  // Offsets in the file to which the corresponding Region belongs.
   std::vector<uint64_t> offsets_;
 
   // Buffers allocated for reading each Region.

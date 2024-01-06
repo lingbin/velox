@@ -18,14 +18,14 @@
 #include <numeric>
 #include <utility>
 
-#include "folly/io/Cursor.h"
+#include <folly/io/Cursor.h>
 #include "velox/dwio/common/BufferedInput.h"
 
 DEFINE_bool(wsVRLoad, false, "Use WS VRead API to load");
 
-using ::facebook::velox::common::Region;
-
 namespace facebook::velox::dwio::common {
+
+using facebook::velox::common::Region;
 
 static_assert(std::is_move_constructible<BufferedInput>());
 
@@ -53,7 +53,7 @@ void BufferedInput::reset() {
 }
 
 void BufferedInput::load(const LogType logType) {
-  // no regions to load
+  // No regions to load.
   if (regions_.size() == 0) {
     return;
   }
@@ -65,7 +65,7 @@ void BufferedInput::load(const LogType logType) {
   sortRegions();
   mergeRegions();
 
-  // After sorting and merging we have the accurate sizes
+  // After sorting and merging we have the accurate sizes.
   offsets_.reserve(regions_.size());
   buffers_.reserve(regions_.size());
 
@@ -82,14 +82,14 @@ void BufferedInput::load(const LogType logType) {
     }
   }
 
-  // clear the loaded regions.
+  // Clear the loaded regions.
   regions_.clear();
 }
 
 void BufferedInput::readToBuffer(
     uint64_t offset,
     folly::Range<char*> allocated,
-    const LogType logType) {
+    const LogType logType) const {
   uint64_t storageReadTimeUs = 0;
   {
     MicrosecondTimer timer(&storageReadTimeUs);
@@ -104,7 +104,7 @@ void BufferedInput::readToBuffer(
 
 std::unique_ptr<SeekableInputStream> BufferedInput::enqueue(
     Region region,
-    const dwio::common::StreamIdentifier* /*sid*/) {
+    const StreamIdentifier* /*sid*/) {
   if (region.length == 0) {
     return std::make_unique<SeekableArrayInputStream>(
         static_cast<const char*>(nullptr), 0);
@@ -116,7 +116,7 @@ std::unique_ptr<SeekableInputStream> BufferedInput::enqueue(
     return ret;
   }
 
-  // push to region pool and give the caller the callback
+  // Push to region pool and give the caller the callback.
   regions_.push_back(region);
   return std::make_unique<SeekableArrayInputStream>(
       // Save "i", the position in which this region was enqueued. This will
@@ -134,15 +134,15 @@ std::unique_ptr<SeekableInputStream> BufferedInput::enqueue(
 }
 
 bool BufferedInput::useVRead() const {
-  // Use value explicitly set by the user if any, otherwise use the GFLAG
+  // Use value explicitly set by the user if any, otherwise use the GFLAG.
   // We want to update this on every use for now because during the onboarding
   // to wsVRLoad=true we may change the value of this GFLAG programatically from
   // a config update so we can rollback fast from config without the need of a
-  // deployment
+  // deployment.
   return wsVRLoad_.value_or(FLAGS_wsVRLoad);
 }
 
-// Sort regions and enqueuedToOffset in the same way
+// Sort regions_ and enqueuedToBufferOffset_ in the same way.
 void BufferedInput::sortRegions() {
   auto& r = regions_;
   auto& e = enqueuedToBufferOffset_;
@@ -154,12 +154,12 @@ void BufferedInput::sortRegions() {
     return;
   }
 
-  // Sort indices from low to high regions
-  // "e" will contain the positions to which each region should be sorted to
+  // Sort indices from low to high regions.
+  // "e" will contain the positions to which each region should be sorted to.
   std::sort(
       e.begin(), e.end(), [&](size_t a, size_t b) { return r[a] < r[b]; });
 
-  // Now actually sort. This way we sorted and saved the mapping of the sort
+  // Now actually sort. This way we sorted and saved the mapping of the sort.
   std::vector<Region> regions;
   regions.reserve(r.size());
   for (auto i : e) {
@@ -198,23 +198,24 @@ void BufferedInput::mergeRegions() {
   std::swap(e, te);
 }
 
-bool BufferedInput::tryMerge(Region& first, const Region& second) {
-  VELOX_CHECK_GE(second.offset, first.offset, "regions should be sorted.");
+bool BufferedInput::tryMerge(Region& first, const Region& second) const {
+  VELOX_CHECK_LE(first.offset, second.offset, "regions should be sorted.");
+  // TODO(lingbin): 添加注释，这里 gap 显式使用 有符号整型；
   const int64_t gap = second.offset - first.offset - first.length;
 
   // Duplicate regions (extension==0) is the only case allowed to merge for
-  // useVRead()
+  // useVRead().
   const int64_t extension = gap + second.length;
   if (useVRead()) {
     return extension == 0;
   }
 
-  // compare with 0 since it's comparison in different types
+  // Compare with 0 since it's comparison in different types.
   if (gap < 0 || gap <= maxMergeDistance_) {
-    // the second region is inside first one if extension is negative
+    // The second region is inside first one if 'extension' is negative.
     if (extension > 0) {
       first.length += extension;
-      if ((input_->getStats() != nullptr) && gap > 0) {
+      if (input_->getStats() != nullptr && gap > 0) {
         input_->getStats()->incRawOverreadBytes(gap);
       }
     }
@@ -229,7 +230,7 @@ std::unique_ptr<SeekableInputStream> BufferedInput::readBuffer(
   const auto result = readInternal(offset, length);
   const auto size = std::get<1>(result);
   if (size == MAX_UINT64) {
-    return {};
+    return nullptr;
   }
   return std::make_unique<SeekableArrayInputStream>(std::get<0>(result), size);
 }
@@ -238,7 +239,7 @@ std::tuple<const char*, uint64_t> BufferedInput::readInternal(
     uint64_t offset,
     uint64_t length,
     std::optional<size_t> i) const {
-  // return dummy one for zero length stream
+  // Return dummy one for zero length stream.
   if (length == 0) {
     return std::make_tuple(nullptr, 0);
   }
@@ -247,9 +248,9 @@ std::tuple<const char*, uint64_t> BufferedInput::readInternal(
   if (i.has_value()) {
     const auto vi = i.value();
     // There's a possibility that our user enqueued, then tried to read before
-    // calling load(). In that case, enqueuedToBufferOffset_ will be empty or
+    // calling load(). In that case, 'enqueuedToBufferOffset_' will be empty or
     // have the values from a previous load. So I want to make sure that he ends
-    // up in a valid offset, and that this offset is <= offset. Otherwise we
+    // up in a valid offset, and that this offset is <= offset. Otherwise, we
     // just go for the binary search.
     if (vi < enqueuedToBufferOffset_.size() &&
         enqueuedToBufferOffset_[vi] < offsets_.size() &&

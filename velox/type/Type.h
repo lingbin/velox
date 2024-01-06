@@ -48,14 +48,12 @@
 
 namespace facebook::velox {
 
-using int128_t = __int128_t;
-
 using column_index_t = uint32_t;
 
 constexpr column_index_t kConstantChannel =
     std::numeric_limits<column_index_t>::max();
 
-/// Velox type system supports a small set of SQL-compatible composeable types:
+/// Velox type system supports a small set of SQL-compatible composable types:
 /// BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT, HUGEINT, REAL, DOUBLE, VARCHAR,
 /// VARBINARY, TIMESTAMP, ARRAY, MAP, ROW
 ///
@@ -63,7 +61,7 @@ constexpr column_index_t kConstantChannel =
 /// These logical definitions each serve slightly different purposes.
 /// These type sets are:
 /// - TypeKind
-/// - Type (RowType, BigIntType, ect.)
+/// - Type (RowType, BigIntType, etc.)
 /// - Templated Types (Row<T...>, Map<K, V>, ...)
 ///     C++ templated classes. Never instantiated, used to pass limited type
 ///     information into template parameters.
@@ -95,6 +93,7 @@ enum class TypeKind : int8_t {
 
 VELOX_DECLARE_ENUM_NAME(TypeKind);
 
+// Forward declaration.
 template <TypeKind KIND>
 class ScalarType;
 class ShortDecimalType;
@@ -239,7 +238,7 @@ struct TypeTraits<TypeKind::TIMESTAMP> {
   static constexpr uint32_t maxSubTypes = 0;
   static constexpr TypeKind typeKind = TypeKind::TIMESTAMP;
   // isPrimitiveType in the type traits indicate whether it is a leaf type.
-  // So only types which have other sub types, should be set to false.
+  // So only types which have other sub-types, should be set to false.
   // Timestamp does not contain other types, so it is set to true.
   static constexpr bool isPrimitiveType = true;
   static constexpr bool isFixedWidth = true;
@@ -304,7 +303,7 @@ struct TypeTraits<TypeKind::ROW> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::ROW;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -343,7 +342,7 @@ struct TypeTraits<TypeKind::FUNCTION> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::FUNCTION;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -374,6 +373,7 @@ constexpr bool is_nested_kind(TypeKind kind) {
       kind == TypeKind::ROW;
 }
 
+// Forward declaration.
 template <TypeKind KIND>
 struct TypeFactory;
 
@@ -450,8 +450,8 @@ enum class TypeParameterKind {
 struct TypeParameter {
   const TypeParameterKind kind;
 
-  /// Must be not not null when kind is kType. All other properties should be
-  /// null or unset (other than rowFieldName).
+  /// Must be not null when kind is kType. All other properties should be null
+  /// or unset (other than rowFieldName).
   const TypePtr type;
 
   /// Must be set when kind is kLongLiteral. All other properties should be null
@@ -467,7 +467,7 @@ struct TypeParameter {
   const std::optional<VarcharEnumParameter> varcharEnumLiteral;
 
   /// If this parameter is a child of another parent row type, it can optionally
-  /// have a name, e.g, "id" for `row(id bigint)`. Only set when kind is kType
+  /// have a name, e.g, "id" for `row(id bigint)`. Only set when kind is kType.
   const std::optional<std::string> rowFieldName;
 
   /// Creates kType parameter.
@@ -545,13 +545,13 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   /// Returns true if equality relationship is defined for the values of this
   /// type, i.e. a == b is defined and returns true, false or null. For example,
   /// scalar types are usually comparable and complex types are comparable if
-  /// their nested types are.
+  /// their nested types are comparable.
   virtual bool isComparable() const = 0;
 
   /// Returns true if less than relationship is defined for the values of this
   /// type, i.e. a <= b returns true or false. For example, scalar types are
   /// usually orderable, arrays and structs are orderable if their nested types
-  /// are, while map types are not orderable.
+  /// are orderable, while map types are not orderable.
   virtual bool isOrderable() const = 0;
 
   /// Returns true if values of this type implements custom comparison and hash
@@ -638,17 +638,17 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   VELOX_FLUENT_CAST(Array, ARRAY)
   VELOX_FLUENT_CAST(Map, MAP)
   VELOX_FLUENT_CAST(Row, ROW)
-  VELOX_FLUENT_CAST(Opaque, OPAQUE)
   VELOX_FLUENT_CAST(UnKnown, UNKNOWN)
   VELOX_FLUENT_CAST(Function, FUNCTION)
+  VELOX_FLUENT_CAST(Opaque, OPAQUE)
 
   const ShortDecimalType& asShortDecimal() const;
   const LongDecimalType& asLongDecimal() const;
   bool isShortDecimal() const;
   bool isLongDecimal() const;
   bool isDecimal() const;
-  bool isIntervalYearMonth() const;
 
+  bool isIntervalYearMonth() const;
   bool isIntervalDayTime() const;
 
   bool isTime() const;
@@ -668,10 +668,9 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   }
 
   /// For Complex types (Row, Array, Map, Opaque): types are strongly matched.
-  /// Examples: Two RowTypes are == if the children types and the children names
-  /// are same. Two OpaqueTypes are == if the typeKind and the typeIndex are
-  /// same.
-  /// For primitive types: same as equivalent.
+  /// Examples: Two RowTypes are equal if the children types and the children
+  /// names are same. Two OpaqueTypes are equal if the typeKind and the
+  /// typeIndex are same. For primitive types: same as equivalent.
   virtual bool equals(const Type& other) const {
     VELOX_CHECK(this->isPrimitiveType());
     return this->equivalent(other);
@@ -1085,8 +1084,8 @@ class MapType : public TypeBase<TypeKind::MAP> {
   bool equals(const Type& other) const override;
 
  private:
-  TypePtr keyType_;
-  TypePtr valueType_;
+  const TypePtr keyType_;
+  const TypePtr valueType_;
   const std::array<TypeParameter, 2> parameters_;
 };
 
@@ -1272,9 +1271,10 @@ class FunctionType : public TypeBase<TypeKind::FUNCTION> {
       std::vector<TypePtr>&& argumentTypes,
       TypePtr returnType) {
     auto children = std::move(argumentTypes);
-    children.push_back(returnType);
+    children.push_back(std::move(returnType));
     return children;
   }
+
   // Argument types from left to right followed by return value type.
   const std::vector<TypePtr> children_;
   const std::vector<TypeParameter> parameters_;
@@ -1391,18 +1391,19 @@ using IntegerType = ScalarType<TypeKind::INTEGER>;
 using BooleanType = ScalarType<TypeKind::BOOLEAN>;
 using TinyintType = ScalarType<TypeKind::TINYINT>;
 using SmallintType = ScalarType<TypeKind::SMALLINT>;
+using IntegerType = ScalarType<TypeKind::INTEGER>;
 using BigintType = ScalarType<TypeKind::BIGINT>;
 using HugeintType = ScalarType<TypeKind::HUGEINT>;
 using RealType = ScalarType<TypeKind::REAL>;
 using DoubleType = ScalarType<TypeKind::DOUBLE>;
-using TimestampType = ScalarType<TypeKind::TIMESTAMP>;
 using VarcharType = ScalarType<TypeKind::VARCHAR>;
 using VarbinaryType = ScalarType<TypeKind::VARBINARY>;
+using TimestampType = ScalarType<TypeKind::TIMESTAMP>;
 
-constexpr long kMillisInSecond = 1000;
-constexpr long kMillisInMinute = 60 * kMillisInSecond;
-constexpr long kMillisInHour = 60 * kMillisInMinute;
-constexpr long kMillisInDay = 24 * kMillisInHour;
+constexpr int64_t kMillisInSecond = 1000;
+constexpr int64_t kMillisInMinute = 60 * kMillisInSecond;
+constexpr int64_t kMillisInHour = 60 * kMillisInMinute;
+constexpr int64_t kMillisInDay = 24 * kMillisInHour;
 
 /// Time interval in milliseconds.
 class IntervalDayTimeType final : public BigintType {
@@ -1427,11 +1428,11 @@ class IntervalDayTimeType final : public BigintType {
     return name();
   }
 
-  /// Returns the interval 'value' (milliseconds) formatted as DAYS
-  /// HOURS:MINUTES:SECONDS.MILLIS. For example, 1 03:48:20.100.
+  /// Returns the interval 'value' (milliseconds) formatted as
+  /// "DAYS HOURS:MINUTES:SECONDS.MILLIS". For example, "1 03:48:20.100".
   /// TODO Figure out how to make this API generic, i.e. available via Type.
   /// Perhaps, Type::valueToString(variant)?
-  std::string valueToString(int64_t value) const;
+  static std::string valueToString(int64_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1455,7 +1456,8 @@ FOLLY_ALWAYS_INLINE bool Type::isIntervalDayTime() const {
   return (this == INTERVAL_DAY_TIME().get());
 }
 
-constexpr long kMonthInYear = 12;
+constexpr int64_t kMonthInYear = 12;
+
 /// Time interval in months.
 class IntervalYearMonthType final : public IntegerType {
   IntervalYearMonthType() = default;
@@ -1479,10 +1481,10 @@ class IntervalYearMonthType final : public IntegerType {
     return name();
   }
 
-  /// Returns the interval 'value' (months) formatted as YEARS MONTHS.
-  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be
-  /// represented as 1-2; -14 months would be represents as -1-2.
-  std::string valueToString(int32_t value) const;
+  /// Returns the interval 'value' (months) formatted as "YEARS MONTHS".
+  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be represented
+  /// as "1-2"; -14 months would be represented as "-1-2".
+  static std::string valueToString(int32_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1528,15 +1530,15 @@ class DateType final : public IntegerType {
     return name();
   }
 
-  std::string toString(int32_t days) const;
+  static std::string toString(int32_t days);
 
   /// Returns a date, represented as days since epoch,
   /// as an ISO 8601-formatted string.
   static std::string toIso8601(int32_t days);
 
-  int32_t toDays(std::string_view in) const;
+  static int32_t toDays(std::string_view in);
 
-  int32_t toDays(const char* in, size_t len) const;
+  static int32_t toDays(const char* in, size_t len);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1688,9 +1690,9 @@ struct TypeFactory<TypeKind::ARRAY> {
 
 template <>
 struct TypeFactory<TypeKind::MAP> {
-  static MapTypePtr create(TypePtr keyType, TypePtr valType) {
+  static MapTypePtr create(TypePtr keyType, TypePtr valueType) {
     return std::make_shared<const MapType>(
-        std::move(keyType), std::move(valType));
+        std::move(keyType), std::move(valueType));
   }
 };
 
@@ -2056,9 +2058,6 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
     }                                                                       \
   }()
 
-#define VELOX_SCALAR_ACCESSOR(KIND) \
-  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
-
 #define VELOX_STATIC_FIELD_DYNAMIC_DISPATCH(CLASS, FIELD, typeKind)  \
   [&]() {                                                            \
     switch (typeKind) {                                              \
@@ -2123,18 +2122,25 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
 
 // todo: union convenience creators
 
-VELOX_SCALAR_ACCESSOR(INTEGER);
+#define VELOX_SCALAR_ACCESSOR(KIND) \
+  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
+
 VELOX_SCALAR_ACCESSOR(BOOLEAN);
 VELOX_SCALAR_ACCESSOR(TINYINT);
 VELOX_SCALAR_ACCESSOR(SMALLINT);
+VELOX_SCALAR_ACCESSOR(INTEGER);
 VELOX_SCALAR_ACCESSOR(BIGINT);
 VELOX_SCALAR_ACCESSOR(HUGEINT);
 VELOX_SCALAR_ACCESSOR(REAL);
 VELOX_SCALAR_ACCESSOR(DOUBLE);
-VELOX_SCALAR_ACCESSOR(TIMESTAMP);
 VELOX_SCALAR_ACCESSOR(VARCHAR);
 VELOX_SCALAR_ACCESSOR(VARBINARY);
+VELOX_SCALAR_ACCESSOR(TIMESTAMP);
 
+#undef VELOX_SCALAR_ACCESSOR
+
+// TODO(lingbin):添加注释说明为什么不使用上面的 宏 来创建。因为 UnknownType
+// 没有继承自 ScalarType. 可以在 `ScalarType`的 模板参数中，在声明时显式禁止掉。
 TypePtr UNKNOWN();
 
 template <TypeKind KIND>
@@ -2178,34 +2184,32 @@ TypePtr createType<TypeKind::MAP>(std::vector<TypePtr>&& children);
 template <>
 TypePtr createType<TypeKind::OPAQUE>(std::vector<TypePtr>&& children);
 
-#undef VELOX_SCALAR_ACCESSOR
-
 template <typename T>
 struct SimpleTypeTrait {};
 
 template <>
-struct SimpleTypeTrait<int128_t> : public TypeTraits<TypeKind::HUGEINT> {};
+struct SimpleTypeTrait<bool> : public TypeTraits<TypeKind::BOOLEAN> {};
 
 template <>
-struct SimpleTypeTrait<int64_t> : public TypeTraits<TypeKind::BIGINT> {};
-
-template <>
-struct SimpleTypeTrait<int32_t> : public TypeTraits<TypeKind::INTEGER> {};
+struct SimpleTypeTrait<int8_t> : public TypeTraits<TypeKind::TINYINT> {};
 
 template <>
 struct SimpleTypeTrait<int16_t> : public TypeTraits<TypeKind::SMALLINT> {};
 
 template <>
-struct SimpleTypeTrait<int8_t> : public TypeTraits<TypeKind::TINYINT> {};
+struct SimpleTypeTrait<int32_t> : public TypeTraits<TypeKind::INTEGER> {};
+
+template <>
+struct SimpleTypeTrait<int64_t> : public TypeTraits<TypeKind::BIGINT> {};
+
+template <>
+struct SimpleTypeTrait<int128_t> : public TypeTraits<TypeKind::HUGEINT> {};
 
 template <>
 struct SimpleTypeTrait<float> : public TypeTraits<TypeKind::REAL> {};
 
 template <>
 struct SimpleTypeTrait<double> : public TypeTraits<TypeKind::DOUBLE> {};
-
-template <>
-struct SimpleTypeTrait<bool> : public TypeTraits<TypeKind::BOOLEAN> {};
 
 template <>
 struct SimpleTypeTrait<Timestamp> : public TypeTraits<TypeKind::TIMESTAMP> {};
@@ -2420,9 +2424,7 @@ AbstractInputGeneratorPtr getCustomTypeInputGenerator(
 
 // Allows us to transparently use folly::toAppend(), folly::join(), etc.
 template <class TString>
-void toAppend(
-    const std::shared_ptr<const facebook::velox::Type>& type,
-    TString* result) {
+void toAppend(const std::shared_ptr<const Type>& type, TString* result) {
   result->append(type->toString());
 }
 

@@ -29,7 +29,7 @@ namespace facebook::velox::memory {
 class ArbitrationOperation {
  public:
   ArbitrationOperation(
-      ScopedArbitrationParticipant&& pool,
+      ScopedArbitrationParticipant&& participant,
       uint64_t requestBytes,
       uint64_t timeoutNs);
 
@@ -49,7 +49,7 @@ class ArbitrationOperation {
   static std::string stateName(State state);
 
   /// Returns the corresponding arbitration participant.
-  const ScopedArbitrationParticipant& participant() {
+  const ScopedArbitrationParticipant& participant() const {
     return participant_;
   }
 
@@ -119,7 +119,7 @@ class ArbitrationOperation {
     uint64_t executionTimeNs{0};
   };
 
-  /// NOTE: should only called after this arbitration operation finishes.
+  /// NOTE: should only be called after this arbitration operation finishes.
   Stats stats() const;
 
  private:

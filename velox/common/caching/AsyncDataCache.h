@@ -26,6 +26,7 @@
 
 #include "velox/common/base/BitUtil.h"
 #include "velox/common/base/CoalesceIo.h"
+#include "velox/common/base/Exceptions.h"
 #include "velox/common/base/Portability.h"
 #include "velox/common/base/SelectivityInfo.h"
 #include "velox/common/caching/FileGroupStats.h"
@@ -79,7 +80,7 @@ struct AccessStats {
   // expensive and many entries are checked one after the other. lastUse == 0
   // means explicitly evictable.
   int32_t score(AccessTime now, uint64_t /*size*/) const {
-    if (!lastUse) {
+    if (lastUse == 0) {
       return std::numeric_limits<int32_t>::max();
     }
     return (now - lastUse) / (1 + numUses);
@@ -124,7 +125,8 @@ struct RawFileCacheKey {
 namespace std {
 template <>
 struct hash<::facebook::velox::cache::FileCacheKey> {
-  size_t operator()(const ::facebook::velox::cache::FileCacheKey& key) const {
+  size_t operator()(
+      const ::facebook::velox::cache::FileCacheKey& key) const noexcept {
     return facebook::velox::bits::hashMix(key.fileNum.id(), key.offset);
   }
 };
@@ -132,7 +134,7 @@ struct hash<::facebook::velox::cache::FileCacheKey> {
 template <>
 struct hash<::facebook::velox::cache::RawFileCacheKey> {
   size_t operator()(
-      const ::facebook::velox::cache::RawFileCacheKey& key) const {
+      const ::facebook::velox::cache::RawFileCacheKey& key) const noexcept {
     return facebook::velox::bits::hashMix(key.fileNum, key.offset);
   }
 };
@@ -160,9 +162,9 @@ class AsyncDataCacheEntry {
   explicit AsyncDataCacheEntry(CacheShard* shard);
   ~AsyncDataCacheEntry();
 
-  /// Sets the key and allocates the entry's memory.  Resets
-  ///  all other state. The entry must be held exclusively and must
-  ///  hold no memory when calling this.
+  /// Sets the key and allocates the entry's memory. Resets all other state. The
+  /// entry must be held exclusively and must hold no memory when calling this.
+  /// Will throw if fails to allocate memory.
   void initialize(FileCacheKey key);
 
   memory::Allocation& data() {
@@ -340,7 +342,7 @@ class AsyncDataCacheEntry {
 
 class CachePin {
  public:
-  CachePin() : entry_(nullptr) {}
+  CachePin() = default;
 
   CachePin(const CachePin& other) {
     *this = other;
@@ -372,14 +374,14 @@ class CachePin {
 
   void clear() {
     release();
-    entry_ = nullptr;
   }
+
   AsyncDataCacheEntry* entry() const {
     return entry_;
   }
 
   AsyncDataCacheEntry* checkedEntry() const {
-    assert(entry_);
+    VELOX_DCHECK_NOT_NULL(entry_);
     return entry_;
   }
 
@@ -437,7 +439,7 @@ class CoalescedLoad {
   /// process of doing this and 'wait' is null, returns immediately. If another
   /// thread is in the process of doing this and 'wait' is not null, waits for
   /// the other thread to be done. If 'ssdSavable' is true, marks the loaded
-  /// entries as ssdsavable.
+  /// entries as ssd-savable.
   bool loadOrFuture(folly::SemiFuture<bool>* wait, bool ssdSavable = true);
 
   State state() const {
@@ -480,8 +482,8 @@ class CoalescedLoad {
   // Allows waiting for load or cancellation.
   std::unique_ptr<folly::SharedPromise<bool>> promise_;
 
-  std::vector<RawFileCacheKey> keys_;
-  std::vector<int32_t> sizes_;
+  const std::vector<RawFileCacheKey> keys_;
+  const std::vector<int32_t> sizes_;
 };
 
 /// Struct for CacheShard stats. Stats from all shards are added into
@@ -489,9 +491,9 @@ class CoalescedLoad {
 struct CacheStats {
   /// ============= Snapshot stats =============
 
-  /// Total size in 'tinyData_'
+  /// Total size in 'tinyData_'.
   int64_t tinySize{0};
-  /// Total size in 'data_'
+  /// Total size in 'data_'.
   int64_t largeSize{0};
   /// Unused capacity in 'tinyData_'.
   int64_t tinyPadding{0};
@@ -617,9 +619,9 @@ class CacheShard {
   /// Appends a batch of non-saved SSD savable entries in 'this' to 'pins'. This
   /// may have to be called several times since this keeps limits on the batch
   /// to write at one time. The savable entries are pinned for read. 'pins'
-  /// should be written or dropped before calling this a second time. If 'all'
-  /// is true, then appends all the non-savable SSD savable entries without
-  /// limitation check. 'saveAll' is set to true for Prestissimo worker
+  /// should be written or dropped before calling this a second time. If
+  /// 'saveAll' is true, then appends all the non-savable SSD savable entries
+  /// without limitation check. 'saveAll' is set to true for Prestissimo worker
   /// operation use case.
   void appendSsdSaveable(bool saveAll, std::vector<CachePin>& pins);
 
@@ -661,9 +663,9 @@ class CacheShard {
   const double maxWriteRatio_;
 
   mutable std::mutex mutex_;
-  folly::F14FastMap<RawFileCacheKey, AsyncDataCacheEntry*> entryMap_;
-  // Entries associated to a key.
   std::deque<std::unique_ptr<AsyncDataCacheEntry>> entries_;
+  // Entries associated to a key.
+  folly::F14FastMap<RawFileCacheKey, AsyncDataCacheEntry*> entryMap_;
   // Unused indices in 'entries_'.
   std::vector<int32_t> emptySlots_;
   // A reserve of entries that are not associated to a key. Keeps a
@@ -672,11 +674,14 @@ class CacheShard {
 
   // Index in 'entries_' for the next eviction candidate.
   uint32_t clockHand_{0};
+
   // Number of gets since last stats sampling.
   uint32_t eventCounter_{0};
   // Maximum retainable entry score(). Anything above this is evictable.
   int32_t evictionThreshold_{kNoThreshold};
-  // Cumulative count of cache hits.
+
+  // Cumulative count of cache hits(saved IO). The first hit to a prefetched
+  // entry does not count.
   uint64_t numHit_{0};
   // Cumulative Sum of bytes in cache hits.
   uint64_t hitBytes_{0};
@@ -749,11 +754,11 @@ class AsyncDataCache : public memory::Cache {
       memory::MemoryAllocator* allocator,
       std::unique_ptr<SsdCache> ssdCache = nullptr);
 
-  AsyncDataCache(
+  explicit AsyncDataCache(
       memory::MemoryAllocator* allocator,
       std::unique_ptr<SsdCache> ssdCache = nullptr);
 
-  ~AsyncDataCache() override;
+  ~AsyncDataCache() override = default;
 
   static std::shared_ptr<AsyncDataCache> create(
       memory::MemoryAllocator* allocator,
@@ -769,9 +774,9 @@ class AsyncDataCache : public memory::Cache {
   void shutdown();
 
   /// Calls 'allocate' until this returns true. Returns true if
-  /// allocate returns true. and Tries to evict at least 'numPages' of
+  /// allocate returns true. And tries to evict at least 'numPages' of
   /// cache after each failed call to 'allocate'.  May pause to wait
-  /// for SSD cache flush if ''ssdCache_' is set and is busy
+  /// for SSD cache flush if 'ssdCache_' is set and is busy
   /// writing. Does random back-off after several failures and
   /// eventually gives up. Allocation must not be serialized by a mutex
   /// for memory arbitration to work.
@@ -844,9 +849,9 @@ class AsyncDataCache : public memory::Cache {
   /// triggers a background write of eligible entries to SSD.
   void possibleSsdSave(uint64_t bytes);
 
-  /// Sets a callback applied to new entries at the point where
-  ///  they are set to shared mode. Used for testing and can be used for
-  /// e.g. checking checksums.
+  /// Sets a callback applied to new entries at the point where they are set to
+  /// shared mode. Used for testing and can be used for. e.g. checking
+  /// checksums.
   void setVerifyHook(std::function<void(const AsyncDataCacheEntry&)> hook) {
     verifyHook_ = hook;
   }
@@ -915,6 +920,7 @@ class AsyncDataCache : public memory::Cache {
   std::unique_ptr<SsdCache> ssdCache_;
   std::vector<std::unique_ptr<CacheShard>> shards_;
   std::atomic<int32_t> shardCounter_{0};
+
   std::atomic<memory::MachinePageCount> cachedPages_{0};
   // Number of pages that are allocated and not yet loaded or loaded
   // but not yet hit for the first time.
@@ -942,7 +948,7 @@ class AsyncDataCache : public memory::Cache {
   // allocations, so use backoff.
   std::atomic<uint16_t> backoffCounter_{0};
 
-  // Counter of threads competing for allocation in makeSpace(). Used
+  // Counter of threads competing for allocation in 'makeSpace()'. Used
   // for setting staggered backoff. Mutexes are not allowed for this.
   std::atomic<int32_t> numThreadsInAllocate_{0};
 

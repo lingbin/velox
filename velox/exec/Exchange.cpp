@@ -44,7 +44,7 @@ void RemoteConnectorSplit::registerSerDe() {
 
 namespace {
 std::unique_ptr<folly::IOBuf> mergePages(
-    std::vector<std::unique_ptr<SerializedPageBase>>& pages) {
+    const std::vector<std::unique_ptr<SerializedPageBase>>& pages) {
   VELOX_CHECK(!pages.empty());
   std::unique_ptr<folly::IOBuf> mergedBufs;
   for (const auto& page : pages) {
@@ -74,18 +74,17 @@ Exchange::Exchange(
           driverCtx->queryConfig().preferredOutputBatchBytes()},
       serdeKind_{exchangeNode->serdeKind()},
       serdeOptions_{getVectorSerdeOptions(
-          common::stringToCompressionKind(operatorCtx_->driverCtx()
-                                              ->queryConfig()
-                                              .shuffleCompressionKind()),
+          common::stringToCompressionKind(
+              driverCtx->queryConfig().shuffleCompressionKind()),
           serdeKind_)},
-      processSplits_{operatorCtx_->driverCtx()->driverId == 0},
+      processSplits_{driverCtx->driverId == 0},
       driverId_{driverCtx->driverId},
       exchangeClient_{std::move(exchangeClient)} {}
 
 void Exchange::addRemoteTaskIds(std::vector<std::string>& remoteTaskIds) {
   std::shuffle(std::begin(remoteTaskIds), std::end(remoteTaskIds), rng_);
-  for (const std::string& taskId : remoteTaskIds) {
-    exchangeClient_->addRemoteTaskId(taskId);
+  for (const std::string& remoteTaskId : remoteTaskIds) {
+    exchangeClient_->addRemoteTaskId(remoteTaskId);
   }
   stats_.wlock()->numSplits += remoteTaskIds.size();
 }
@@ -117,6 +116,10 @@ void Exchange::getSplits(ContinueFuture* future) {
       continue;
     }
 
+    // A split without a connector split is a sentinel indicating that no more
+    // splits will be added for this ExchangeNode. Flush all the accumulated
+    // remote task ids and notify ExchangeClient that there will be no more
+    // remote sources.
     addRemoteTaskIds(remoteTaskIds);
     exchangeClient_->noMoreRemoteTasks();
     noMoreSplits_ = true;
@@ -151,8 +154,9 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
     return BlockingReason::kNotBlocked;
   }
 
-  // We have a dataFuture and we may also have a splitFuture_.
+  VELOX_CHECK(dataFuture.valid());
 
+  // We have a dataFuture and we may also have a splitFuture_.
   if (splitFuture_.valid()) {
     // Block until data becomes available or more splits arrive.
     std::vector<ContinueFuture> futures;
@@ -163,7 +167,6 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
   }
 
   // Block until data becomes available.
-  VELOX_CHECK(dataFuture.valid());
   *future = std::move(dataFuture);
   return BlockingReason::kWaitForProducer;
 }

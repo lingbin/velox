@@ -16,8 +16,8 @@
 #pragma once
 
 #include <memory>
-namespace facebook {
-namespace velox {
+
+namespace facebook::velox {
 
 template <typename T>
 class Tree;
@@ -101,5 +101,4 @@ class Tree {
   // todo(youknowjack): remaining container members
 };
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

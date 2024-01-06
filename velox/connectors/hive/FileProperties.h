@@ -27,6 +27,7 @@
 
 #include <folly/container/F14Map.h>
 #include <cstdint>
+#include <optional>
 
 namespace facebook::velox {
 

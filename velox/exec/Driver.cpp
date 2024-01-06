@@ -100,7 +100,7 @@ const trace::TraceCtx* DriverCtx::traceCtx() const {
   return task->traceCtx();
 }
 
-velox::memory::MemoryPool* DriverCtx::addOperatorPool(
+memory::MemoryPool* DriverCtx::addOperatorPool(
     const core::PlanNodeId& planNodeId,
     const std::string& operatorType) {
   return task->addOperatorPool(
@@ -109,7 +109,7 @@ velox::memory::MemoryPool* DriverCtx::addOperatorPool(
 
 std::optional<common::SpillConfig> DriverCtx::makeSpillConfig(
     int32_t operatorId) const {
-  const auto& queryConfig = task->queryCtx()->queryConfig();
+  const auto& queryConfig = this->queryConfig();
   if (!queryConfig.spillEnabled()) {
     return std::nullopt;
   }
@@ -167,15 +167,15 @@ BlockingState::BlockingState(
               .count()) {
   // Set before leaving the thread.
   driver_->state().hasBlockingFuture = true;
-  numBlockedDrivers_++;
+  ++numBlockedDrivers_;
 }
 
 // static
 void BlockingState::setResume(std::shared_ptr<BlockingState> state) {
   VELOX_CHECK(!state->driver_->isOnThread());
-  auto& exec = folly::QueuedImmediateExecutor::instance();
+  auto& executor = folly::QueuedImmediateExecutor::instance();
   std::move(state->future_)
-      .via(&exec)
+      .via(&executor)
       .thenValue([state](auto&& /* unused */) {
         auto& driver = state->driver_;
         auto& task = driver->task();
@@ -194,7 +194,7 @@ void BlockingState::setResume(std::shared_ptr<BlockingState> state) {
         Driver::enqueue(state->driver_);
       })
       .thenError(
-          folly::tag_t<std::exception>{}, [state](std::exception const& e) {
+          folly::tag_t<std::exception>{}, [state](const std::exception& e) {
             try {
               VELOX_FAIL(
                   "A ContinueFuture for task {} was realized with error: {}",
@@ -229,7 +229,7 @@ std::string stopReasonString(StopReason reason) {
   }
 }
 
-std::ostream& operator<<(std::ostream& out, const StopReason& reason) {
+std::ostream& operator<<(std::ostream& out, StopReason reason) {
   return out << stopReasonString(reason);
 }
 
@@ -237,13 +237,13 @@ std::ostream& operator<<(std::ostream& out, const StopReason& reason) {
 void Driver::enqueue(std::shared_ptr<Driver> driver) {
   process::ScopedThreadDebugInfo scopedInfo(
       driver->driverCtx()->threadDebugInfo);
-  // This is expected to be called inside the Driver's Tasks's mutex.
+  // This is expected to be called inside the Driver's Task's mutex.
   driver->enqueueInternal();
   if (driver->closed_) {
     return;
   }
   driver->task()->queryCtx()->executor()->add(
-      [driver]() { Driver::run(driver); });
+      [driver = std::move(driver)]() { Driver::run(driver); });
 }
 
 void Driver::init(
@@ -276,8 +276,7 @@ RowVectorPtr Driver::next(
     BlockingReason& blockingReason) {
   enqueueInternal();
   auto self = shared_from_this();
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(
-      self->driverCtx()->threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(self->driverCtx()->threadDebugInfo);
   ScopedDriverThreadContext scopedDriverThreadContext(self->driverCtx());
   std::shared_ptr<BlockingState> blockingState;
   RowVectorPtr result;
@@ -354,7 +353,8 @@ size_t OpCallStatusRaw::callDuration() const {
   return empty() ? 0 : (getCurrentTimeMs() - timeStartMs);
 }
 
-/*static*/ std::string OpCallStatusRaw::formatCall(
+// static
+std::string OpCallStatusRaw::formatCall(
     Operator* op,
     const char* operatorMethod) {
   return op
@@ -409,8 +409,8 @@ CpuWallTiming Driver::processLazyIoStats(
       lockStats->lastLazyInputBytes = inputBytes;
     }
   }
-
   lockStats.unlock();
+
   cpuDelta = std::min<int64_t>(cpuDelta, timing.cpuNanos);
   wallDelta = std::min<int64_t>(wallDelta, timing.wallNanos);
   lockStats = operators_[0]->stats().wlock();
@@ -436,7 +436,7 @@ bool Driver::shouldYield() const {
   return execTimeMs() >= cpuSliceMs_;
 }
 
-bool Driver::checkUnderArbitration(ContinueFuture* future) {
+bool Driver::checkUnderArbitration(ContinueFuture* future) const {
   return task()->queryCtx()->checkUnderArbitration(future);
 }
 
@@ -459,12 +459,12 @@ StopReason Driver::runInternal(
     std::shared_ptr<Driver>& self,
     std::shared_ptr<BlockingState>& blockingState,
     RowVectorPtr& result) {
-  const auto now = getCurrentTimeMicro();
-  const auto queuedTimeUs = now - queueTimeStartUs_;
+  const auto nowUs = getCurrentTimeMicro();
+  const auto queuedTimeUs = nowUs - queueTimeStartUs_;
 
   // Update the next operator's queueTime.
   StopReason stop =
-      closed_ ? StopReason::kTerminate : task()->enter(state_, now);
+      closed_ ? StopReason::kTerminate : task()->enter(state_, nowUs);
   if (stop != StopReason::kNone) {
     if (stop == StopReason::kTerminate) {
       // ctx_ still has a reference to the Task. 'this' is not on
@@ -476,6 +476,8 @@ StopReason Driver::runInternal(
     return stop;
   }
 
+  // See 7121fb9628b9d0446e0b6911acc4c609eb585fdf
+  // No need this comment, because task no long stored into a local var.
   // Update the queued time after entering the Task to ensure the stats have not
   // been deleted.
   if (curOperatorId_ < operators_.size()) {
@@ -759,8 +761,7 @@ void Driver::recordYieldCount() {
 // static
 void Driver::run(std::shared_ptr<Driver> self) {
   process::TraceContext trace("Driver::run");
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(
-      self->driverCtx()->threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(self->driverCtx()->threadDebugInfo);
   ScopedDriverThreadContext scopedDriverThreadContext(self->driverCtx());
   std::shared_ptr<BlockingState> blockingState;
   RowVectorPtr nullResult;
@@ -771,7 +772,7 @@ void Driver::run(std::shared_ptr<Driver> self) {
   VELOX_CHECK_NULL(
       nullResult,
       "The last operator (sink) must not produce any results. "
-      "Results need to be consumed by either a callback or another operator. ");
+      "Results need to be consumed by either a callback or another operator.");
 
   // There can be a race between Task terminating and the Driver being on the
   // thread and exiting the runInternal() in a blocked state. If this happens
@@ -807,7 +808,7 @@ void Driver::run(std::shared_ptr<Driver> self) {
 
 void Driver::initializeOperatorStats(std::vector<OperatorStats>& stats) {
   stats.resize(operators_.size(), OperatorStats(0, 0, "", ""));
-  // Initialize the place in stats given by the operatorId. Use the
+  // Initialize the stats in place given by the operatorId. Use the
   // operatorId instead of i as the index to document the usage. The
   // operators are sequentially numbered but they could be reordered
   // in the pipeline later, so the ordinal position of the Operator is
@@ -987,6 +988,8 @@ std::unordered_set<column_index_t> Driver::canPushdownFilters(
     const Operator* filterSource,
     const std::vector<column_index_t>& channels) const {
   const int filterSourceIndex = operatorIndex(filterSource);
+  // TODO: 是否可以修改为如下的形式？
+  // int32_t filterSourceIndex = filterSource->operatorId();
 
   std::unordered_set<column_index_t> supportedChannels;
   for (auto i = 0; i < channels.size(); ++i) {
@@ -1030,7 +1033,7 @@ int Driver::pushdownFilters(
   std::vector<int> numFiltersAccepted(filterSourceIndex);
   for (auto i = 0; i < channels.size(); ++i) {
     auto channel = channels[i];
-    int j = -1;
+    int32_t j = -1;
     for (j = filterSourceIndex - 1; j >= 0; --j) {
       auto* prevOp = operators_[j].get();
       if (j == 0) {
@@ -1047,6 +1050,7 @@ int Driver::pushdownFilters(
       // Continue walking upstream.
       channel = inputChannel.value();
     }
+    // TODO(lingbin):添加注释：已经无法再向前传递，并且当前算子也不接收dynamic filter
     if (!(j >= 0 && operators_[j]->canAddDynamicFilter())) {
       continue;
     }
@@ -1070,6 +1074,7 @@ int Driver::pushdownFilters(
       ++numFiltersAccepted[j];
     }
   }
+
   for (int j = 0; j < filterSourceIndex; ++j) {
     if (numFiltersAccepted[j] == 0) {
       continue;
@@ -1085,6 +1090,7 @@ int Driver::pushdownFilters(
     filterSource->addRuntimeStat(
         "dynamicFiltersProduced", RuntimeCounter(numFiltersProduced));
   }
+
   return numFiltersProduced;
 }
 
@@ -1132,7 +1138,7 @@ std::string Driver::toString() const {
     out << "terminated, ";
   }
   if (state_.hasBlockingFuture) {
-    std::string blockedOp = (blockedOperatorId_ < operators_.size())
+    std::string blockedOp = blockedOperatorId_ < operators_.size()
         ? operators_[blockedOperatorId_]->toString()
         : "<unknown op>";
     out << "blocked (" << BlockingReasonName::toName(blockingReason_) << " "
@@ -1154,6 +1160,7 @@ std::string Driver::toString() const {
       });
   out << folly::join(", ", opStrs);
   out << "}";
+
   const auto ocs = opCallStatus();
   if (!ocs.empty()) {
     out << "{OpCallStatus: executing "
@@ -1212,7 +1219,7 @@ void Driver::withDeltaCpuWallTimer(
 
   // The delta CpuWallTiming object would be recorded to the corresponding
   // 'opTimingMember' upon destruction of the timer when withDeltaCpuWallTimer
-  // ends. The timer is created on the stack to avoid heap allocation
+  // ends. The timer is created on the stack to avoid heap allocation.
   auto f = [op, opTimingMember, this](const CpuWallTiming& elapsedTime) {
     auto elapsedSelfTime = processLazyIoStats(*op, elapsedTime);
     op->stats().withWLock([&](auto& lockedStats) {

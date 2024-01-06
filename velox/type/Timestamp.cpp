@@ -91,6 +91,7 @@ void Timestamp::toTimezone(const tz::TimeZone& zone) {
   }
 }
 
+// static
 const tz::TimeZone& Timestamp::defaultTimezone() {
   static const tz::TimeZone* kDefault = ({
     // TODO: We are hard-coding PST/PDT here to be aligned with the current
@@ -107,8 +108,8 @@ const tz::TimeZone& Timestamp::defaultTimezone() {
 
 namespace {
 
-constexpr int kTmYearBase = 1900;
-constexpr int64_t kLeapYearOffset = 4000000000ll;
+constexpr int32_t kTmYearBase = 1900;
+constexpr int64_t kLeapYearOffset = 4'000'000'000LL;
 constexpr int64_t kSecondsPerHour = 3600;
 constexpr int64_t kSecondsPerDay = 24 * kSecondsPerHour;
 
@@ -134,11 +135,12 @@ const int16_t daysBeforeFirstDayOfMonth[][12] = {
 
 } // namespace
 
+// static
 bool Timestamp::epochToCalendarUtc(int64_t epoch, std::tm& tm) {
   constexpr int kDaysPerYear = 365;
   int64_t days = epoch / kSecondsPerDay;
   int64_t rem = epoch % kSecondsPerDay;
-  while (rem < 0) {
+  if (rem < 0) {
     rem += kSecondsPerDay;
     --days;
   }
@@ -190,26 +192,27 @@ int64_t Timestamp::calendarUtcToEpoch(const std::tm& tm) {
   }
   // Getting number of days since beginning of the year.
   auto dayOfYear =
-      -1ll + daysBeforeFirstDayOfMonth[isLeap(year)][month] + tm.tm_mday;
+      -1LL + daysBeforeFirstDayOfMonth[isLeap(year)][month] + tm.tm_mday;
   // Number of days since 1970-01-01.
   auto daysSinceEpoch = daysBetweenYears(1970, year) + dayOfYear;
   return kSecondsPerDay * daysSinceEpoch + kSecondsPerHour * tm.tm_hour +
-      60ll * tm.tm_min + tm.tm_sec;
+      60LL * tm.tm_min + tm.tm_sec;
 }
 
+// static
 StringView Timestamp::tmToStringView(
     const std::tm& tmValue,
     uint64_t nanos,
     const TimestampToStringOptions& options,
     char* const startPosition) {
-  VELOX_CHECK_LT(nanos, 1'000'000'000);
+  VELOX_DCHECK_LE(nanos, kMaxNanos, "nanos out of range");
 
   const auto appendDigits = [](const int value,
                                const std::optional<uint32_t> minWidth,
                                char* const position) {
     const auto numDigits = countDigits(value);
     uint32_t offset = 0;
-    // Append leading zeros when there is the requirement for minumum width.
+    // Append leading zeros when there is the requirement for minimum width.
     if (minWidth.has_value() && numDigits < minWidth.value()) {
       const auto leadingZeros = minWidth.value() - numDigits;
       std::memset(position, '0', leadingZeros);
@@ -229,7 +232,7 @@ StringView Timestamp::tmToStringView(
 
   char* writePosition = startPosition;
   if (options.mode != TimestampToStringOptions::Mode::kTimeOnly) {
-    int year = kTmYearBase + tmValue.tm_year;
+    int32_t year = kTmYearBase + tmValue.tm_year;
     const bool leadingPositiveSign = options.leadingPositiveSign && year > 9999;
     const bool negative = year < 0;
 
@@ -312,13 +315,14 @@ StringView Timestamp::tmToStringView(
     VELOX_DCHECK_EQ(
         errorCode,
         std::errc(),
-        "Failed to convert fractional part to chars: {}.",
+        "Failed to convert nanos to chars: {}.",
         std::make_error_code(errorCode).message());
     writePosition = position;
   }
   return StringView(startPosition, writePosition - startPosition);
 }
 
+// static
 StringView Timestamp::tsToStringView(
     const Timestamp& ts,
     const TimestampToStringOptions& options,
@@ -337,7 +341,7 @@ std::string::size_type getMaxStringLength(
   const auto precisionWidth = static_cast<int8_t>(options.precision);
   switch (options.mode) {
     case TimestampToStringOptions::Mode::kDateOnly:
-      // Date format is %y-mm-dd, where y has 10 digits at maximum for int32.
+      // Date format is %y-%m-%d, where y has 10 digits at maximum for int32.
       // Possible sign is considered.
       return 17;
     case TimestampToStringOptions::Mode::kTimeOnly:
@@ -353,10 +357,3 @@ std::string::size_type getMaxStringLength(
 }
 
 } // namespace facebook::velox
-
-namespace std {
-std::string to_string(const ::facebook::velox::Timestamp& ts) {
-  return ts.toString();
-}
-
-} // namespace std
