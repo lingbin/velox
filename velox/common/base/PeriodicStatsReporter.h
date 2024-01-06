@@ -39,7 +39,7 @@ class AsyncDataCache;
 class PeriodicStatsReporter {
  public:
   struct Options {
-    Options() {}
+    Options(){}; //= default;
 
     const velox::memory::MemoryAllocator* allocator{nullptr};
     uint64_t allocatorStatsIntervalMs{2'000};

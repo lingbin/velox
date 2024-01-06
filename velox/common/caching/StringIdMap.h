@@ -94,7 +94,7 @@ class StringIdMap {
   struct Entry {
     std::string string;
     uint64_t id;
-    uint32_t numInUse{};
+    uint32_t numInUse{0};
   };
 
   mutable std::mutex mutex_;

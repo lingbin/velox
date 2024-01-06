@@ -1095,7 +1095,7 @@ bool RowCursor::next() {
   }
   auto vector = cursor_->current();
   numRows_ = vector->size();
-  if (!numRows_) {
+  if (numRows_ == 0) {
     return next();
   }
   currentRow_ = 0;

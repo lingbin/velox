@@ -38,7 +38,9 @@ struct CacheRequest {
 
   cache::RawFileCacheKey key;
   uint64_t size;
-  cache::TrackingId trackingId;
+  const cache::TrackingId trackingId;
+
+  // TODO(lingbin): 无用的变量？删除掉？
   cache::CachePin pin;
   cache::SsdPin ssdPin;
 
@@ -47,10 +49,11 @@ struct CacheRequest {
   /// accessed large columns where hitting one piece should not load the
   /// adjacent pieces.
   bool coalesces{true};
-  const SeekableInputStream* stream;
+
+  const SeekableInputStream* stream{nullptr};
 };
 
-class CachedBufferedInput : public BufferedInput {
+class CachedBufferedInput final : public BufferedInput {
  public:
   CachedBufferedInput(
       std::shared_ptr<ReadFile> readFile,
@@ -61,7 +64,7 @@ class CachedBufferedInput : public BufferedInput {
       StringIdLease groupId,
       std::shared_ptr<IoStatistics> ioStatistics,
       std::shared_ptr<velox::IoStats> ioStats,
-      folly::Executor* executor,
+      folly::Executor* ioExecutor,
       const io::ReaderOptions& readerOptions,
       folly::F14FastMap<std::string, std::string> fileReadOps = {})
       : BufferedInput(
@@ -80,7 +83,7 @@ class CachedBufferedInput : public BufferedInput {
         groupId_(std::move(groupId)),
         ioStatistics_(std::move(ioStatistics)),
         ioStats_(std::move(ioStats)),
-        executor_(executor),
+        executor_(ioExecutor),
         fileSize_(input_->getLength()),
         options_(readerOptions) {
     VELOX_CHECK_NOT_NULL(cache_, "CachedBufferedInput requires a cache");
@@ -95,7 +98,7 @@ class CachedBufferedInput : public BufferedInput {
       StringIdLease groupId,
       std::shared_ptr<IoStatistics> ioStatistics,
       std::shared_ptr<velox::IoStats> ioStats,
-      folly::Executor* executor,
+      folly::Executor* ioExecutor,
       const io::ReaderOptions& readerOptions)
       : BufferedInput(std::move(input), readerOptions.memoryPool()),
         cache_(cache),
@@ -104,7 +107,7 @@ class CachedBufferedInput : public BufferedInput {
         groupId_(std::move(groupId)),
         ioStatistics_(std::move(ioStatistics)),
         ioStats_(std::move(ioStats)),
-        executor_(executor),
+        executor_(ioExecutor),
         fileSize_(input_->getLength()),
         options_(readerOptions) {
     VELOX_CHECK_NOT_NULL(cache_, "CachedBufferedInput requires a cache");
@@ -256,7 +259,7 @@ class CachedBufferedInput : public BufferedInput {
 
   // We only support up to 8MB load quantum size on SSD and there is no need for
   // larger SSD read size performance wise.
-  void checkLoadQuantum() {
+  void checkLoadQuantum() const {
     if (cache_->ssdCache() != nullptr) {
       VELOX_CHECK_LE(
           options_.loadQuantum(),

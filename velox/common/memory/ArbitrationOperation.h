@@ -16,11 +16,9 @@
 
 #pragma once
 
-#include "velox/common/base/Counters.h"
-#include "velox/common/base/StatsReporter.h"
-#include "velox/common/future/VeloxPromise.h"
+#include <fmt/format.h>
+
 #include "velox/common/memory/ArbitrationParticipant.h"
-#include "velox/common/memory/Memory.h"
 
 namespace facebook::velox::memory {
 
@@ -28,7 +26,7 @@ namespace facebook::velox::memory {
 class ArbitrationOperation {
  public:
   ArbitrationOperation(
-      ScopedArbitrationParticipant&& pool,
+      ScopedArbitrationParticipant&& participant,
       uint64_t requestBytes,
       uint64_t timeoutNs);
 
@@ -48,7 +46,7 @@ class ArbitrationOperation {
   static std::string stateName(State state);
 
   /// Returns the corresponding arbitration participant.
-  const ScopedArbitrationParticipant& participant() {
+  const ScopedArbitrationParticipant& participant() const {
     return participant_;
   }
 
@@ -146,7 +144,7 @@ class ArbitrationOperation {
     uint64_t executionTimeNs{0};
   };
 
-  /// NOTE: should only called after this arbitration operation finishes.
+  /// NOTE: should only be called after this arbitration operation finishes.
   Stats stats() const;
 
  private:

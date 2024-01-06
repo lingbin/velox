@@ -47,7 +47,7 @@ TEST(StringIdMapTest, rehash) {
   std::vector<StringIdLease> ids;
   for (auto i = 0; i < kCount; ++i) {
     auto name = fmt::format("filename_{}", i);
-    ids.push_back(StringIdLease(map, name));
+    ids.emplace_back(map, name);
   }
   for (auto i = 0; i < kCount; ++i) {
     auto name = fmt::format("filename_{}", i);

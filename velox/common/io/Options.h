@@ -89,7 +89,7 @@ class ReaderOptions {
     return *this;
   }
 
-  /// Modifies the autoPreloadLength
+  /// Modifies the autoPreloadLength_.
   ReaderOptions& setAutoPreloadLength(uint64_t len) {
     autoPreloadLength_ = len;
     return *this;
@@ -132,7 +132,7 @@ class ReaderOptions {
     return *this;
   }
 
-  /// Gets the memory allocator.
+  /// Gets the memory pool.
   velox::memory::MemoryPool& memoryPool() const {
     return *pool_;
   }

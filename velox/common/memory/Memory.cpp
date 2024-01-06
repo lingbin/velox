@@ -94,17 +94,17 @@ std::vector<std::shared_ptr<MemoryPool>> createSharedLeafMemoryPools(
 
 // Used by sys root memory pool for use case that expect a memory reclaimer to
 // set like QueryCtx.
-class SysMemoryReclaimer : public memory::MemoryReclaimer {
+class SysMemoryReclaimer : public MemoryReclaimer {
  public:
-  static std::unique_ptr<memory::MemoryReclaimer> create() {
-    return std::unique_ptr<memory::MemoryReclaimer>(new SysMemoryReclaimer());
+  static std::unique_ptr<MemoryReclaimer> create() {
+    return std::unique_ptr<MemoryReclaimer>(new SysMemoryReclaimer());
   }
 
   uint64_t reclaim(
-      memory::MemoryPool* pool,
+      MemoryPool* pool,
       uint64_t targetBytes,
       uint64_t maxWaitMs,
-      memory::MemoryReclaimer::Stats& stats) override {
+      MemoryReclaimer::Stats& stats) override {
     return 0;
   }
 
@@ -121,8 +121,8 @@ class SysMemoryReclaimer : public memory::MemoryReclaimer {
     return false;
   }
 
-  // The system memory pool never participates in arbitration, so it is
-  // never aborted.
+  // The system memory pool never participates in arbitration, so it is never
+  // aborted.
   void abort(MemoryPool* pool, const std::exception_ptr& error) override {
     VELOX_UNSUPPORTED("SysMemoryReclaimer::abort is not supported");
   }
@@ -203,7 +203,7 @@ MemoryManager& MemoryManager::deprecatedGetInstance(
     return *instance;
   }
 
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = state.instance.load(std::memory_order_acquire);
   if (instance != nullptr) {
     return *instance;
@@ -216,7 +216,7 @@ MemoryManager& MemoryManager::deprecatedGetInstance(
 // static
 void MemoryManager::initialize(const MemoryManager::Options& options) {
   auto& state = singletonState();
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = state.instance.load(std::memory_order_acquire);
   VELOX_CHECK_NULL(
       instance,
@@ -243,29 +243,21 @@ bool MemoryManager::testInstance() {
 MemoryManager& MemoryManager::testingSetInstance(
     const MemoryManager::Options& options) {
   auto& state = singletonState();
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = new MemoryManager(options);
   delete state.instance.exchange(instance, std::memory_order_acq_rel);
   return *instance;
 }
 
-int64_t MemoryManager::capacity() const {
-  return allocator_->capacity();
-}
-
-uint16_t MemoryManager::alignment() const {
-  return alignment_;
-}
-
 std::shared_ptr<MemoryPoolImpl> MemoryManager::createRootPool(
-    std::string poolName,
+    const std::string& poolName,
     std::unique_ptr<MemoryReclaimer>& reclaimer,
     MemoryPool::Options& options) {
   auto pool = std::make_shared<MemoryPoolImpl>(
       this,
       poolName,
       MemoryPool::Kind::kAggregate,
-      nullptr,
+      /*parent=*/ nullptr,
       std::move(reclaimer),
       options);
   VELOX_CHECK_EQ(pool->capacity(), 0);
@@ -291,7 +283,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPool(
 
 std::shared_ptr<MemoryPool> MemoryManager::addCustomRootPool(
     const std::string& name,
-    std::shared_ptr<CustomMemoryResource> resource,
+    const std::shared_ptr<CustomMemoryResource>& resource,
     const std::optional<MemoryPool::DebugOptions>& poolDebugOpts) {
   VELOX_USER_CHECK_NOT_NULL(resource);
   return addRootPoolImpl(
@@ -320,6 +312,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPoolImpl(
   options.alignment = alignment_;
   options.maxCapacity = maxCapacity;
   options.trackUsage = true;
+  options.threadSafe = true;
   options.coreOnAllocationFailureEnabled = coreOnAllocationFailureEnabled_;
   options.getPreferredSize = getPreferredSize_;
   options.debugOptions = poolDebugOpts;
@@ -329,9 +322,9 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPoolImpl(
   auto pool = createRootPool(poolName, reclaimer, options);
   if (!disableMemoryPoolTracking_) {
     try {
-      std::unique_lock guard{mutex_};
-      if (pools_.find(poolName) != pools_.end()) {
-        VELOX_FAIL("Duplicate root pool name found: {}", poolName);
+      std::lock_guard guard{mutex_};
+      if (pools_.contains(poolName)) {
+        VELOX_FAIL("Duplicate root memory pool name found: {}", poolName);
       }
       pools_.emplace(poolName, pool);
     } catch (const VeloxRuntimeError&) {
@@ -348,7 +341,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPoolImpl(
 
 std::shared_ptr<MemoryPool> MemoryManager::addLeafPool(
     const std::string& name,
-    bool threadSafe) {
+    bool threadSafe) const {
   std::string poolName = name;
   if (poolName.empty()) {
     static std::atomic<int64_t> poolId{0};
@@ -360,7 +353,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addLeafPool(
 uint64_t MemoryManager::shrinkPools(
     uint64_t targetBytes,
     bool allowSpill,
-    bool allowAbort) {
+    bool allowAbort) const {
   return arbitrator_->shrinkCapacity(targetBytes, allowSpill, allowAbort);
 }
 
@@ -371,7 +364,7 @@ void MemoryManager::dropPool(MemoryPool* pool) {
   if (disableMemoryPoolTracking_) {
     return;
   }
-  std::unique_lock guard{mutex_};
+  std::lock_guard guard{mutex_};
   auto it = pools_.find(pool->name());
   if (it == pools_.end()) {
     VELOX_FAIL("The dropped memory pool {} not found", pool->name());
@@ -379,7 +372,7 @@ void MemoryManager::dropPool(MemoryPool* pool) {
   pools_.erase(it);
 }
 
-MemoryPool& MemoryManager::deprecatedSharedLeafPool() {
+MemoryPool& MemoryManager::deprecatedSharedLeafPool() const {
   const auto idx = std::hash<std::thread::id>{}(std::this_thread::get_id());
   return *sharedLeafPools_.at(idx % sharedLeafPools_.size());
 }
@@ -397,11 +390,11 @@ size_t MemoryManager::numPools() const {
   return numPools;
 }
 
-MemoryAllocator* MemoryManager::allocator() {
+MemoryAllocator* MemoryManager::allocator() const {
   return allocator_.get();
 }
 
-MemoryArbitrator* MemoryManager::arbitrator() {
+MemoryArbitrator* MemoryManager::arbitrator() const {
   return arbitrator_.get();
 }
 
@@ -420,7 +413,7 @@ std::string MemoryManager::toString(bool detail) const {
   } else {
     out << '\t' << sysRoot_->name() << '\n';
   }
-  std::vector<std::shared_ptr<MemoryPool>> pools = getAlivePools();
+  const std::vector<std::shared_ptr<MemoryPool>> pools = getAlivePools();
   for (const auto& pool : pools) {
     if (detail) {
       out << pool->treeMemoryUsage(false);
@@ -439,8 +432,8 @@ std::vector<std::shared_ptr<MemoryPool>> MemoryManager::getAlivePools() const {
   std::vector<std::shared_ptr<MemoryPool>> pools;
   std::shared_lock guard{mutex_};
   pools.reserve(pools_.size());
-  for (const auto& entry : pools_) {
-    auto pool = entry.second.lock();
+  for (const auto& [_, weakPtrPool] : pools_) {
+    auto pool = weakPtrPool.lock();
     if (pool != nullptr) {
       pools.push_back(std::move(pool));
     }
@@ -475,15 +468,15 @@ MemoryPool& deprecatedRootPool() {
   return deprecatedDefaultMemoryManager().deprecatedSysRootPool();
 }
 
-memory::MemoryPool* spillMemoryPool() {
-  return memory::MemoryManager::getInstance()->spillPool();
+MemoryPool* spillMemoryPool() {
+  return MemoryManager::getInstance()->spillPool();
 }
 
-bool isSpillMemoryPool(memory::MemoryPool* pool) {
+bool isSpillMemoryPool(const MemoryPool* pool) {
   return pool == spillMemoryPool();
 }
 
-memory::MemoryPool* traceMemoryPool() {
-  return memory::MemoryManager::getInstance()->tracePool();
+MemoryPool* traceMemoryPool() {
+  return MemoryManager::getInstance()->tracePool();
 }
 } // namespace facebook::velox::memory

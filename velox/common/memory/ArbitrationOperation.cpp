@@ -15,11 +15,9 @@
  */
 
 #include "velox/common/memory/ArbitrationOperation.h"
-#include <mutex>
 
 #include "velox/common/base/Exceptions.h"
-#include "velox/common/base/RuntimeMetrics.h"
-#include "velox/common/memory/Memory.h"
+#include "velox/common/base/SuccinctPrinter.h"
 #include "velox/common/time/Timer.h"
 
 namespace facebook::velox::memory {
@@ -42,6 +40,7 @@ ArbitrationOperation::~ArbitrationOperation() {
       "Unexpected arbitration operation state on destruction");
 }
 
+// static
 std::string ArbitrationOperation::stateName(State state) {
   switch (state) {
     case State::kInit:
@@ -63,15 +62,14 @@ void ArbitrationOperation::setState(State state) {
       VELOX_CHECK_EQ(state_, State::kInit);
       break;
     case State::kRunning:
-      VELOX_CHECK(this->state_ == State::kWaiting || state_ == State::kInit);
+      VELOX_CHECK(state_ == State::kWaiting || state_ == State::kInit);
       break;
     case State::kFinished:
-      VELOX_CHECK_EQ(this->state_, State::kRunning);
+      VELOX_CHECK_EQ(state_, State::kRunning);
       break;
     default:
       VELOX_UNREACHABLE(
           "Unexpected state transition from {} to {}", state_, state);
-      break;
   }
   state_ = state;
 }
@@ -79,7 +77,7 @@ void ArbitrationOperation::setState(State state) {
 void ArbitrationOperation::start() {
   VELOX_CHECK_EQ(state_, State::kInit);
   participant_->startArbitration(this);
-  setState(ArbitrationOperation::State::kRunning);
+  setState(State::kRunning);
   VELOX_CHECK_EQ(startTimeNs_, 0);
   startTimeNs_ = getCurrentTimeNano();
 }
@@ -99,11 +97,11 @@ uint64_t ArbitrationOperation::executionTimeNs() const {
   if (state_ == State::kFinished) {
     VELOX_CHECK_GE(finishTimeNs_, createTimeNs_);
     return finishTimeNs_ - createTimeNs_;
-  } else {
-    const auto currentTimeNs = getCurrentTimeNano();
-    VELOX_CHECK_GE(currentTimeNs, createTimeNs_);
-    return currentTimeNs - createTimeNs_;
   }
+
+  const auto currentTimeNs = getCurrentTimeNano();
+  VELOX_CHECK_GE(currentTimeNs, createTimeNs_);
+  return currentTimeNs - createTimeNs_;
 }
 
 bool ArbitrationOperation::hasTimeout() const {
@@ -136,10 +134,10 @@ void ArbitrationOperation::setGrowTargets() {
 ArbitrationOperation::Stats ArbitrationOperation::stats() const {
   VELOX_CHECK_EQ(state_, State::kFinished);
   VELOX_CHECK_NE(startTimeNs_, 0);
+  VELOX_CHECK_LE(createTimeNs_, startTimeNs_);
 
   const uint64_t executionTimeNs = this->executionTimeNs();
 
-  VELOX_CHECK_GE(startTimeNs_, createTimeNs_);
   const uint64_t localArbitrationWaitTimeNs = startTimeNs_ - createTimeNs_;
   if (globalArbitrationStartTimeNs_ == 0) {
     return {

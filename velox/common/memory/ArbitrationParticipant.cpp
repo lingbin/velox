@@ -27,11 +27,12 @@
 using facebook::velox::common::testutil::TestValue;
 
 namespace facebook::velox::memory {
-using namespace facebook::velox::memory;
 
 std::string ArbitrationParticipant::Config::toString() const {
   return fmt::format(
-      "initCapacity {}, minCapacity {}, fastExponentialGrowthCapacityLimit {}, slowCapacityGrowRatio {}, minFreeCapacity {}, minFreeCapacityRatio {}, minReclaimBytes {}, minReclaimPct {}",
+      "initCapacity {}, minCapacity {}, fastExponentialGrowthCapacityLimit {}, "
+      "slowCapacityGrowRatio {}, minFreeCapacity {}, minFreeCapacityRatio {}, "
+      "minReclaimBytes {}, minReclaimPct {}",
       succinctBytes(initCapacity),
       succinctBytes(minCapacity),
       succinctBytes(fastExponentialGrowthCapacityLimit),
@@ -60,6 +61,7 @@ ArbitrationParticipant::Config::Config(
       minReclaimBytes(_minReclaimBytes),
       minReclaimPct(_minReclaimPct) {
   VELOX_CHECK_GE(slowCapacityGrowRatio, 0);
+  VELOX_CHECK_LE(slowCapacityGrowRatio, 1);
   VELOX_CHECK_EQ(
       fastExponentialGrowthCapacityLimit == 0,
       slowCapacityGrowRatio == 0,
@@ -166,7 +168,7 @@ uint64_t ArbitrationParticipant::maxReclaimableCapacity() const {
 uint64_t ArbitrationParticipant::reclaimableUsedCapacity() const {
   const auto maxReclaimableBytes = maxReclaimableCapacity();
   const auto reclaimableBytes = pool_->reclaimableBytes();
-  return std::min<int64_t>(maxReclaimableBytes, reclaimableBytes.value_or(0));
+  return std::min(maxReclaimableBytes, reclaimableBytes.value_or(0));
 }
 
 uint64_t ArbitrationParticipant::maxShrinkCapacity() const {
@@ -178,12 +180,10 @@ uint64_t ArbitrationParticipant::maxShrinkCapacity() const {
         config_->minFreeCapacity);
     if (freeBytes <= minFreeBytes) {
       return 0;
-    } else {
-      return freeBytes - minFreeBytes;
     }
-  } else {
-    return freeBytes;
+    return freeBytes - minFreeBytes;
   }
+  return freeBytes;
 }
 
 bool ArbitrationParticipant::checkCapacityGrowth(uint64_t requestBytes) const {
@@ -195,8 +195,7 @@ void ArbitrationParticipant::getGrowTargets(
     uint64_t& maxGrowBytes,
     uint64_t& minGrowBytes) const {
   const uint64_t capacity = pool_->capacity();
-  if (config_->fastExponentialGrowthCapacityLimit == 0 &&
-      config_->slowCapacityGrowRatio == 0) {
+  if (config_->fastExponentialGrowthCapacityLimit == 0) {
     maxGrowBytes = requestBytes;
   } else {
     if (capacity * 2 <= config_->fastExponentialGrowthCapacityLimit) {
@@ -215,7 +214,7 @@ void ArbitrationParticipant::getGrowTargets(
 }
 
 void ArbitrationParticipant::startArbitration(ArbitrationOperation* op) {
-  ContinueFuture waitPromise{ContinueFuture::makeEmpty()};
+  ContinueFuture future{ContinueFuture::makeEmpty()};
   {
     std::lock_guard<std::mutex> l(stateLock_);
     ++numRequests_;
@@ -225,15 +224,15 @@ void ArbitrationParticipant::startArbitration(ArbitrationOperation* op) {
           op,
           ContinuePromise{fmt::format(
               "Wait for arbitration on {}", op->participant()->name())}};
-      waitPromise = waitOp.waitPromise.getSemiFuture();
+      future = waitOp.waitPromise.getSemiFuture();
       waitOps_.emplace_back(std::move(waitOp));
     } else {
       runningOp_ = op;
     }
   }
 
-  if (waitPromise.valid()) {
-    waitPromise.wait();
+  if (future.valid()) {
+    future.wait();
   }
 }
 
@@ -355,14 +354,13 @@ uint64_t ArbitrationParticipant::abortLocked(
   }
 
   try {
-    VELOX_MEM_LOG(WARNING) << "Memory pool " << pool_->name()
-                           << " is being aborted";
+    VELOX_MEM_LOG(WARNING) << "Aborting memory pool " << pool_->name();
     pool_->abort(error);
+    VELOX_MEM_LOG(WARNING) << "Aborted memory pool " << pool_->name();
   } catch (const std::exception& e) {
     VELOX_MEM_LOG(WARNING) << "Failed to abort memory pool "
                            << pool_->toString() << ", error: " << e.what();
   }
-  VELOX_MEM_LOG(WARNING) << "Memory pool " << pool_->name() << " aborted";
   // NOTE: no matter query memory pool abort throws or not, it should have been
   // marked as aborted to prevent any new memory arbitration operations.
   VELOX_CHECK(pool_->aborted());
@@ -413,7 +411,7 @@ ArbitrationCandidate::ArbitrationCandidate(
 
 std::string ArbitrationCandidate::toString() const {
   return fmt::format(
-      "{} RECLAIMABLE_USED_CAPACITY {} RECLAIMABLE_FREE_CAPACITY {}",
+      "name {} RECLAIMABLE_USED_CAPACITY {} RECLAIMABLE_FREE_CAPACITY {}",
       participant->name(),
       succinctBytes(reclaimableUsedCapacity),
       succinctBytes(reclaimableFreeCapacity));

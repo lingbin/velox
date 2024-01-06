@@ -88,8 +88,8 @@ struct PrefixSortLayout {
   /// Optimizes the order of sort key columns to maximize the number of prefix
   /// sort keys for acceleration. This only applies for use case which doesn't
   /// need a total order such as spill sort for hash aggregation.
-  /// 'keyColumnProjections' provides the mapping from the orginal key column
-  /// order to its channel in 'rowType'. The function reoders
+  /// 'keyColumnProjections' provides the mapping from the original key column
+  /// order to its channel in 'rowType'. The function reorders
   /// 'keyColumnProjections' based on the prefix sort encoded size of each key
   /// column type with smaller size first.
   static void optimizeSortKeysOrder(

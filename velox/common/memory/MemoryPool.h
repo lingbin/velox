@@ -17,10 +17,13 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include <fmt/format.h>
+
 #include "velox/common/base/BitUtil.h"
 #include "velox/common/base/Exceptions.h"
 #include "velox/common/base/Portability.h"
@@ -71,7 +74,7 @@ class StlAllocator;
 /// node pool that corresponds to the plan node from which the operator is
 /// created. Operator and node pools are owned by the Task via 'childPools_'.
 ///
-/// The query pool is created from MemoryManager::addRootPool(), it has no
+/// The query pool is created from 'MemoryManager::addRootPool()', it has no
 /// parent and is the root node of its corresponding subtree. Each query pool is
 /// owned by QueryCtx (such as in Prestissimo), and the memory manager also
 /// tracks the current alive query pools in MemoryManager::pools_ through weak
@@ -80,15 +83,15 @@ class StlAllocator;
 /// Each child pool object holds a shared reference to its parent pool object.
 /// The parent object tracks its child pool objects through weak pointers
 /// protected by a mutex. The child pool object destruction first removes its
-/// weak pointer from its parent through dropChild() and then drops the shared
+/// weak pointer from its parent through 'dropChild()' and then drops the shared
 /// reference on the parent.
 ///
 /// NOTE: for the users that integrate at expression evaluation level, we don't
 /// need to build the memory pool hierarchy as described above. Users can either
-/// create a single memory pool from MemoryManager::addLeafPool() to share with
-/// all the concurrent expression evaluations or create one dedicated memory
-/// pool for each expression evaluation if they need per-expression memory quota
-/// enforcement.
+/// create a single memory pool from 'MemoryManager::addLeafPool()' to share
+/// with all the concurrent expression evaluations or create one dedicated
+/// memory pool for each expression evaluation if they need per-expression
+/// memory quota enforcement.
 ///
 /// In addition to providing memory allocation functions, the memory pool object
 /// also provides memory usage accounting.
@@ -134,7 +137,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     int64_t maxCapacity{kMaxMemory};
 
     /// If true, tracks the memory usage from the leaf memory pool and aggregate
-    /// up to the root memory pool for capacity enforcement. Otherwise there is
+    /// up to the root memory pool for capacity enforcement. Otherwise, there is
     /// no memory usage tracking.
     ///
     /// NOTE: there are some use cases which doesn't need the memory usage
@@ -145,7 +148,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     /// enable it on a subset of memory pools.
     bool trackUsage{true};
 
-    /// If true, tracks the leaf memory pool usage in a thread-safe mode
+    /// If true, tracks the leaf memory pool usage in a thread-safe mode,
     /// otherwise not. This only applies for leaf memory pool with memory usage
     /// tracking enabled. We use non-thread-safe tracking mode for single
     /// threaded use case.
@@ -273,7 +276,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
 
   /// Re-allocates from an existing buffer with 'newSize' and update memory
   /// usage counting accordingly.
-  virtual void* reallocate(void* p, int64_t size, int64_t newSize) = 0;
+  virtual void* reallocate(void* p, int64_t oldSize, int64_t newSize) = 0;
 
   /// Frees an allocated buffer.
   virtual void free(void* p, int64_t size) = 0;
@@ -324,18 +327,16 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// memory allocation.
   virtual const std::vector<MachinePageCount>& sizeClasses() const = 0;
 
-  /// Makes a large contiguous mmap of 'numPages'. The new mapped
-  /// pages are returned in 'out' on success. Any formly mapped pages
-  /// referenced by 'out' is unmapped in all the cases even if the
-  /// allocation fails. If 'maxPages' is not given, this defaults to
-  /// 'numPages'. 'maxPages' gives the size of the mmap in
-  /// addresses. 'numPages' gives the amount to declare as
-  /// used. growContiguous() is used to increase the
-  /// reservation up to 'maxPages'. This allows reserving a large
-  /// range of addresses for huge pages. The range can be larger than
-  /// is likely to be used because usage can be declared as needed but
-  /// the number of huge pages  can be set according to an assumption of large
-  /// utilization.
+  /// Makes a large contiguous mmap of 'numPages'. The new mapped pages are
+  /// returned in 'out' on success. Any formly mapped pages referenced by 'out'
+  /// is unmapped in all the cases even if the allocation fails. If 'maxPages'
+  /// is not given, this defaults to 'numPages'. 'maxPages' gives the size of
+  /// the mmap in addresses. 'numPages' gives the amount to declare as used.
+  /// growContiguous() is used to increase the reservation up to 'maxPages'.
+  /// This allows reserving a large range of addresses for huge pages. The range
+  /// can be larger than is likely to be used because usage can be declared as
+  /// needed but the number of huge pages can be set according to an assumption
+  /// of large utilization.
   virtual void allocateContiguous(
       MachinePageCount numPages,
       ContiguousAllocation& out,
@@ -351,7 +352,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Rounds up to a power of 2 >= size, or to a size halfway between
   /// two consecutive powers of two, i.e 8, 12, 16, 24, 32, .... This
   /// coincides with JEMalloc size classes.
-  virtual size_t preferredSize(size_t size);
+  size_t preferredSize(size_t size) const;
 
   /// Returns the memory allocation alignment size applied internally by this
   /// memory pool object.  Must be a power of two.
@@ -404,17 +405,17 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   virtual int64_t reservedBytes() const = 0;
 
   /// Checks if it is likely that the reservation on this memory pool can be
-  /// incremented by 'size'. Returns false if this seems unlikely. Otherwise
+  /// incremented by 'size'. Returns false if this seems unlikely. Otherwise,
   /// attempts the reservation increment and returns true if succeeded.
-  virtual bool maybeReserve(uint64_t size) = 0;
+  virtual bool maybeReserve(uint64_t increment) = 0;
 
-  /// If a minimum reservation has been set with maybeReserve(), resets the
+  /// If a minimum reservation has been set with 'maybeReserve()', resets the
   /// minimum reservation. If the current usage is below the minimum
   /// reservation, decreases reservation and usage down to the rounded actual
   /// usage.
   virtual void release() = 0;
 
-  /// Memory arbitration related interfaces.
+  // Memory arbitration related interfaces.
 
   /// Returns the free memory capacity in bytes that haven't been reserved for
   /// use from the root of this memory pool. The memory arbitrator can reclaim
@@ -457,10 +458,9 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Invoked by the memory arbitrator to abort a root memory pool. The function
   /// forwards the request to the corresponding query object to abort its
   /// execution through the reclaimer. The function throws if the reclaimer is
-  /// not set, otherwise returns a future to wait for the abort processing to
-  /// completion. We expect the query object to release its used memory soon
-  /// after the abort completes. 'error' should be the cause of the abortion. It
-  /// will be propagated to task level for accurate error exposure.
+  /// not set. We expect the query object to release its used memory soon after
+  /// the abort completes. 'error' should be the cause of the abortion. It will
+  /// be propagated to task level for accurate error exposure.
   virtual void abort(const std::exception_ptr& error) = 0;
 
   /// Returns true if this memory pool has been aborted.
@@ -497,6 +497,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     uint64_t numReclaims{0};
     /// The number of internal memory reservation collisions caused by
     /// concurrent memory requests.
+    /// NOTE: this only applies for the leaf memory pool.
     uint64_t numCollisions{0};
     /// The number of memory capacity growth attempts through the memory
     /// arbitration.
@@ -557,8 +558,9 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     return bits::roundUp(size, 8 * kMB);
   }
 
-  // Overrides getPreferredSize to allow specializing behavior for this pool.
-  void setPreferredSize(std::function<size_t(size_t)> getPreferredSizeFunc);
+  /// Overrides 'getPreferredSize' to allow specializing behavior for this pool.
+  void setPreferredSize(
+      const std::function<size_t(size_t)>& getPreferredSizeFunc);
 
  protected:
   static constexpr uint64_t kMB = 1 << 20;
@@ -575,8 +577,8 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// corresponding method.
   virtual void leaveArbitration() noexcept = 0;
 
-  /// Invoked to free up to the specified amount of free memory by reducing
-  /// this memory pool's capacity without actually freeing any used memory. The
+  /// Invoked to free up to the specified amount of free memory by reducing this
+  /// memory pool's capacity without actually freeing any used memory. The
   /// function returns the actually freed memory capacity in bytes. If
   /// 'targetBytes' is zero, the function frees all the free memory capacity.
   virtual uint64_t shrink(uint64_t targetBytes = 0) = 0;
@@ -591,8 +593,8 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// exceeds its current capacity limit.
   virtual bool grow(uint64_t growBytes, uint64_t reservationBytes = 0) = 0;
 
-  /// Invoked by addLeafChild() and addAggregateChild() to create a child memory
-  /// pool object. 'parent' is a shared pointer created from this, ie,
+  /// Invoked by 'addLeafChild()' and 'addAggregateChild()' to create a child
+  /// memory pool object. 'parent' is a shared pointer created from this, ie,
   /// shared_from_this().
   virtual std::shared_ptr<MemoryPool> genChild(
       std::shared_ptr<MemoryPool> parent,
@@ -608,7 +610,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// child memory pool tracking.
   virtual void dropChild(const MemoryPool* child);
 
-  virtual inline bool debugEnabled() const {
+  virtual bool debugEnabled() const {
     return debugOptions_.has_value();
   }
 
@@ -636,10 +638,10 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   std::unordered_map<std::string, std::weak_ptr<MemoryPool>> children_;
 
   friend class MemoryReclaimer;
-  friend class velox::exec::ParallelMemoryReclaimer;
+  friend class exec::ParallelMemoryReclaimer;
   friend class MemoryManager;
   friend class MemoryArbitrator;
-  friend class velox::memory::TestArbitrator;
+  friend class memory::TestArbitrator;
   friend class MemoryPoolArbitrationSection;
   friend class ArbitrationParticipant;
 };
@@ -671,7 +673,7 @@ class MemoryPoolImpl : public MemoryPool {
 
   void* allocateZeroFilled(int64_t numEntries, int64_t sizeEach) override;
 
-  void* reallocate(void* p, int64_t size, int64_t newSize) override;
+  void* reallocate(void* p, int64_t oldSize, int64_t newSize) override;
 
   void free(void* p, int64_t size) override;
 
@@ -855,34 +857,34 @@ class MemoryPoolImpl : public MemoryPool {
     return checkedPlus(size, mask) & ~mask;
   }
 
-  // Returns a rounded up delta based on adding 'delta' to 'size'. Adding the
-  // rounded delta to 'size' will result in 'size' a quantized size, rounded to
-  // the MB or 8MB for larger sizes.
-  FOLLY_ALWAYS_INLINE static int64_t roundedDelta(int64_t size, int64_t delta) {
-    return quantizedSize(size + delta) - size;
+  // Returns a rounded up delta based on adding 'delta' to 'reservedBytes'.
+  // Adding the rounded delta to 'reservedBytes' will result in 'reservedBytes'
+  // a quantized size, rounded to the MB or 8MB for larger sizes.
+  static int64_t roundedDelta(int64_t reservedBytes, int64_t delta) {
+    return quantizedSize(reservedBytes + delta) - reservedBytes;
   }
 
   // Reserve memory for a new allocation/reservation with specified 'size'.
-  // 'reserveThreadSafe' processes the memory reservation with mutex lock
+  // 'reserveThreadSafe()' processes the memory reservation with mutex lock
   // protection to prevent concurrent updates to the same leaf memory pool.
-  // 'reserveNonThreadSafe' processes the memory reservation without mutex lock
-  // at the leaf memory pool.
-  void reserve(uint64_t size, bool reserveOnly = false);
+  // 'reserveNonThreadSafe()' processes the memory reservation without mutex
+  // lock at the leaf memory pool.
+  void reserve(uint64_t delta, bool reserveOnly = false);
 
   FOLLY_ALWAYS_INLINE void reserveNonThreadSafe(
-      uint64_t size,
+      uint64_t delta,
       bool reserveOnly = false) {
     VELOX_CHECK(isLeaf());
 
     int32_t numAttempts{0};
     for (;; ++numAttempts) {
-      int64_t increment = reservationSizeLocked(size);
+      int64_t increment = reservationSizeLocked(delta);
       if (FOLLY_LIKELY(increment == 0)) {
         if (FOLLY_UNLIKELY(reserveOnly)) {
           minReservationBytes_ = tsanAtomicValue(reservationBytes_);
         } else {
-          usedReservationBytes_ += size;
-          cumulativeBytes_ += size;
+          usedReservationBytes_ += delta;
+          cumulativeBytes_ += delta;
           maybeUpdatePeakBytesLocked(usedReservationBytes_);
         }
         sanityCheckLocked();
@@ -901,7 +903,7 @@ class MemoryPoolImpl : public MemoryPool {
     }
   }
 
-  void reserveThreadSafe(uint64_t size, bool reserveOnly = false);
+  void reserveThreadSafe(uint64_t delta, bool reserveOnly = false);
 
   // Increments the reservation and checks against limits at root memory pool.
   // Provokes root memory pool to grow capacity through arbitrator if exceeds
@@ -922,11 +924,11 @@ class MemoryPoolImpl : public MemoryPool {
     reservationBytes_ += size;
   }
 
-  // Returns the needed reservation size. If there is sufficient unused memory
-  // reservation, this function returns zero.
-  FOLLY_ALWAYS_INLINE int64_t reservationSizeLocked(int64_t size) {
+  // Returns the reservation size that needs to be increased. If there is
+  // sufficient unused memory reservation, this function returns zero.
+  int64_t reservationSizeLocked(int64_t delta) const {
     const int64_t neededSize =
-        size - (reservationBytes_ - usedReservationBytes_);
+        delta - (reservationBytes_ - usedReservationBytes_);
     if (neededSize <= 0) {
       return 0;
     }
@@ -943,19 +945,19 @@ class MemoryPoolImpl : public MemoryPool {
 
   void incrementReservationLocked(uint64_t bytes);
 
-  // Release memory reservation for an allocation free or memory release with
-  // specified 'size'. If 'releaseOnly' is true, then we only release the unused
-  // reservation if 'minReservationBytes_' is set. 'releaseThreadSafe' processes
-  // the memory reservation release with mutex lock protection at the leaf
-  // memory pool while 'reserveThreadSafe' doesn't.
-  void release(uint64_t bytes, bool releaseOnly = false);
-
-  void releaseThreadSafe(uint64_t size, bool releaseOnly);
-
   // Invoked to grow capacity of the root memory pool from the memory
   // arbitrator. 'requestor' is the leaf memory pool that triggers the memory
   // capacity growth. 'size' is the memory capacity growth in bytes.
   void growCapacity(MemoryPool* requestor, uint64_t size);
+
+  // Release memory reservation for an allocation free or memory release with
+  // specified 'size'. If 'releaseOnly' is true, then we only release the unused
+  // reservation if 'minReservationBytes_' is set. 'releaseThreadSafe()'
+  // processes the memory reservation release with mutex lock protection at the
+  // leaf memory pool while 'releaseNonThreadSafe' doesn't.
+  void release(uint64_t bytes, bool releaseOnly = false);
+
+  void releaseThreadSafe(uint64_t size, bool releaseOnly);
 
   FOLLY_ALWAYS_INLINE void releaseNonThreadSafe(
       uint64_t size,
@@ -1036,7 +1038,7 @@ class MemoryPoolImpl : public MemoryPool {
         << numExternalAllocs_ << ", external-frees " << numExternalFrees_
         << ", cumulative-external " << succinctBytes(cumulativeExternalBytes_)
         << "])";
-    out << ">";
+    out << '>';
     return out.str();
   }
 
@@ -1045,7 +1047,7 @@ class MemoryPoolImpl : public MemoryPool {
   // of times that the allocations are recorded. 'isAlloc' will be true at
   // allocation sites, false at free sites. A good example of this filter would
   // be based on the 'name_' of the MemoryPool.
-  bool needRecordDbg(bool isAlloc);
+  bool needRecordDbg(bool isAlloc) const;
 
   // Invoked to record the call stack of a buffer allocation if debug mode of
   // this memory pool is enabled.
@@ -1080,7 +1082,7 @@ class MemoryPoolImpl : public MemoryPool {
   // should be empty as all the memory allocations should have been freed on
   // memory pool destruction. We only check this if debug mode of this memory
   // pool is enabled.
-  void leakCheckDbg();
+  void leakCheckDbg() const;
 
   // Holds formatted string of dumped allocation records for a leaf memory pool,
   // along with the total pool size in bytes.
@@ -1109,7 +1111,7 @@ class MemoryPoolImpl : public MemoryPool {
     return dumpRecordsDbgLocked();
   }
 
-  void handleAllocationFailure(const std::string& failureMessage);
+  void handleAllocationFailure(const std::string& failureMessage) const;
 
   MemoryManager* const manager_;
   MemoryAllocator* const allocator_;
@@ -1117,9 +1119,7 @@ class MemoryPoolImpl : public MemoryPool {
 
   // Serializes updates on 'reservationBytes_', 'usedReservationBytes_'
   // and 'minReservationBytes_' to make reservation decision on a consistent
-  // read/write of those counters. incrementReservation()/decrementReservation()
-  // work based on atomic 'reservationBytes_' without mutex as children updating
-  // the same parent do not have to be serialized.
+  // read/write of those counters.
   mutable std::mutex mutex_;
 
   DestructionCallback destructionCb_;
@@ -1163,6 +1163,8 @@ class MemoryPoolImpl : public MemoryPool {
 
   // The number of internal memory reservation collisions caused by concurrent
   // memory reservation requests.
+  //
+  // NOTE: this only applies for leaf memory pool.
   std::atomic_uint64_t numCollisions_{0};
 
   // The number of memory capacity growth attempts through the memory

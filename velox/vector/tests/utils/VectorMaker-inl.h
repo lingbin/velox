@@ -182,7 +182,7 @@ DictionaryVectorPtr<EvalType<T>> VectorMaker::dictionaryVector(
   vector_size_t nullCount = 0;
 
   for (auto i = 0; i < data.size(); ++i) {
-    auto val = data[i];
+    auto& val = data[i];
     if (val == std::nullopt) {
       ++nullCount;
       bits::setNull(rawNulls, i, true);

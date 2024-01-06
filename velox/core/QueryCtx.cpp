@@ -80,7 +80,7 @@ QueryCtx::QueryCtx(
       executor_(executor),
       spillExecutor_(spillExecutor),
       cache_(cache),
-      connectorSessionProperties_(connectorSessionProperties),
+      connectorSessionProperties_(std::move(connectorSessionProperties)),
       pool_(std::move(pool)),
       queryConfig_{std::move(queryConfig)},
       fsTokenProvider_(std::move(tokenProvider)),
@@ -101,7 +101,8 @@ QueryCtx::~QueryCtx() {
   VELOX_CHECK(!underArbitration_);
 }
 
-/*static*/ std::string QueryCtx::generatePoolName(const std::string& queryId) {
+// static
+std::string QueryCtx::generatePoolName(const std::string& queryId) {
   // We attach a monotonically increasing sequence number to ensure the pool
   // name is unique.
   static std::atomic<int64_t> seqNum{0};

@@ -16,9 +16,11 @@
 
 #pragma once
 
-#include "velox/common/base/Exceptions.h"
+#include <memory>
 
 #include <folly/Demangle.h>
+
+#include "velox/common/base/Exceptions.h"
 
 namespace facebook::velox {
 
@@ -26,10 +28,10 @@ namespace detail {
 
 template <typename From, typename To>
 void ensureCastSucceeded(To* casted, From* original) {
-  // Either casted or original will be nullptr. Otherwise it's a bad usage.
+  // Throws a descriptive error when dynamic_cast fails (casted is nullptr).
+  // 'original' must be non-null so we can report its actual runtime type.
   if (casted == nullptr) {
-    VELOX_CHECK_NOT_NULL(
-        original, "If casted is nullptr, original must not be.");
+    VELOX_CHECK_NOT_NULL(original);
     VELOX_FAIL(
         "Failed to cast from '{}' to '{}'. Object is of type '{}'.",
         folly::demangle(typeid(From).name()),
@@ -55,16 +57,9 @@ std::shared_ptr<To> checkedPointerCast(const std::shared_ptr<From>& input) {
 
 template <typename To, typename From>
 std::unique_ptr<To> checkedPointerCast(std::unique_ptr<From> input) {
-  VELOX_CHECK_NOT_NULL(input.get());
-  auto* released = input.release();
-  To* casted{nullptr};
-  try {
-    casted = dynamic_cast<To*>(released);
-    detail::ensureCastSucceeded(casted, released);
-  } catch (...) {
-    input.reset(released);
-    throw;
-  }
+  // Cast first while input still owns the pointer (exception-safe).
+  auto* casted = checkedPointerCast<To>(input.get());
+  input.release();
   return std::unique_ptr<To>(casted);
 }
 

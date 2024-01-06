@@ -102,7 +102,7 @@ void InMemoryExchangeClient::addRemoteTaskId(std::string_view remoteTaskId) {
     } catch (const std::exception& e) {
       // 'remoteTaskId' can be very long. Truncate to 128 characters.
       VELOX_FAIL(
-          "Failed to create ExchangeSource: {}. Task ID: {}.",
+          "Failed to create ExchangeSource: {}. Remote Task ID: {}.",
           e.what(),
           ownedRemoteTaskId.substr(0, 128));
     }
@@ -248,7 +248,7 @@ std::vector<std::unique_ptr<SerializedPageBase>> InMemoryExchangeClient::next(
 
 void InMemoryExchangeClient::request(std::vector<RequestSpec>&& requestSpecs) {
   auto self = shared_from_this();
-  for (auto& spec : requestSpecs) {
+  for (const auto& spec : requestSpecs) {
     auto future = folly::SemiFuture<ExchangeSource::Response>::makeEmpty();
     if (spec.maxBytes == 0) {
       future = spec.source->requestDataSizes(requestDataSizesMaxWaitSec_);
@@ -337,7 +337,7 @@ InMemoryExchangeClient::pickSourcesToRequestLocked() {
   while (availableSpace > 0 && !producingSources_.empty()) {
     auto& source = producingSources_.front().source;
     int64_t requestBytes = 0;
-    for (auto bytes : producingSources_.front().remainingBytes) {
+    for (const auto bytes : producingSources_.front().remainingBytes) {
       availableSpace -= bytes;
       if (availableSpace < 0) {
         break;
@@ -354,7 +354,7 @@ InMemoryExchangeClient::pickSourcesToRequestLocked() {
     totalPendingBytes_ += requestBytes;
   }
 
-  if ((queue_->totalBytes() + totalPendingBytes_ < minOutputBatchBytes_) &&
+  if (queue_->totalBytes() + totalPendingBytes_ < minOutputBatchBytes_ &&
       !producingSources_.empty()) {
     // Two cases which we request an out-of-band data transfer:
     // 1. We have full capacity but still cannot initiate one single data
@@ -385,9 +385,9 @@ InMemoryExchangeClient::pickupSingleSourceToRequestLocked() {
   }
 
   VELOX_CHECK_EQ(totalPendingBytes_, 0);
-  VELOX_CHECK_LE(!!emptySources_.empty() + !!producingSources_.empty(), 1);
-  const auto requestBytes = maxQueuedBytes_ - queue_->totalBytes();
+  VELOX_CHECK_LE(emptySources_.size() + producingSources_.size(), 1);
 
+  const int64_t requestBytes = maxQueuedBytes_ - queue_->totalBytes();
   if (requestBytes <= 0) {
     return {};
   }
@@ -420,7 +420,7 @@ InMemoryExchangeClient::~InMemoryExchangeClient() {
 std::string InMemoryExchangeClient::toString() const {
   std::stringstream out;
   for (auto& source : sources_) {
-    out << source->toString() << std::endl;
+    out << source->toString() << '\n';
   }
   return out.str();
 }

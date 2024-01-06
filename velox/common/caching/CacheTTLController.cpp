@@ -20,6 +20,7 @@
 
 namespace facebook::velox::cache {
 
+// static
 std::unique_ptr<CacheTTLController> CacheTTLController::instance_ = nullptr;
 
 bool CacheTTLController::addOpenFileInfo(
@@ -44,8 +45,8 @@ CacheAgeStats CacheTTLController::getCacheAgeStats() const {
   // Use the oldest file open time to calculate the max possible age of cache
   // entries loaded from the files.
   int64_t minOpenTime = std::numeric_limits<int64_t>::max();
-  for (auto it = lockedFileMap->cbegin(); it != lockedFileMap->cend(); it++) {
-    minOpenTime = std::min<int64_t>(minOpenTime, it->second.openTimeSec);
+  for (const auto& iter : *lockedFileMap) {
+    minOpenTime = std::min<int64_t>(minOpenTime, iter.second.openTimeSec);
   }
 
   int64_t maxAge = getCurrentTimeSec() - minOpenTime;
@@ -58,17 +59,18 @@ void CacheTTLController::applyTTL(int64_t ttlSecs) {
   folly::F14FastSet<uint64_t> filesToRemove =
       getAndMarkAgedOutFiles(maxOpenTime);
   if (filesToRemove.empty()) {
-    LOG(INFO) << "No cache entry is out of TTL " << ttlSecs << ".";
+    VELOX_CACHE_LOG(INFO) << "No cache entry is out of TTL " << ttlSecs << ".";
     return;
   }
 
   folly::F14FastSet<uint64_t> filesRetained;
   bool success = cache_.removeFileEntries(filesToRemove, filesRetained);
 
-  LOG(INFO) << (success ? "Succeeded" : "Failed") << " applying cache TTL of "
-            << ttlSecs << " seconds. Entries from " << filesToRemove.size()
-            << " files are to be removed, while " << filesRetained.size()
-            << " files are retained";
+  VELOX_CACHE_LOG(INFO) << (success ? "Succeeded" : "Failed")
+                        << " applying cache TTL of " << ttlSecs
+                        << " seconds. Entries from " << filesToRemove.size()
+                        << " files are to be removed, while "
+                        << filesRetained.size() << " files are retained";
   if (success) {
     cleanUp(filesRetained);
   } else {
@@ -79,17 +81,13 @@ void CacheTTLController::applyTTL(int64_t ttlSecs) {
 folly::F14FastSet<uint64_t> CacheTTLController::getAndMarkAgedOutFiles(
     int64_t maxOpenTimeSecs) {
   auto lockedFileMap = fileInfoMap_.wlock();
-
   folly::F14FastSet<uint64_t> fileNums;
-
-  for (auto it = lockedFileMap->begin(); it != lockedFileMap->end(); it++) {
-    if (it->second.removeInProgress ||
-        it->second.openTimeSec < maxOpenTimeSecs) {
-      fileNums.insert(it->first);
-      it->second.removeInProgress = true;
+  for (auto& [fileNum, fileInfo] : *lockedFileMap) {
+    if (fileInfo.removeInProgress || fileInfo.openTimeSec < maxOpenTimeSecs) {
+      fileNums.insert(fileNum);
+      fileInfo.removeInProgress = true;
     }
   }
-
   return fileNums;
 }
 

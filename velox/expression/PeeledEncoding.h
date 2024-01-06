@@ -27,10 +27,10 @@ class LocalDecodedVector;
 class LocalSelectivityVector;
 
 /// Utility class for enabling peeling functionality. It takes a list of
-/// vectors, peels off the common encodings off of them, stores the peel and
-/// returns a list of the peeled vectors. The saved peel can then be used to
-/// translate top level rows into inner rows and wrap a vector (typically
-/// generated as a result of applying an expression on the peeled vectors).
+/// vectors, peels off the common encodings of them, stores the peel and returns
+/// a list of the peeled vectors. The saved peel can then be used to translate
+/// top level rows into inner rows and wrap a vector (typically generated as a
+/// result of applying an expression on the peeled vectors).
 ///
 /// When the base vector size is larger than 8 times of the selected rows, we do
 /// not save the dictionary wrapping.  Instead, we store a flattened version of
@@ -72,12 +72,12 @@ class LocalSelectivityVector;
 ///    Peeled Vectors: Complex
 ///    peel: Const1
 ///
-/// 5. A single vector with arbitrary dictionary layers over a constant
-///    encoding layer over a NULL complex vector can be peeled and the peels can
-///    be merged into a single constant layer.
+/// 5. A single vector with arbitrary dictionary layers over a constant encoding
+///    layer over a NULL complex vector can be peeled and the peels can be
+///    merged into a single constant layer.
 ///    Input Vectors: Dict1(Const1(NullComplex))
 ///    Peeled Vectors: Null Complex vector
-///    peel: Const(generic constant index)
+///    peel:  Const(generic constant index)
 ///
 /// 6. All constant inputs where the peel is just a constant pointing to the
 ///    first valid row. The peel itself is irrelevant but allows us to translate
@@ -86,7 +86,7 @@ class LocalSelectivityVector;
 ///    Peeled Vectors: Const1(Complex1), Const2, Const3
 ///    peel: Const(generic constant index)
 ///
-/// 7. No inputs. This is considered as constant encoding since its expected
+/// 7. No inputs. This is considered as constant encoding since it is expected
 ///    to produce the same result for all valid rows.
 ///    Input Vectors: <empty>
 ///    Peeled Vectors: <empty>

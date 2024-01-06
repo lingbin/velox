@@ -109,7 +109,7 @@ class FileSplitReader {
   /// This function is used by different table formats like Iceberg and Hudi to
   /// do additional preparations before reading the split, e.g. Open delete
   /// files or log files, and add column adaptations for metadata columns. It
-  /// would be called only once per incoming split
+  /// would be called only once per incoming split.
   virtual void prepareSplit(
       std::shared_ptr<common::MetadataFilter> metadataFilter,
       dwio::common::RuntimeStats& runtimeStats,
@@ -163,7 +163,7 @@ class FileSplitReader {
   RowTypePtr getAdaptedRowType() const;
 
   // Check if the filters pass on the column statistics.  When delta update is
-  // present, the corresonding filter should be disabled before calling this
+  // present, the corresponding filter should be disabled before calling this
   // function.
   bool filterOnStats(dwio::common::RuntimeStats& runtimeStats) const;
 
@@ -176,7 +176,7 @@ class FileSplitReader {
   bool checkIfSplitIsEmpty(dwio::common::RuntimeStats& runtimeStats);
 
   /// Create the dwio::common::RowReader object baseRowReader_, which owns the
-  /// ColumnReaders that will be used to read the data
+  /// ColumnReaders that will be used to read the data.
   void createRowReader(
       std::shared_ptr<common::MetadataFilter> metadataFilter,
       RowTypePtr rowType,

@@ -64,7 +64,6 @@ namespace facebook::velox::memory {
 class MemoryManager {
  public:
   struct Options {
-    Options() {}
     /// Specifies the default memory allocation alignment.
     uint16_t alignment{MemoryAllocator::kDefaultAlignment};
 
@@ -79,7 +78,7 @@ class MemoryManager {
     bool checkUsageLeak{FLAGS_velox_memory_leak_check_enabled};
 
     /// Terminates the process and generates a core file on an allocation
-    /// failure
+    /// failure.
     bool coreOnAllocationFailureEnabled{false};
 
     /// Disables the memory manager's tracking on memory pools.
@@ -100,8 +99,8 @@ class MemoryManager {
     /// Number of pages in the largest size class in MmapAllocator.
     int32_t largestSizeClassPages{256};
 
-    /// If true, allocations larger than largest size class size will be
-    /// delegated to ManagedMmapArena. Otherwise a system mmap call will be
+    /// If true, allocations larger than the largest size class size will be
+    /// delegated to ManagedMmapArena. Otherwise, a system mmap call will be
     /// issued for each such allocation.
     ///
     /// NOTE: this only applies for MmapAllocator.
@@ -181,6 +180,8 @@ class MemoryManager {
     /// size. If not set, uses the memory pool's default get preferred size
     /// function.
     std::function<size_t(size_t)> getPreferredSize{nullptr};
+
+    Options() {}
   };
 
   explicit MemoryManager(const Options& options = Options{});
@@ -209,10 +210,14 @@ class MemoryManager {
 
   /// Returns the memory capacity of this memory manager which puts a hard cap
   /// on memory usage, and any allocation that exceeds this capacity throws.
-  int64_t capacity() const;
+  int64_t capacity() const {
+    return allocator_->capacity();
+  }
 
   /// Returns the memory allocation alignment of this memory manager.
-  uint16_t alignment() const;
+  uint16_t alignment() const {
+    return alignment_;
+  }
 
   /// Creates a root memory pool with specified 'name' and 'maxCapacity'. If
   /// 'name' is missing, the memory manager generates a default name internally
@@ -232,7 +237,7 @@ class MemoryManager {
   /// for keeping 'resource' alive while the pool exists.
   std::shared_ptr<MemoryPool> addCustomRootPool(
       const std::string& name,
-      std::shared_ptr<CustomMemoryResource> resource,
+      const std::shared_ptr<CustomMemoryResource>& resource,
       const std::optional<MemoryPool::DebugOptions>& poolDebugOpts =
           std::nullopt);
 
@@ -244,7 +249,7 @@ class MemoryManager {
   /// its cpu cost.
   std::shared_ptr<MemoryPool> addLeafPool(
       const std::string& name = "",
-      bool threadSafe = true);
+      bool threadSafe = true) const;
 
   /// Invoked to shrink alive pools to free 'targetBytes' capacity. The function
   /// returns the actual freed memory capacity in bytes. If 'targetBytes' is
@@ -256,29 +261,29 @@ class MemoryManager {
   uint64_t shrinkPools(
       uint64_t targetBytes = 0,
       bool allowSpill = true,
-      bool allowAbort = false);
+      bool allowAbort = false) const;
 
-  /// Default unmanaged leaf pool with no threadsafe stats support. Libraries
+  /// Default unmanaged leaf pool with no thread-safe stats support. Libraries
   /// using this method can get a pool that is shared with other threads. The
   /// goal is to minimize lock contention while supporting such use cases.
   ///
   /// TODO: deprecate this API after all the use cases are able to manage the
   /// lifecycle of the allocated memory pools properly.
-  MemoryPool& deprecatedSharedLeafPool();
+  MemoryPool& deprecatedSharedLeafPool() const;
 
   /// Returns the current total memory usage under this memory manager.
   int64_t getTotalBytes() const;
 
-  /// Returns the number of alive memory pools allocated from addRootPool() and
-  /// addLeafPool().
+  /// Returns the number of alive memory pools allocated from 'addRootPool()'
+  /// and 'addLeafPool()'.
   ///
   /// NOTE: this doesn't count the memory manager's internal default root and
   /// leaf memory pools.
   size_t numPools() const;
 
-  MemoryAllocator* allocator();
+  MemoryAllocator* allocator() const;
 
-  MemoryArbitrator* arbitrator();
+  MemoryArbitrator* arbitrator() const;
 
   /// Returns debug string of this memory manager. If 'detail' is true, it
   /// returns the detailed tree memory usage from all the top level root memory
@@ -292,12 +297,12 @@ class MemoryManager {
   }
 
   /// Returns the process wide leaf memory pool used for disk spilling.
-  MemoryPool* spillPool() {
+  MemoryPool* spillPool() const {
     return spillPool_.get();
   }
 
   /// Returns the process wide leaf memory pool used for ssd cache.
-  MemoryPool* cachePool() {
+  MemoryPool* cachePool() const {
     return cachePool_.get();
   }
 
@@ -306,13 +311,14 @@ class MemoryManager {
     return tracePool_.get();
   }
 
-  const std::vector<std::shared_ptr<MemoryPool>>& testingSharedLeafPools() {
+  const std::vector<std::shared_ptr<MemoryPool>>& testingSharedLeafPools()
+      const {
     return sharedLeafPools_;
   }
 
  private:
   std::shared_ptr<MemoryPoolImpl> createRootPool(
-      std::string poolName,
+      const std::string& poolName,
       std::unique_ptr<MemoryReclaimer>& reclaimer,
       MemoryPool::Options& options);
 
@@ -335,6 +341,7 @@ class MemoryManager {
 
   // If not null, used to arbitrate the memory capacity among 'pools_'.
   const std::unique_ptr<MemoryArbitrator> arbitrator_;
+
   const uint16_t alignment_;
   const bool checkUsageLeak_;
   const bool coreOnAllocationFailureEnabled_;
@@ -352,6 +359,7 @@ class MemoryManager {
   const std::shared_ptr<MemoryPool> tracePool_;
   const std::vector<std::shared_ptr<MemoryPool>> sharedLeafPools_;
 
+  // To protect 'pools_'.
   mutable folly::SharedMutex mutex_;
   // All user root pools allocated from 'this'.
   std::unordered_map<std::string, std::weak_ptr<MemoryPool>> pools_;
@@ -366,8 +374,8 @@ void initializeMemoryManager(const MemoryManager::Options& options);
 
 /// Returns the process-wide memory manager.
 ///
-/// NOTE: user should have already initialized memory manager by calling.
-/// Otherwise, the function throws.
+/// NOTE: user should have already initialized memory manager by calling
+/// 'initializeMemoryManager'. Otherwise, the function throws.
 MemoryManager* memoryManager();
 
 /// Deprecated. Do not use.
@@ -393,16 +401,17 @@ MemoryPool& deprecatedSharedLeafPool();
 MemoryPool& deprecatedRootPool();
 
 /// Returns the system-wide memory pool for spilling memory usage.
-memory::MemoryPool* spillMemoryPool();
+MemoryPool* spillMemoryPool();
 
 /// Returns true if the provided 'pool' is the spilling memory pool.
-bool isSpillMemoryPool(memory::MemoryPool* pool);
+bool isSpillMemoryPool(const MemoryPool* pool);
 
 /// Returns the system-wide memory pool for tracing memory usage.
-memory::MemoryPool* traceMemoryPool();
+MemoryPool* traceMemoryPool();
 
-FOLLY_ALWAYS_INLINE int32_t alignmentPadding(void* address, int32_t alignment) {
-  auto extra = reinterpret_cast<uintptr_t>(address) % alignment;
+FOLLY_ALWAYS_INLINE int32_t
+alignmentPadding(const void* address, int32_t alignment) {
+  const auto extra = reinterpret_cast<uintptr_t>(address) % alignment;
   return extra == 0 ? 0 : alignment - extra;
 }
 } // namespace facebook::velox::memory

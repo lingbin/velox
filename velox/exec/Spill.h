@@ -530,7 +530,7 @@ class SpillPartition {
       memory::MemoryPool* pool,
       exec::SpillStats* spillStats);
 
-  SpillPartitionId id_;
+  const SpillPartitionId id_;
   SpillFiles files_;
   // Counts the total file size in bytes from this spilled partition.
   uint64_t size_{0};
@@ -580,8 +580,7 @@ class IterableSpillPartitionSet {
 /// by. This has one SpillFileList per partition of spill data.
 class SpillState {
  public:
-  /// Constructs a SpillState. 'type' is the content RowType. 'path' is the
-  /// file system path prefix. 'bits' is the hash bit field for partitioning
+  /// Constructs a SpillState. 'bits' is the hash bit field for partitioning
   /// data between files. This also gives the maximum number of partitions.
   /// 'numSortKeys' is the number of leading columns on which the data is
   /// sorted, 0 if only hash partitioning is used. 'targetFileSize' is the

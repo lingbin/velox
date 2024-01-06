@@ -49,7 +49,7 @@ class HiveDataSource : public FileDataSource {
           const RowTypePtr& readerOutputType,
           std::unordered_map<std::string, FileColumnHandlePtr>* partitionKeys,
           FileHandleFactory* fileHandleFactory,
-          folly::Executor* executor,
+          folly::Executor* ioExecutor,
           const ConnectorQueryCtx* connectorQueryCtx,
           const std::shared_ptr<HiveConfig>& hiveConfig,
           const std::shared_ptr<io::IoStatistics>& ioStatistics,

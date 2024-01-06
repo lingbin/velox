@@ -47,7 +47,7 @@ class ByteStreamTest : public testing::Test {
     return std::make_unique<StreamArena>(pool_.get());
   }
 
-  std::unique_ptr<folly::IOBuf> createIOBuf(uint64_t size) {
+  static std::unique_ptr<folly::IOBuf> createIOBuf(uint64_t size) {
     auto buf = folly::IOBuf::create(size);
     auto* writableData = buf->writableData();
     std::memset(writableData, '6', size);

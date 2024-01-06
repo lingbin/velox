@@ -123,10 +123,10 @@ FOLLY_ALWAYS_INLINE std::ostream& operator<<(
 void updateGlobalSpillRunStats(uint64_t numRuns);
 
 /// Updates the stats of new append spilled rows including the number of spilled
-/// rows and the serializaion time.
+/// rows and the serialization time.
 void updateGlobalSpillAppendStats(
     uint64_t numRows,
-    uint64_t serializaionTimeNs);
+    uint64_t serializationTimeNs);
 
 /// Increments the number of spilled partitions.
 void incrementGlobalSpilledPartitionStats();

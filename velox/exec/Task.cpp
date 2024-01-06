@@ -1244,7 +1244,7 @@ std::shared_ptr<Driver> Task::getDriver(uint32_t driverId) const {
   return drivers_[driverId];
 }
 
-void Task::checkExecutionMode(ExecutionMode mode) {
+void Task::checkExecutionMode(ExecutionMode mode) const {
   VELOX_CHECK_EQ(mode, mode_, "Inconsistent task execution mode.");
 }
 
@@ -1503,7 +1503,7 @@ void Task::resume(std::shared_ptr<Task> self) {
   resumePromises.swap(self->resumePromises_);
 }
 
-void Task::validateGroupedExecutionLeafNodes() {
+void Task::validateGroupedExecutionLeafNodes() const {
   if (isGroupedExecution()) {
     VELOX_USER_CHECK(
         !planFragment_.groupedExecutionLeafNodeIds.empty(),
@@ -2350,14 +2350,6 @@ void Task::multipleSplitsFinished(
     taskStats_.numRunningTableScanSplits -= numSplits;
     taskStats_.runningTableScanSplitWeights -= splitsWeight;
   }
-}
-
-bool Task::isGroupedExecution() const {
-  return planFragment_.isGroupedExecution();
-}
-
-bool Task::isUngroupedExecution() const {
-  return not isGroupedExecution();
 }
 
 bool Task::hasMixedExecutionGroupJoin(

@@ -80,7 +80,7 @@ uint64_t StringIdMap::makeId(std::string_view string) {
   const auto id = entry.id;
   idToEntry_[id] = std::move(entry);
   stringToId_[string] = id;
-  return lastId_;
+  return id;
 }
 
 uint64_t StringIdMap::recoverId(uint64_t id, std::string_view string) {

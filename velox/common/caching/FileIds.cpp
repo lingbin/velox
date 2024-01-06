@@ -16,11 +16,11 @@
 
 #include "velox/common/caching/FileIds.h"
 
-#include <gflags/gflags.h>
-
 namespace facebook::velox {
+
 StringIdMap& fileIds() {
-  static StringIdMap* ids = new StringIdMap();
+  static auto* ids = new StringIdMap();
   return *ids;
 }
+
 } // namespace facebook::velox

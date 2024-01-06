@@ -187,11 +187,10 @@ class Cache {
   virtual MemoryAllocator* allocator() const = 0;
 };
 
-/// Sets a thread level failure message describing cache state. Used
-/// for example to expose why space could not be freed from
-/// cache. This is defined here with the abstract Cache base class
-/// and not the cache implementation because allocator cannot depend
-/// on cache.
+/// Sets a thread level failure message describing cache state. Used for example
+/// to expose why space could not be freed from cache. This is defined here with
+/// the abstract Cache base class and not the cache implementation because
+/// allocator cannot depend on cache.
 void setCacheFailureMessage(std::string message);
 
 /// Returns and clears a thread local message set by 'setCacheFailureMessage()'.
@@ -258,11 +257,11 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// Defines the memory allocator kinds.
   enum class Kind {
     /// The default memory allocator kind which is implemented by
-    /// MallocAllocator. It delegates the memory allocations to std::malloc.
+    /// 'MallocAllocator'. It delegates the memory allocations to 'std::malloc'.
     kMalloc,
-    /// The memory allocator kind which is implemented by MmapAllocator. It
+    /// The memory allocator kind which is implemented by 'MmapAllocator'. It
     /// manages the large chunk of memory allocations on its own by leveraging
-    /// mmap and madvise, to optimize the memory fragmentation in the
+    /// 'mmap' and 'madvise', to optimize the memory fragmentation in the
     /// long-running service such as Prestissimo.
     kMmap,
   };
@@ -571,7 +570,7 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
 
   // If 'data' is sufficiently large, enables/disables adaptive  huge pages
   // for the address range.
-  void useHugePages(const ContiguousAllocation& data, bool enable);
+  static void useHugePages(const ContiguousAllocation& data, bool enable);
 
   // The machine page counts corresponding to different sizes in order
   // of increasing size.

@@ -15,15 +15,16 @@
  */
 #pragma once
 
-#include "velox/exec/SerializedPage.h"
-
 #include <mutex>
+
+#include <folly/container/F14Map.h>
+
+#include "velox/exec/SerializedPage.h"
 
 namespace facebook::velox::exec {
 
-/// Queue of results retrieved from source. Owned by shared_ptr by
-/// Exchange and client threads and registered callbacks waiting
-/// for input.
+/// Queue of results retrieved from exchange sources. Owned by shared_ptr by
+/// ExchangeClient and ExchangeSources.
 class ExchangeQueue {
  public:
   explicit ExchangeQueue(
@@ -56,15 +57,15 @@ class ExchangeQueue {
       std::unique_ptr<SerializedPageBase>&& page,
       std::vector<ContinuePromise>& promises);
 
-  /// If data is permanently not available, e.g. the source cannot be
-  /// contacted, this registers an error message and causes the reading
-  /// Exchanges to throw with the message.
+  /// If data is permanently not available, e.g. the source cannot be contacted,
+  /// this registers an error message and causes the reading Exchanges to throw
+  /// with the message.
   void setError(const std::string& error);
 
   /// Returns pages of data.
   ///
   /// Returns empty list if no data is available. If data is still expected,
-  /// sets 'atEnd' to false and 'future' to a Future that will complete when
+  /// sets 'atEnd' to false and 'future' to a future that will complete when
   /// data arrives. If no more data is expected, sets 'atEnd' to true. Returns
   /// at least one page if data is available. If multiple pages are available,
   /// returns as many pages as fit within 'maxBytes', but no fewer than one.

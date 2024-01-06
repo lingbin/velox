@@ -125,7 +125,7 @@ class NoopRuntimeStatWriter : public BaseRuntimeStatWriter {};
 /// active Operator is being used by the writer.
 void setThreadLocalRunTimeStatWriter(BaseRuntimeStatWriter* writer);
 
-/// Retrives the current runtime stats writer.
+/// Retrieves the current runtime stats writer.
 BaseRuntimeStatWriter* getThreadLocalRunTimeStatWriter();
 
 /// Writes runtime counter to the current Operator running on that thread.

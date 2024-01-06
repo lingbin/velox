@@ -187,7 +187,7 @@ TextRowReader::TextRowReader(
       (void)seekToRow(opts.skipRows());
     }
   } else {
-    // compressed text files, the first split reads the whole file, rest read 0
+    // Compressed text files, the first split reads the whole file, rest read 0
     if (pos_ != 0) {
       atEOF_ = true;
     }

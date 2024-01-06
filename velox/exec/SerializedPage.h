@@ -40,7 +40,7 @@ class SerializedPageBase {
 
 /// Corresponds to Presto SerializedPage, i.e. a container for serialized
 /// vectors in Presto wire format.
-class PrestoSerializedPage : public SerializedPageBase {
+class PrestoSerializedPage final : public SerializedPageBase {
  public:
   /// Construct from IOBuf chain.
   explicit PrestoSerializedPage(
@@ -65,7 +65,7 @@ class PrestoSerializedPage : public SerializedPageBase {
   }
 
  private:
-  static int64_t chainBytes(folly::IOBuf& iobuf) {
+  static uint64_t chainBytes(folly::IOBuf& iobuf) {
     int64_t size = 0;
     for (auto& range : iobuf) {
       size += range.size();
@@ -76,11 +76,11 @@ class PrestoSerializedPage : public SerializedPageBase {
   // Buffers containing the serialized data. The memory is owned by 'iobuf_'.
   std::vector<ByteRange> ranges_;
 
-  // IOBuf holding the data in 'ranges_.
+  // IOBuf holding the data in 'ranges_'.
   std::unique_ptr<folly::IOBuf> iobuf_;
 
   // Number of payload bytes in 'iobuf_'.
-  const int64_t iobufBytes_;
+  const uint64_t iobufBytes_;
 
   // Number of payload rows, if provided.
   const std::optional<int64_t> numRows_;

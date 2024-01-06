@@ -41,8 +41,7 @@ DECLARE_bool(velox_exception_system_stacktrace_enabled);
 DECLARE_int32(velox_exception_user_stacktrace_rate_limit_ms);
 DECLARE_int32(velox_exception_system_stacktrace_rate_limit_ms);
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 /// Base class for typed, structured context attached to a VeloxException via
 /// ExceptionContext::propertiesFunc (see VeloxException::properties()).
@@ -618,5 +617,4 @@ class [[nodiscard]] ExceptionContextSetter {
  private:
   ExceptionContext prev_;
 };
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

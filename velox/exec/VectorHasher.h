@@ -33,18 +33,14 @@ namespace facebook::velox::exec {
 // index.
 class UniqueValue {
  public:
-  explicit UniqueValue(int64_t value) {
-    size_ = sizeof(int64_t);
-    data_ = value;
-  }
+  explicit UniqueValue(int64_t value) : data_(value), size_(sizeof(int64_t)) {}
 
-  explicit UniqueValue(const char* value, uint32_t size) {
-    size_ = size;
-    data_ = 0;
+  explicit UniqueValue(const char* value, uint32_t size)
+      : data_(0), size_(size) {
     if (size <= sizeof(data_)) {
       memcpy(&data_, value, size);
     } else {
-      data_ = reinterpret_cast<int64_t>(value);
+      data_ = reinterpret_cast<uintptr_t>(value);
     }
   }
 
@@ -80,7 +76,7 @@ class UniqueValue {
  private:
   uint64_t data_;
   uint32_t size_;
-  uint32_t id_;
+  uint32_t id_{0};
 };
 
 struct UniqueValueHasher {
@@ -91,7 +87,7 @@ struct UniqueValueHasher {
     }
 
     uint32_t hash = 0;
-    auto data = reinterpret_cast<const uint64_t*>(value.data());
+    const auto* data = reinterpret_cast<const uint64_t*>(value.data());
 
     size_t wordIndex = 0;
     auto numFullWords = size / 8;
@@ -142,6 +138,8 @@ class VectorHasher {
   // reservePct to enableValueIds().
   static constexpr int32_t kNoLimit = -1;
 
+  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
+
   VectorHasher(TypePtr type, column_index_t channel)
       : channel_(channel),
         type_(std::move(type)),
@@ -181,8 +179,6 @@ class VectorHasher {
     return typeKind_;
   }
 
-  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
-
   // Decodes the 'vector' in preparation for calling hash() or
   // computeValueIds(). The decoded vector can be accessed via decodedVector()
   // getter.
@@ -199,7 +195,7 @@ class VectorHasher {
     return decoded_;
   }
 
-  // Computes a hash for 'rows' in the vector previously decoded via decode()
+  // Computes a hash for 'rows' in the vector previously decoded via 'decode()'
   // call and stores it in 'result'. If 'mix' is true, mixes the hash with
   // existing value in 'result'.
   void
@@ -221,7 +217,7 @@ class VectorHasher {
   // decode() call and stores this in 'result'. If this is not the first hasher
   // with normalized keys, updates the partially computed normalized key in
   // 'result'. Returns true if all the values could be mapped to the
-  // normalized key range. If some values could not be mapped
+  // normalized key range. If some values could not be mapped,
   // the statistics are updated to reflect the new values. This
   // behavior corresponds to group by, where we must rehash if all the
   // new keys could not be represented.
@@ -308,7 +304,7 @@ class VectorHasher {
   // produce. Does not accept kNoLimit for 'reservePct'.
   uint64_t enableValueRange(uint64_t multiplier, int32_t reservePct);
 
-  // Sets this to 'value ids' mode, where each distinct value has an
+  // Sets 'this' to 'value ids' mode, where each distinct value has an
   // integer id times 'multiplier'. Leaves 'reservePct' % values at
   // the end of the distinct ids range. Returns 'multiplier' times the
   // number of distinct values reserved. 'reservePct' = kNoLimit means
@@ -322,7 +318,7 @@ class VectorHasher {
   // of the data type. For 'asDistinct' the values are added to the end of the
   // range of ids.
   void
-  cardinality(int32_t reservePct, uint64_t& asRange, uint64_t& asDistincts);
+  cardinality(int32_t reservePct, uint64_t& asRange, uint64_t& asDistinct);
 
   void analyze(
       char** groups,
@@ -360,7 +356,7 @@ class VectorHasher {
   // and distinct values are unioned.
   void merge(const VectorHasher& other, size_t maxNumDistinct);
 
-  // true if no values have been added.
+  // True if no values have been added.
   bool empty() const {
     const bool hasSeenValue =
         typeKind_ == TypeKind::HUGEINT ? hasHugeintValue_ : hasRange_;
@@ -374,16 +370,17 @@ class VectorHasher {
   }
 
  private:
-  static constexpr uint32_t kStringASRangeMaxSize = 7;
+  static constexpr uint32_t kStringAsRangeMaxSize = 7;
   static constexpr uint32_t kStringBufferUnitSize = 1024;
   static constexpr uint64_t kMaxDistinctStringsBytes = 1 << 20;
 
   // Maps a binary string of up to 7 bytes to int64_t. Each size maps
   // to a different numeric range, so leading zeros are considered.
   static inline int64_t stringAsNumber(const char* data, int32_t size) {
+    VELOX_DCHECK_LE(size, kStringAsRangeMaxSize);
     int64_t word =
         bits::loadPartialWord(reinterpret_cast<const uint8_t*>(data), size);
-    return size == 0 ? word : word + (1L << (size * 8));
+    return size == 0 ? 0 : word + (1L << (size * 8));
   }
 
   size_t numDistinct() const {
@@ -399,7 +396,7 @@ class VectorHasher {
   }
 
   template <typename T>
-  inline int64_t toInt64(T value) const {
+  static inline int64_t toInt64(T value) {
     static_assert(
         !std::is_same_v<std::remove_cvref_t<T>, int128_t>,
         "HUGEINT values must use the int128_t overloads instead of narrowing "
@@ -407,7 +404,7 @@ class VectorHasher {
     return value;
   }
 
-  inline int64_t toInt64(Timestamp timestamp) const {
+  static inline int64_t toInt64(Timestamp timestamp) {
     return timestamp.toMillis();
   }
 
@@ -558,6 +555,7 @@ class VectorHasher {
 
   template <typename T>
   uint64_t valueId(T value) {
+    VELOX_DCHECK(std::is_integral_v<T>);
     auto int64Value = toInt64(value);
     if (isRange_) {
       if (int64Value > max_ || int64Value < min_) {
@@ -590,6 +588,7 @@ class VectorHasher {
       }
       return int64Value - min_ + 1;
     }
+
     UniqueValue unique(value);
     auto iter = uniqueValues_.find(unique);
     if (iter != uniqueValues_.end()) {
@@ -619,7 +618,7 @@ class VectorHasher {
 
   void setRangeOverflow();
 
-  inline void checkTypeSupportsValueIds() const {
+  void checkTypeSupportsValueIds() const {
     VELOX_DCHECK(
         typeSupportsValueIds(),
         "Value IDs cannot be used, the type {} is not supported.",
@@ -645,6 +644,9 @@ class VectorHasher {
   const bool typeProvidesCustomComparison_;
 
   DecodedVector decoded_;
+  // Cached hash values for dictionary vectors. The cache is used when the
+  // number of selected rows is larger than the number of rows in the base
+  // vector.
   raw_vector<uint64_t> cachedHashes_;
 
   // Single precomputed hash for constant partition keys.
@@ -706,9 +708,9 @@ void VectorHasher::analyzeValue(StringView value);
 template <>
 inline uint64_t VectorHasher::valueId(StringView value) {
   auto size = value.size();
-  auto data = value.data();
+  const auto* data = value.data();
   if (isRange_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       return kUnmappable;
     }
     int64_t number = stringAsNumber(data, size);
@@ -726,7 +728,7 @@ inline uint64_t VectorHasher::valueId(StringView value) {
   }
   copyStringToLocal(&*pair.first);
   if (!rangeOverflow_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       setRangeOverflow();
     } else {
       updateRange(stringAsNumber(data, size));
@@ -743,7 +745,7 @@ inline uint64_t VectorHasher::lookupValueId(StringView value) const {
   auto size = value.size();
   auto data = value.data();
   if (isRange_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       return kUnmappable;
     }
     int64_t number = stringAsNumber(data, size);
@@ -771,6 +773,7 @@ template <>
 inline uint64_t VectorHasher::valueId(bool value) {
   return value ? 2 : 1;
 }
+
 template <>
 inline uint64_t VectorHasher::valueId(Timestamp value) {
   if (FOLLY_UNLIKELY(

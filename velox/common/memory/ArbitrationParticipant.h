@@ -290,6 +290,7 @@ class ArbitrationParticipant
     Stats stats;
     stats.durationNs = durationNs();
     stats.aborted = aborted_;
+
     stats.numRequests = numRequests_;
     stats.numGrows = numGrows_;
     stats.numShrinks = numShrinks_;
@@ -324,7 +325,7 @@ class ArbitrationParticipant
   // 'config_'.
   uint64_t maxGrowCapacity() const;
 
-  // Returns the min capacity to grow the query memory pool to have the minnimal
+  // Returns the min capacity to grow the query memory pool to have the minimal
   // capacity as specified by 'minCapacity' in 'config_'.
   uint64_t minGrowCapacity() const;
 
