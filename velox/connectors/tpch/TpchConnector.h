@@ -137,7 +137,7 @@ class TpchTableHandle : public ConnectorTableHandle {
 
  private:
   const velox::tpch::Table table_;
-  double scaleFactor_;
+  const double scaleFactor_;
   std::string name_;
   const velox::core::TypedExprPtr filterExpression_;
 };

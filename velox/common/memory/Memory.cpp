@@ -90,17 +90,17 @@ std::vector<std::shared_ptr<MemoryPool>> createSharedLeafMemoryPools(
 
 // Used by sys root memory pool for use case that expect a memory reclaimer to
 // set like QueryCtx.
-class SysMemoryReclaimer : public memory::MemoryReclaimer {
+class SysMemoryReclaimer : public MemoryReclaimer {
  public:
-  static std::unique_ptr<memory::MemoryReclaimer> create() {
-    return std::unique_ptr<memory::MemoryReclaimer>(new SysMemoryReclaimer());
+  static std::unique_ptr<MemoryReclaimer> create() {
+    return std::unique_ptr<MemoryReclaimer>(new SysMemoryReclaimer());
   }
 
   uint64_t reclaim(
-      memory::MemoryPool* pool,
+      MemoryPool* pool,
       uint64_t targetBytes,
       uint64_t maxWaitMs,
-      memory::MemoryReclaimer::Stats& stats) override {
+      MemoryReclaimer::Stats& stats) override {
     return 0;
   }
 
@@ -191,7 +191,7 @@ MemoryManager::~MemoryManager() {
     if (checkUsageLeak_) {
       VELOX_FAIL(errMsg);
     } else {
-      LOG(ERROR) << errMsg;
+      VELOX_MEM_LOG(ERROR) << errMsg;
     }
   }
 }
@@ -250,14 +250,6 @@ MemoryManager& MemoryManager::testingSetInstance(
   return *instance;
 }
 
-int64_t MemoryManager::capacity() const {
-  return allocator_->capacity();
-}
-
-uint16_t MemoryManager::alignment() const {
-  return alignment_;
-}
-
 std::shared_ptr<MemoryPoolImpl> MemoryManager::createRootPool(
     std::string poolName,
     std::unique_ptr<MemoryReclaimer>& reclaimer,
@@ -291,6 +283,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPool(
   options.alignment = alignment_;
   options.maxCapacity = maxCapacity;
   options.trackUsage = true;
+  options.threadSafe = true;
   options.coreOnAllocationFailureEnabled = coreOnAllocationFailureEnabled_;
   options.getPreferredSize = getPreferredSize_;
   options.debugOptions = poolDebugOpts;
@@ -444,15 +437,15 @@ MemoryPool& deprecatedRootPool() {
   return deprecatedDefaultMemoryManager().deprecatedSysRootPool();
 }
 
-memory::MemoryPool* spillMemoryPool() {
-  return memory::MemoryManager::getInstance()->spillPool();
+MemoryPool* spillMemoryPool() {
+  return MemoryManager::getInstance()->spillPool();
 }
 
-bool isSpillMemoryPool(memory::MemoryPool* pool) {
+bool isSpillMemoryPool(MemoryPool* pool) {
   return pool == spillMemoryPool();
 }
 
-memory::MemoryPool* traceMemoryPool() {
-  return memory::MemoryManager::getInstance()->tracePool();
+MemoryPool* traceMemoryPool() {
+  return MemoryManager::getInstance()->tracePool();
 }
 } // namespace facebook::velox::memory

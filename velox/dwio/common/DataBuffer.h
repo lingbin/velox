@@ -45,7 +45,7 @@ class DataBuffer {
 
   DataBuffer(DataBuffer&& other) noexcept
       : pool_{other.pool_},
-        veloxRef_{other.veloxRef_},
+        veloxRef_{std::move(other.veloxRef_)},
         buf_{other.buf_},
         size_{other.size_},
         capacity_{other.capacity_} {
@@ -86,14 +86,14 @@ class DataBuffer {
     return data()[i];
   }
 
+  const T& operator[](uint64_t i) const {
+    return data()[i];
+  }
+
   // Get with range check introduces significant overhead. Use index operator[]
   // when possible
   const T& at(uint64_t i) const {
     VELOX_CHECK_LT(i, size_, "Accessing index out of range");
-    return data()[i];
-  }
-
-  const T& operator[](uint64_t i) const {
     return data()[i];
   }
 
@@ -108,28 +108,29 @@ class DataBuffer {
     }
     const auto newSize = sizeInBytes(capacity);
     if (buf_ == nullptr) {
-      buf_ = reinterpret_cast<T*>(pool_->allocate(newSize));
+      buf_ = static_cast<T*>(pool_->allocate(newSize));
     } else {
-      buf_ = reinterpret_cast<T*>(
+      buf_ = static_cast<T*>(
           pool_->reallocate(buf_, capacityInBytes(), newSize));
     }
-    VELOX_CHECK(buf_ != nullptr || newSize == 0);
+    // newSize 一定不会等于0. 因为如果等于0，那么capacity ==0，在上面就已经返回了。
+    VELOX_CHECK(buf_ != nullptr);
     capacity_ = capacity;
   }
 
-  void extend(uint64_t size) {
-    auto newSize = size_ + size;
+  void extend(uint64_t delta) {
+    auto newSize = size_ + delta;
     if (newSize > capacity_) {
       reserve(newSize + ((newSize + 1) / 2) + 1);
     }
   }
 
-  void resize(uint64_t size) {
-    reserve(size);
-    if (size > size_) {
-      std::memset(data() + size_, 0, sizeInBytes(size - size_));
+  void resize(uint64_t newSize) {
+    reserve(newSize);
+    if (newSize > size_) {
+      std::memset(data() + size_, 0, sizeInBytes(newSize - size_));
     }
-    size_ = size;
+    size_ = newSize;
   }
 
   void append(
@@ -137,7 +138,7 @@ class DataBuffer {
       const DataBuffer<T>& src,
       uint64_t srcOffset,
       uint64_t items) {
-    // Does src have insufficient data
+    // src should have insufficient data.
     VELOX_CHECK_GE(src.size(), srcOffset + items);
     append(offset, src.data() + srcOffset, items);
   }
@@ -147,15 +148,23 @@ class DataBuffer {
     unsafeAppend(offset, src, items);
   }
 
+  void append(T value) {
+    if (size_ >= capacity_) {
+      // Increase capacity by 50%.
+      reserve(capacity_ + ((capacity_ + 1) / 2) + 1);
+    }
+    unsafeAppend(value);
+  }
+
   /// Sets a value to the specified offset. If offset overflows current
   /// capacity, it safely allocates more space to meet the request.
   void safeSet(uint64_t offset, T value) {
     if (offset >= capacity_) {
       // Increase capacity by 50% or by offset value.
-      const auto size =
+      const auto newSize =
           std::max(offset + 1, capacity_ + ((capacity_ + 1) / 2) + 1);
-      reserve(size);
-      VLOG(1) << "reserve size: " << size << " for offset set: " << offset;
+      reserve(newSize);
+      VLOG(1) << "reserve size: " << newSize << " for offset set: " << offset;
     }
 
     buf_[offset] = value;
@@ -190,16 +199,8 @@ class DataBuffer {
     buf_[size_++] = value;
   }
 
-  void append(T value) {
-    if (size_ >= capacity_) {
-      // Increase capacity by 50%.
-      reserve(capacity_ + ((capacity_ + 1) / 2) + 1);
-    }
-    unsafeAppend(value);
-  }
-
   void clear() {
-    if ((veloxRef_ == nullptr) && (buf_ != nullptr)) {
+    if (veloxRef_ == nullptr && buf_ != nullptr) {
       pool_->free(buf_, sizeInBytes(capacity_));
     }
     size_ = 0;
@@ -220,7 +221,7 @@ class DataBuffer {
     capacity_ = size_;
   }
 
-  uint64_t sizeInBytes(uint64_t items) const {
+  static uint64_t sizeInBytes(uint64_t items) {
     return sizeof(T) * items;
   }
 

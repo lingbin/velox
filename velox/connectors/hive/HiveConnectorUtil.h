@@ -15,6 +15,7 @@
  */
 
 #pragma once
+
 #include <folly/Executor.h>
 #include <folly/container/F14Map.h>
 
@@ -166,7 +167,7 @@ std::unique_ptr<dwio::common::BufferedInput> createBufferedInput(
     const ConnectorQueryCtx* connectorQueryCtx,
     std::shared_ptr<io::IoStatistics> ioStatistics,
     std::shared_ptr<IoStats> ioStats,
-    folly::Executor* executor,
+    folly::Executor* ioExecutor,
     const folly::F14FastMap<std::string, std::string>& fileReadOps = {});
 
 /// Given a boolean expression, breaks it up into conjuncts and sorts these into

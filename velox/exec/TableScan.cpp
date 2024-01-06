@@ -35,7 +35,7 @@ std::unique_ptr<connector::DataSource> createDataSource(
   auto dataSource = connector.createDataSource(
       outputType, tableHandle, columnHandles, connectorQueryCtx);
   auto* staticFilters = dataSource->getFilters();
-  if (!staticFilters) {
+  if (staticFilters == nullptr) {
     VELOX_CHECK(!connector.canAddDynamicFilter());
     return dataSource;
   }
@@ -138,7 +138,7 @@ RowVectorPtr TableScan::getOutput() {
   const auto startTimeMs = getCurrentTimeMs();
   for (;;) {
     // Check if our Task needs us to yield or we've been running for too long
-    // w/o producing a result. In this case we return with the Yield blocking
+    // w/o producing a result. In this case we return with the kYield blocking
     // reason and an already fulfilled future.
     const StopReason taskStopReason = driverCtx_->task->shouldStop();
     if (shouldStop(taskStopReason) ||
@@ -299,6 +299,7 @@ bool TableScan::getSplit() {
   }
 
   if (!split.hasConnectorSplit()) {
+    // All splits have been consumed.
     noMoreSplits_ = true;
     if (dataSource_) {
       const auto connectorStats = dataSource_->getRuntimeStats();

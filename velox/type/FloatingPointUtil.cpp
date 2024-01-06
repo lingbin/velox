@@ -15,10 +15,10 @@
  */
 
 #include "velox/type/FloatingPointUtil.h"
-#include <array>
 
 namespace facebook::velox {
 
+// static
 const std::array<double, 309> DoubleUtil::kPowersOfTen = {
     1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009, 1e010,
     1e011, 1e012, 1e013, 1e014, 1e015, 1e016, 1e017, 1e018, 1e019, 1e020, 1e021,
@@ -49,4 +49,5 @@ const std::array<double, 309> DoubleUtil::kPowersOfTen = {
     1e286, 1e287, 1e288, 1e289, 1e290, 1e291, 1e292, 1e293, 1e294, 1e295, 1e296,
     1e297, 1e298, 1e299, 1e300, 1e301, 1e302, 1e303, 1e304, 1e305, 1e306, 1e307,
     1e308};
+
 } // namespace facebook::velox

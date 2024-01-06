@@ -48,6 +48,7 @@ struct FileOptions {
 
   std::unordered_map<std::string, std::string> values{};
   memory::MemoryPool* pool{nullptr};
+
   /// If specified then can be trusted to be the file size.
   std::optional<int64_t> fileSize{};
 
@@ -112,7 +113,50 @@ struct FileSystemOptions {
   bool readAheadEnabled{false};
 };
 
-/// An abstract FileSystem
+/// Free form statistics for a file system. The keys are arbitrary strings, and
+/// values are RuntimeMetric. The underlying filesystem implementation can use
+/// this class to record observability about filesystem operations.
+namespace File {
+class IoStats {
+ public:
+  IoStats() = default;
+
+  void addCounter(const std::string& name, RuntimeCounter counter) {
+    auto locked = stats_.wlock();
+    auto it = locked->find(name);
+    if (it == locked->end()) {
+      auto [ptr, inserted] = locked->emplace(name, RuntimeMetric(counter.unit));
+      VELOX_CHECK(inserted);
+      ptr->second.addValue(counter.value);
+    } else {
+      VELOX_CHECK_EQ(it->second.unit, counter.unit);
+      it->second.addValue(counter.value);
+    }
+  }
+
+  void merge(const IoStats& other) {
+    auto otherStats = other.stats();
+    auto locked = stats_.wlock();
+    for (const auto& [name, metric] : otherStats) {
+      auto it = locked->find(name);
+      if (it == locked->end()) {
+        locked->emplace(name, metric);
+      } else {
+        it->second.merge(metric);
+      }
+    }
+  }
+
+  folly::F14FastMap<std::string, RuntimeMetric> stats() const {
+    return stats_.copy();
+  }
+
+ private:
+  folly::Synchronized<folly::F14FastMap<std::string, RuntimeMetric>> stats_;
+};
+} // namespace File
+
+/// An abstract FileSystem interface.
 class FileSystem {
  public:
   FileSystem(std::shared_ptr<const config::ConfigBase> config)
@@ -141,7 +185,7 @@ class FileSystem {
   /// Deletes the file at 'path'. Throws on error.
   virtual void remove(std::string_view path) = 0;
 
-  /// Rename the file at 'path' to `newpath`. Throws on error. If 'overwrite' is
+  /// Rename the file at 'path' to `newPath`. Throws on error. If 'overwrite' is
   /// true, then rename does overwrite if file at 'newPath' already exists.
   /// Throws a velox user exception on error.
   virtual void rename(
@@ -204,7 +248,7 @@ bool isPathSupportedByRegisteredFileSystems(const std::string_view& filePath);
 /// The registration function takes two parameters:
 /// a std::function<bool(std::string_view)> that says whether the registered
 /// FileSystem subclass should be used for that filename, and a lambda that
-/// generates the actual file system.
+/// generates the actual FileSystem object.
 void registerFileSystem(
     std::function<bool(std::string_view)> schemeMatcher,
     std::function<std::shared_ptr<FileSystem>(

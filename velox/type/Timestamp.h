@@ -77,16 +77,15 @@ struct TimestampToStringOptions {
 std::string::size_type getMaxStringLength(
     const TimestampToStringOptions& options);
 
-struct Timestamp {
+class Timestamp {
  public:
   static constexpr int64_t kMillisecondsInSecond = 1'000;
   static constexpr int64_t kMicrosecondsInMillisecond = 1'000;
-  static constexpr int64_t kMicrosecondsInSecond =
-      kMicrosecondsInMillisecond * kMillisecondsInSecond;
+  static constexpr int64_t kMicrosecondsInSecond = 1'000'000;
   static constexpr int64_t kNanosecondsInMicrosecond = 1'000;
   static constexpr int64_t kNanosecondsInMillisecond = 1'000'000;
-  static constexpr int64_t kNanosInSecond =
-      kNanosecondsInMillisecond * kMillisecondsInSecond;
+  static constexpr int64_t kNanosInSecond = 1'000'000'000;
+
   // The number of days between the Julian epoch and the Unix epoch.
   static constexpr int64_t kJulianToUnixEpochDays = 2440588LL;
   static constexpr int64_t kSecondsInDay = 86400LL;
@@ -141,9 +140,9 @@ struct Timestamp {
 
   // Keep it in header for getting inlined.
   int64_t toNanos() const {
-    // int64 can store around 292 years in nanos ~ till 2262-04-12.
-    // When an integer overflow occurs in the calculation,
-    // an exception will be thrown.
+    // "int64" can store around 292 years in nanos ~ till 2262-04-12.
+    // When an integer overflow occurs in the calculation, an exception will be
+    // thrown.
     try {
       return checkedPlus(
           checkedMultiply(seconds_, (int64_t)1'000'000'000), (int64_t)nanos_);
@@ -184,7 +183,7 @@ struct Timestamp {
 
   // Keep it in header for getting inlined.
   int64_t toMicros() const {
-    // We use int128_t to make sure the computation does not overflows since
+    // We use int128_t to make sure the computation does not overflow since
     // there are cases such that a negative seconds*1000000 does not fit in
     // int64_t, but seconds*1000000 + nanos does. An example is
     // Timestamp(-9223372036855, 224'192'000).
@@ -285,7 +284,7 @@ struct Timestamp {
     return Timestamp(second, nano);
   }
 
-  static const Timestamp minMillis() {
+  static Timestamp minMillis() {
     // The minimum Timestamp that toMillis() method will not overflow.
     // Used to calculate the minimum value of the Presto timestamp.
     constexpr int64_t kMin = std::numeric_limits<int64_t>::min();
@@ -295,7 +294,7 @@ struct Timestamp {
             kNanosecondsInMillisecond);
   }
 
-  static const Timestamp maxMillis() {
+  static Timestamp maxMillis() {
     // The maximum Timestamp that toMillis() method will not overflow.
     // Used to calculate the maximum value of the Presto timestamp.
     constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
@@ -311,7 +310,7 @@ struct Timestamp {
     return Timestamp(kMaxSeconds, kMaxNanos);
   }
 
-  /// Our own version of gmtime_r to avoid expensive calls to __tz_convert.
+  /// Our own version of 'gmtime_r' to avoid expensive calls to '__tz_convert'.
   /// This might not be very significant in micro benchmark, but is causing
   /// significant context switching cost in real world queries with higher
   /// concurrency (71% of time is on __tz_convert for some queries).
@@ -319,7 +318,7 @@ struct Timestamp {
   /// Return whether the epoch second can be converted to a valid std::tm.
   static bool epochToCalendarUtc(int64_t seconds, std::tm& out);
 
-  /// Our own version of timegm to avoid expensive calls to __tz_convert.
+  /// Our own version of 'timegm' to avoid expensive calls to __tz_convert.
   ///
   /// This function is guaranteed to give same result as std::timegm when it is
   /// successful.
@@ -339,7 +338,7 @@ struct Timestamp {
     }
   }
 
-  /// Converts a std::tm to a time/date/timestamp string in ISO 8601 format
+  /// Converts a 'std::tm' to a time/date/timestamp string in ISO 8601 format
   /// according to TimestampToStringOptions.
   /// @param startPosition the start position of pre-allocated memory to write
   /// string to.
@@ -464,7 +463,9 @@ struct hash<::facebook::velox::Timestamp> {
   }
 };
 
-std::string to_string(const ::facebook::velox::Timestamp& ts);
+inline std::string to_string(const ::facebook::velox::Timestamp& ts) {
+  return ts.toString();
+}
 
 template <>
 class numeric_limits<facebook::velox::Timestamp> {
@@ -472,6 +473,7 @@ class numeric_limits<facebook::velox::Timestamp> {
   static facebook::velox::Timestamp min() {
     return facebook::velox::Timestamp::min();
   }
+
   static facebook::velox::Timestamp max() {
     return facebook::velox::Timestamp::max();
   }

@@ -105,7 +105,7 @@ DEFINE_string(
 DEFINE_uint64(
     query_memory_capacity_mb,
     0,
-    "Specify the query memory capacity limit in GB. If it is zero, then there is no limit.");
+    "Specify the query memory capacity limit in MB. If it is zero, then there is no limit.");
 DEFINE_bool(copy_results, false, "Copy the replaying results.");
 DEFINE_bool(
     cursor_copy_result,
@@ -176,11 +176,7 @@ void printPipelineTraceSummary(
   const auto opTraceDir = exec::trace::getOpTraceDirectory(
       taskTraceDir, nodeId, pipelineId, driverId);
   const auto opTraceSummary =
-      exec::trace::OperatorTraceSummaryReader(
-          exec::trace::getOpTraceDirectory(
-              taskTraceDir, nodeId, pipelineId, driverId),
-          pool)
-          .read();
+      exec::trace::OperatorTraceSummaryReader(opTraceDir, pool).read();
   oss << "driver " << driverId << ": " << opTraceSummary.toString() << "\n";
 }
 

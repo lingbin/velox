@@ -24,17 +24,16 @@ enum class BlockingReason {
   kNotBlocked,
   kWaitForConsumer,
   kWaitForSplit,
-  /// Some operators can get blocked due to the producer(s) (they are
-  /// currently waiting data from) not having anything produced. Used by
-  /// LocalExchange, LocalMergeExchange, Exchange and MergeExchange operators.
+  /// Some operators can get blocked due to the producer(s) (they are currently
+  /// waiting data from) not having anything produced. Used by LocalExchange,
+  /// LocalMergeExchange, Exchange and MergeExchange operators.
   kWaitForProducer,
   kWaitForJoinBuild,
   /// For a build operator, it is blocked waiting for the probe operators to
-  /// finish probing before build the next hash table from one of the
-  /// previously spilled partition data. For a probe operator, it is blocked
-  /// waiting for all its peer probe operators to finish probing before
-  /// notifying the build operators to build the next hash table from the
-  /// previously spilled data.
+  /// finish probing before build the next hash table from one of the previously
+  /// spilled partition data. For a probe operator, it is blocked waiting for
+  /// all its peer probe operators to finish probing before notifying the build
+  /// operators to build the next hash table from the previously spilled data.
   kWaitForJoinProbe,
   /// Used by MergeJoin operator, indicating that it was blocked by the right
   /// side input being unavailable.

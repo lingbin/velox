@@ -89,7 +89,7 @@ exec::BlockingReason TaskQueue::enqueue(
     RowVectorPtr vector,
     bool drained,
     velox::ContinueFuture* future) {
-  if (!vector) {
+  if (vector == nullptr) {
     std::lock_guard<std::mutex> l(mutex_);
     if (drained) {
       ++numDrainedProducers_;
@@ -152,7 +152,7 @@ RowVectorPtr TaskQueue::dequeue() {
         return nullptr;
       }
 
-      if (!vector) {
+      if (vector == nullptr) {
         consumerBlocked_ = true;
         consumerPromise_ = ContinuePromise("TaskQueue::dequeue");
         consumerFuture_ = consumerPromise_.getFuture();
@@ -244,7 +244,7 @@ class TaskCursorBase : public TaskCursor {
         try {
           fileSystem->mkdir(taskSpillDirectory_);
         } catch (...) {
-          LOG(ERROR) << "Faield to create task spill directory "
+          LOG(ERROR) << "Failed to create task spill directory "
                      << taskSpillDirectory_ << " base director "
                      << params.spillDirectory << " exists["
                      << std::filesystem::exists(taskSpillDirectory_) << "]";
@@ -313,7 +313,7 @@ class MultiThreadedTaskCursor : public TaskCursorBase {
             return exec::BlockingReason::kNotBlocked;
           }
 
-          if (!vector || !copyResult) {
+          if (vector == nullptr || !copyResult) {
             return queue->enqueue(vector, drained, future);
           }
           VectorPtr copy = encodedVectorCopy(
@@ -376,7 +376,7 @@ class MultiThreadedTaskCursor : public TaskCursorBase {
     current_ = queue_->dequeue();
 
     checkTaskError();
-    if (!current_) {
+    if (current_ == nullptr) {
       if (queue_->numDrainedProducers_ > 0) {
         VELOX_CHECK(queue_->numProducers_.has_value());
         VELOX_CHECK_EQ(
@@ -989,7 +989,7 @@ bool RowCursor::next() {
   }
   auto vector = cursor_->current();
   numRows_ = vector->size();
-  if (!numRows_) {
+  if (numRows_ == 0) {
     return next();
   }
   currentRow_ = 0;

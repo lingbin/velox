@@ -63,7 +63,7 @@ std::vector<std::shared_ptr<SerializedPageBase>> ArbitraryBuffer::getPages(
     if (pages_.front() == nullptr) {
       // NOTE: keep the end marker in arbitrary buffer to signal all the
       // destination buffers after the buffers have all been consumed.
-      VELOX_CHECK_EQ(pages_.size(), 1);
+      VELOX_CHECK_EQ(pages_.size(), 1, "null marker found in the middle");
       pages.push_back(nullptr);
       break;
     }
@@ -128,12 +128,12 @@ DestinationBuffer::Data DestinationBuffer::getData(
               << " / " << sequence;
     }
     if (maxBytes == 0) {
-      std::vector<int64_t> remainingBytes;
       if (arbitraryBuffer) {
+        std::vector<int64_t> remainingBytes;
         arbitraryBuffer->getAvailablePageSizes(remainingBytes);
-      }
-      if (!remainingBytes.empty()) {
-        return {{}, std::move(remainingBytes), true};
+        if (!remainingBytes.empty()) {
+          return {{}, std::move(remainingBytes), true};
+        }
       }
     }
     notify_ = std::move(notify);
@@ -148,9 +148,9 @@ DestinationBuffer::Data DestinationBuffer::getData(
   }
 
   std::vector<std::unique_ptr<folly::IOBuf>> data;
-  uint64_t resultBytes = 0;
   auto i = sequence - sequence_;
   if (maxBytes > 0) {
+    uint64_t resultBytes = 0;
     for (; i < data_.size(); ++i) {
       // nullptr is used as end marker
       if (data_[i] == nullptr) {
@@ -166,6 +166,7 @@ DestinationBuffer::Data DestinationBuffer::getData(
       }
     }
   }
+
   bool atEnd = false;
   std::vector<int64_t> remainingBytes;
   remainingBytes.reserve(data_.size() - i);
@@ -177,6 +178,7 @@ DestinationBuffer::Data DestinationBuffer::getData(
     }
     remainingBytes.push_back(data_[i]->size());
   }
+
   if (!atEnd && arbitraryBuffer) {
     arbitraryBuffer->getAvailablePageSizes(remainingBytes);
   }
@@ -203,8 +205,9 @@ DataAvailable DestinationBuffer::getAndClearNotify() {
     VELOX_CHECK_NULL(aliveCheck_);
     return DataAvailable();
   }
+
   DataAvailable result;
-  result.callback = notify_;
+  result.callback = std::move(notify_);
   result.sequence = notifySequence_;
   auto data = getData(notifyMaxBytes_, notifySequence_, nullptr, nullptr);
   result.data = std::move(data.data);
@@ -304,8 +307,9 @@ DestinationBuffer::Stats DestinationBuffer::stats() const {
 
 std::string DestinationBuffer::toString() {
   std::stringstream out;
-  out << "[available: " << data_.size() << ", " << "sequence: " << sequence_
-      << ", " << (notify_ ? "notify registered, " : "") << this << "]";
+  out << "[available: " << data_.size() << ", "
+      << "sequence: " << sequence_ << ", "
+      << (notify_ ? "notify registered, " : "") << this << "]";
   return out.str();
 }
 
@@ -346,7 +350,11 @@ OutputBuffer::OutputBuffer(
 
 void OutputBuffer::updateOutputBuffers(int numBuffers, bool noMoreBuffers) {
   if (isPartitioned()) {
-    VELOX_CHECK_EQ(buffers_.size(), numBuffers);
+    VELOX_CHECK_EQ(
+        buffers_.size(),
+        numBuffers,
+        "Partitioned output buffer doesn't allow to update with different "
+        "number of output buffers once created.");
     VELOX_CHECK(noMoreBuffers);
     noMoreBuffers_ = true;
     return;
@@ -391,7 +399,7 @@ void OutputBuffer::updateNumDrivers(uint32_t newNumDrivers) {
   }
 }
 
-void OutputBuffer::addOutputBuffersLocked(int numBuffers) {
+void OutputBuffer::addOutputBuffersLocked(int32_t numBuffers) {
   VELOX_CHECK(!noMoreBuffers_);
   VELOX_CHECK(!isPartitioned());
   buffers_.reserve(numBuffers);
@@ -547,8 +555,8 @@ void OutputBuffer::enqueuePartitionedOutputLocked(
   VELOX_DCHECK(isPartitioned());
   VELOX_CHECK_NULL(arbitraryBuffer_);
   VELOX_DCHECK(dataAvailableCbs.empty());
-
   VELOX_CHECK_LT(destination, buffers_.size());
+
   auto* buffer = buffers_[destination].get();
   if (buffer != nullptr) {
     buffer->enqueue(std::move(data));

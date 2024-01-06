@@ -56,9 +56,10 @@ std::optional<int32_t> RowVector::compare(
     vector_size_t index,
     vector_size_t otherIndex,
     CompareFlags flags) const {
-  auto otherRow = other->wrappedVector()->as<RowVector>();
-  VELOX_CHECK(
-      otherRow->encoding() == VectorEncoding::Simple::ROW,
+  auto* otherRow = other->wrappedVector()->as<RowVector>();
+  VELOX_CHECK_EQ(
+      otherRow->encoding(),
+      VectorEncoding::Simple::ROW,
       "Compare of ROW and non-ROW {} and {}",
       BaseVector::toString(),
       otherRow->BaseVector::toString());
@@ -79,10 +80,10 @@ std::optional<int32_t> RowVector::compare(
   for (int32_t i = 0; i < compareSize; ++i) {
     BaseVector* child = children_[i].get();
     BaseVector* otherChild = otherRow->childAt(i).get();
-    if (!child && !otherChild) {
+    if (child == nullptr && otherChild == nullptr) {
       continue;
     }
-    if (!child || !otherChild) {
+    if (child == nullptr || otherChild == nullptr) {
       return child ? 1 : -1; // Absent child counts as less.
     }
 
@@ -861,17 +862,18 @@ VectorPtr RowVector::pushDictionaryToRowVectorLeaves(const VectorPtr& input) {
 namespace {
 
 // Returns the next non-null non-empty array/map on or after `index'.
+// 这里修改名称: i --> index，是因为注释中使用的就是 'index'，而不是 'i'。
 template <bool kHasNulls>
 vector_size_t nextNonEmpty(
-    vector_size_t i,
+    vector_size_t index,
     vector_size_t size,
     const uint64_t* nulls,
     const vector_size_t* sizes) {
-  while (i < size &&
-         ((kHasNulls && bits::isBitNull(nulls, i)) || sizes[i] <= 0)) {
-    ++i;
+  while (index < size &&
+         ((kHasNulls && bits::isBitNull(nulls, index)) || sizes[index] <= 0)) {
+    ++index;
   }
-  return i;
+  return index;
 }
 
 template <bool kHasNulls>

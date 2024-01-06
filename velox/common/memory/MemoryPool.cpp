@@ -17,6 +17,9 @@
 #include "velox/common/memory/MemoryPool.h"
 
 #include <signal.h>
+#include <queue>
+
+#include <re2/re2.h>
 
 #include "velox/common/Casts.h"
 #include "velox/common/base/Counters.h"
@@ -24,8 +27,6 @@
 #include "velox/common/base/SuccinctPrinter.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/common/testutil/TestValue.h"
-
-#include <re2/re2.h>
 
 DEFINE_bool(
     velox_memory_pool_capacity_transfer_across_tasks,
@@ -98,7 +99,8 @@ struct MemoryUsageComp {
 using MemoryUsageHeap =
     std::priority_queue<MemoryUsage, std::vector<MemoryUsage>, MemoryUsageComp>;
 
-static constexpr size_t kCapMessageIndentSize = 4;
+// Redundant 'static' specifier on an anonymous namespace member
+constexpr size_t kCapMessageIndentSize = 4;
 
 std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
   std::vector<MemoryUsage> usages;
@@ -114,7 +116,7 @@ std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
 // Invoked by visitChildren() to traverse the memory pool structure to build the
 // memory capacity exceeded exception error message.
 void treeMemoryUsageVisitor(
-    MemoryPool* pool,
+    const MemoryPool* pool,
     size_t indent,
     MemoryUsageHeap& topLeafMemUsages,
     bool skipEmptyPool,
@@ -170,7 +172,9 @@ std::string capacityToString(int64_t capacity) {
 
 std::string MemoryPool::Stats::toString() const {
   return fmt::format(
-      "usedBytes:{} reservedBytes:{} peakBytes:{} cumulativeBytes:{} numAllocs:{} numFrees:{} numReserves:{} numReleases:{} numShrinks:{} numReclaims:{} numCollisions:{} numCapacityGrowths:{}",
+      "usedBytes:{} reservedBytes:{} peakBytes:{} cumulativeBytes:{} "
+      "numAllocs:{} numFrees:{} numReserves:{} numReleases:{} numShrinks:{} "
+      "numReclaims:{} numCollisions:{} numCapacityGrowths:{}",
       succinctBytes(usedBytes),
       succinctBytes(reservedBytes),
       succinctBytes(peakBytes),
@@ -427,7 +431,7 @@ size_t MemoryPool::getPreferredSize(size_t size) {
 }
 
 void MemoryPool::setPreferredSize(
-    std::function<size_t(size_t)> getPreferredSizeFunc) {
+    const std::function<size_t(size_t)>& getPreferredSizeFunc) {
   VELOX_CHECK_NOT_NULL(getPreferredSizeFunc);
   getPreferredSize_ = getPreferredSizeFunc;
 }
@@ -439,13 +443,13 @@ MemoryPoolImpl::MemoryPoolImpl(
     std::shared_ptr<MemoryPool> parent,
     std::unique_ptr<MemoryReclaimer> reclaimer,
     const Options& options)
-    : MemoryPool{name, kind, parent, options},
+    : MemoryPool{name, kind, std::move(parent), options},
       manager_{memoryManager},
       allocator_{manager_->allocator()},
       arbitrator_{manager_->arbitrator()},
       reclaimer_(std::move(reclaimer)),
-      // The memory manager sets the capacity through grow() according to the
-      // actually used memory arbitration policy.
+      // The memory arbitrator sets the capacity of root memory pools through
+      // 'grow()' according to the actually used memory arbitration policy.
       capacity_(parent_ != nullptr ? kMaxMemory : 0) {
   VELOX_CHECK(options.threadSafe || isLeaf());
 }
@@ -470,8 +474,8 @@ MemoryPoolImpl::~MemoryPoolImpl() {
     }
   }
   VELOX_DCHECK(
-      (usedReservationBytes_ == 0) && (reservationBytes_ == 0) &&
-          (minReservationBytes_ == 0),
+      usedReservationBytes_ == 0 && reservationBytes_ == 0 &&
+          minReservationBytes_ == 0,
       "Bad memory usage track state: {}",
       toString());
 
@@ -561,7 +565,7 @@ void* MemoryPoolImpl::allocateZeroFilled(int64_t numEntries, int64_t sizeEach) {
   return buffer;
 }
 
-void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
+void* MemoryPoolImpl::reallocate(void* p, int64_t oldSize, int64_t newSize) {
   CHECK_AND_INC_MEM_OP_STATS(this, Allocs);
   const auto alignedNewSize = sizeAlign(newSize);
   reserve(alignedNewSize);
@@ -574,14 +578,14 @@ void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
             "{} failed with new {} and old {} from {} {}",
             __FUNCTION__,
             succinctBytes(newSize),
-            succinctBytes(size),
+            succinctBytes(oldSize),
             toString(),
             allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(this, newP, newSize);
   if (p != nullptr) {
-    ::memcpy(newP, p, std::min(size, newSize));
-    free(p, size);
+    ::memcpy(newP, p, std::min(oldSize, newSize));
+    free(p, oldSize);
   }
   return newP;
 }
@@ -599,7 +603,7 @@ bool MemoryPoolImpl::transferTo(MemoryPool* dest, void* buffer, uint64_t size) {
     return false;
   }
   VELOX_CHECK_NOT_NULL(dest);
-  auto* destImpl = checkedPointerCast<MemoryPoolImpl, MemoryPool>(dest);
+  auto* destImpl = checkedPointerCast<MemoryPoolImpl>(dest);
   if (allocator_ != destImpl->allocator_) {
     return false;
   }
@@ -792,7 +796,7 @@ std::shared_ptr<MemoryPool> MemoryPoolImpl::genChild(
       manager_,
       name,
       kind,
-      parent,
+      std::move(parent),
       std::move(reclaimer),
       Options{
           .alignment = alignment_,
@@ -825,12 +829,12 @@ bool MemoryPoolImpl::maybeReserve(uint64_t increment) {
   return true;
 }
 
-void MemoryPoolImpl::reserve(uint64_t size, bool reserveOnly) {
+void MemoryPoolImpl::reserve(uint64_t delta, bool reserveOnly) {
   if (FOLLY_LIKELY(trackUsage_)) {
     if (FOLLY_LIKELY(threadSafe_)) {
-      reserveThreadSafe(size, reserveOnly);
+      reserveThreadSafe(delta, reserveOnly);
     } else {
-      reserveNonThreadSafe(size, reserveOnly);
+      reserveNonThreadSafe(delta, reserveOnly);
     }
   }
 }
@@ -921,6 +925,7 @@ void MemoryPoolImpl::growCapacity(MemoryPool* requestor, uint64_t size) {
     }
     throw;
   }
+
   // The memory pool might have been aborted during the time it leaves the
   // arbitration no matter the arbitration succeed or not.
   if (FOLLY_UNLIKELY(aborted())) {
@@ -1172,9 +1177,11 @@ bool MemoryPoolImpl::grow(uint64_t growBytes, uint64_t reservationBytes) {
   }
 
   capacity_ += growBytes;
+  // TODO(lingbin): 多余的 VELOX_CHECK_GE
   VELOX_CHECK_GE(capacity_, growBytes);
   if (reservationBytes > 0) {
     incrementReservationLocked(reservationBytes);
+    // TODO(lingbin): 多余的 VELOX_CHECK_LE
     VELOX_CHECK_LE(reservationBytes, reservationBytes_);
   }
   return true;
@@ -1222,7 +1229,8 @@ void MemoryPoolImpl::setDestructionCallback(
 
 void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetCapacity(bytes);
+    toImpl(parent_)->testingSetCapacity(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   capacity_ = bytes;
@@ -1230,7 +1238,8 @@ void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
 
 void MemoryPoolImpl::testingSetReservation(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetReservation(bytes);
+    toImpl(parent_)->testingSetReservation(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   reservationBytes_ = bytes;
@@ -1304,7 +1313,7 @@ void MemoryPoolImpl::recordFreeDbg(const void* addr, uint64_t size) {
   if (allocResult == debugAllocRecords_.end()) {
     VELOX_FAIL("Freeing of un-allocated memory. Free address {}.", addrUint64);
   }
-  const auto allocRecord = allocResult->second;
+  const auto& allocRecord = allocResult->second;
   if (allocRecord.size != size) {
     const auto freeStackTrace = process::StackTrace().toString();
     VELOX_FAIL(
@@ -1352,7 +1361,7 @@ void MemoryPoolImpl::recordGrowDbg(const void* addr, uint64_t newSize) {
   allocResult->second.size = newSize;
 }
 
-void MemoryPoolImpl::leakCheckDbg() {
+void MemoryPoolImpl::leakCheckDbg() const {
   VELOX_CHECK(debugEnabled());
   if (debugAllocRecords_.empty()) {
     return;
@@ -1464,18 +1473,19 @@ std::string MemoryPoolImpl::dumpRecordsDbgLocked() const {
 }
 
 void MemoryPoolImpl::handleAllocationFailure(
-    const std::string& failureMessage) {
+    const std::string& failureMessage) const {
   if (coreOnAllocationFailureEnabled_) {
     VELOX_MEM_LOG(ERROR) << failureMessage;
     // SIGBUS is one of the standard signals in Linux that triggers a core
-    // dump Normally it is raised by the operating system when a misaligned
+    // dump. Normally it is raised by the operating system when a misaligned
     // memory access occurs. On x86 and aarch64 misaligned access is allowed
     // by default hence this signal should never occur naturally. Raising a
     // signal other than SIGABRT makes it easier to distinguish an allocation
-    // failure from any other crash
+    // failure from any other crash.
     raise(SIGBUS);
   }
 
   VELOX_MEM_ALLOC_ERROR(failureMessage);
 }
+
 } // namespace facebook::velox::memory

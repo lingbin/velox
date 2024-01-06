@@ -15,6 +15,7 @@
  */
 
 #include <re2/re2.h>
+#include <cmath>
 
 #include "velox/common/config/Config.h"
 

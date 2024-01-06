@@ -57,7 +57,7 @@ CacheInputStream::~CacheInputStream() {
   makeCacheEvictable();
 }
 
-void CacheInputStream::makeCacheEvictable() {
+void CacheInputStream::makeCacheEvictable() const {
   if (cacheable_) {
     return;
   }
@@ -85,7 +85,7 @@ bool CacheInputStream::Next(const void** buffer, int32_t* size) {
 
   loadPosition();
 
-  *buffer = reinterpret_cast<const void**>(run_ + offsetInRun_);
+  *buffer = reinterpret_cast<const void*>(run_ + offsetInRun_);
   *size = runSize_ - offsetInRun_;
   if (window_.has_value()) {
     if (position_ + *size > window_->offset + window_->length) {
@@ -101,14 +101,13 @@ bool CacheInputStream::Next(const void** buffer, int32_t* size) {
     const auto offsetInQuantum = position_ % loadQuantum_;
     const auto nextQuantumOffset = position_ - offsetInQuantum + loadQuantum_;
     const auto prefetchThreshold = loadQuantum_ * prefetchPct_ / 100;
-    if (!prefetchStarted_ && (offsetInQuantum + *size > prefetchThreshold) &&
-        (position_ - offsetInQuantum + loadQuantum_ < region_.length)) {
+    if (!prefetchStarted_ && offsetInQuantum + *size > prefetchThreshold &&
+        nextQuantumOffset < region_.length) {
       // We read past 'prefetchPct_' % of the current load quantum and the
       // current load quantum is not the last in the region. Prefetch the next
       // load quantum.
       const auto prefetchSize =
-          std::min(region_.length, nextQuantumOffset + loadQuantum_) -
-          nextQuantumOffset;
+          std::min<uint64_t>(region_.length - nextQuantumOffset, loadQuantum_);
       prefetchStarted_ = bufferedInput_->prefetch(
           Region{region_.offset + nextQuantumOffset, prefetchSize});
     }
@@ -166,8 +165,8 @@ size_t CacheInputStream::positionSize() const {
 }
 
 void CacheInputStream::setRemainingBytes(uint64_t remainingBytes) {
-  VELOX_CHECK_GE(region_.length, position_ + remainingBytes);
-  window_ = Region{static_cast<uint64_t>(position_), remainingBytes};
+  VELOX_CHECK_LE(position_ + remainingBytes, region_.length);
+  window_ = Region{position_, remainingBytes};
 }
 
 namespace {
@@ -181,7 +180,7 @@ std::vector<folly::Range<char*>> makeRanges(
     uint64_t offsetInRuns = 0;
     for (int i = 0; i < allocation.numRuns(); ++i) {
       auto run = allocation.runAt(i);
-      uint64_t bytes = run.numPages() * memory::AllocationTraits::kPageSize;
+      uint64_t bytes =  memory::AllocationTraits::pageBytes(run.numPages());
       uint64_t readSize = std::min(bytes, length - offsetInRuns);
       buffers.push_back(folly::Range<char*>(run.data<char>(), readSize));
       offsetInRuns += readSize;
@@ -194,7 +193,7 @@ std::vector<folly::Range<char*>> makeRanges(
 } // namespace
 
 void CacheInputStream::loadSync(const Region& region) {
-  process::TraceContext trace("loadSync");
+  process::TraceContext trace("CacheInputStream::loadSync");
   int64_t hitSize = region.length;
   if (window_.has_value()) {
     const int64_t regionEnd = region.offset + region.length;
@@ -328,8 +327,8 @@ bool CacheInputStream::loadFromSsd(
 }
 
 std::string CacheInputStream::ssdFileName() const {
-  auto ssdCache = cache_->ssdCache();
-  if (!ssdCache) {
+  auto* ssdCache = cache_->ssdCache();
+  if (ssdCache == nullptr) {
     return "";
   }
   return ssdCache->file(fileNum_).fileName();
@@ -371,7 +370,7 @@ void CacheInputStream::loadPosition() {
   auto* entry = pin_.checkedEntry();
   const uint64_t positionInFile = offset + position_;
   if (entry->offset() <= positionInFile &&
-      entry->offset() + entry->size() > positionInFile) {
+      positionInFile < entry->offset() + entry->size()) {
     // The position is inside the range of 'entry'.
     const auto offsetInEntry = positionInFile - entry->offset();
     if (entry->data().numPages() == 0) {
@@ -380,6 +379,8 @@ void CacheInputStream::loadPosition() {
       offsetInRun_ = offsetInEntry;
       offsetOfRun_ = 0;
     } else {
+      // TODO(lingbin): 这里可以进行性能优化，如果是顺序读取，那么不需要调用
+      // findRun()，直接递增 run_ 即可。
       entry->data().findRun(offsetInEntry, &runIndex_, &offsetInRun_);
       offsetOfRun_ = offsetInEntry - offsetInRun_;
       const auto run = entry->data().runAt(runIndex_);
@@ -390,6 +391,7 @@ void CacheInputStream::loadPosition() {
       }
     }
   } else {
+    // The position is outside the range of 'entry'.
     clearCachePin();
     loadPosition();
   }

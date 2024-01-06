@@ -107,8 +107,8 @@ class SplitReader {
 
   /// This function is used by different table formats like Iceberg and Hudi to
   /// do additional preparations before reading the split, e.g. Open delete
-  /// files or log files, and add column adapatations for metadata columns. It
-  /// would be called only once per incoming split
+  /// files or log files, and add column adaptations for metadata columns. It
+  /// would be called only once per incoming split.
   virtual void prepareSplit(
       std::shared_ptr<common::MetadataFilter> metadataFilter,
       dwio::common::RuntimeStatistics& runtimeStats,
@@ -175,7 +175,7 @@ class SplitReader {
   RowTypePtr getAdaptedRowType() const;
 
   // Check if the filters pass on the column statistics.  When delta update is
-  // present, the corresonding filter should be disabled before calling this
+  // present, the corresponding filter should be disabled before calling this
   // function.
   bool filterOnStats(dwio::common::RuntimeStatistics& runtimeStats) const;
 
@@ -188,7 +188,7 @@ class SplitReader {
   bool checkIfSplitIsEmpty(dwio::common::RuntimeStatistics& runtimeStats);
 
   /// Create the dwio::common::RowReader object baseRowReader_, which owns the
-  /// ColumnReaders that will be used to read the data
+  /// ColumnReaders that will be used to read the data.
   void createRowReader(
       std::shared_ptr<common::MetadataFilter> metadataFilter,
       RowTypePtr rowType,
@@ -224,7 +224,7 @@ class SplitReader {
   void validateSynthesizedColumnFilters() const;
 
  private:
-  /// Different table formats may have different meatadata columns.
+  /// Different table formats may have different metadata columns.
   /// This function will be used to update the scanSpec for these columns.
   virtual std::vector<TypePtr> adaptColumns(
       const RowTypePtr& fileType,

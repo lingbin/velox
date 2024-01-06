@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <vector>
+
 namespace facebook::velox {
 /// Utility for combining IOs to nearby location into fewer coalesced IOs. This
 /// may increase data transfer but generally reduces latency and may reduce
@@ -61,12 +62,12 @@ CoalesceIoStats coalesceIo(
     int32_t rangesPerIo,
     ItemOffset offsetFunc,
     ItemSize sizeFunc,
-    ItemNumRanges numRanges,
+    ItemNumRanges numRangesFunc,
     AddRanges addRanges,
     SkipRange skipRange,
     IoFunc ioFunc) {
   int32_t startItem = 0;
-  auto startOffset = offsetFunc(startItem);
+  auto startOffset = offsetFunc(0);
   auto lastEndOffset = startOffset;
   std::vector<Range> ranges;
   CoalesceIoStats result;
@@ -75,7 +76,7 @@ CoalesceIoStats coalesceIo(
     const auto itemOffset = offsetFunc(i);
     const auto itemSize = sizeFunc(i);
     result.payloadBytes += itemSize;
-    const int32_t numRangesForItem = numRanges(i);
+    const int32_t numRangesForItem = numRangesFunc(i);
     const bool enoughRanges =
         (numRangesForItem == kNoCoalesce ||
          ranges.size() + numRangesForItem >= rangesPerIo) &&

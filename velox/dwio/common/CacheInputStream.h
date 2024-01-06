@@ -30,7 +30,7 @@ class CachedBufferedInput;
 class CacheInputStream : public SeekableInputStream {
  public:
   CacheInputStream(
-      CachedBufferedInput* cache,
+      CachedBufferedInput* bufferedInput,
       IoStatistics* ioStats,
       const velox::common::Region& region,
       std::shared_ptr<ReadFileInputStream> input,
@@ -52,6 +52,7 @@ class CacheInputStream : public SeekableInputStream {
   void BackUp(int count) override;
   bool SkipInt64(int64_t count) override;
   int64_t ByteCount() const override;
+
   void seekToPosition(PositionProvider& position) override;
   std::string getName() const override;
   size_t positionSize() const override;
@@ -123,7 +124,7 @@ class CacheInputStream : public SeekableInputStream {
   // immediate evictable if 'cacheable_' is false.
   void clearCachePin();
 
-  void makeCacheEvictable();
+  void makeCacheEvictable() const;
 
   // Return SSD cache file path if exists; return empty string if no SSD cache
   // file.
@@ -152,22 +153,21 @@ class CacheInputStream : public SeekableInputStream {
   // Handle of cache entry.
   cache::CachePin pin_;
 
-  // Offset of current run from start of 'entry_->data()'
+  // Offset of current run from start of 'entry_->data()'.
   uint64_t offsetOfRun_;
 
-  // Pointer  to start of  current run in 'entry->data()' or
-  // 'entry->tinyData()'.
-  uint8_t* run_{nullptr};
+  // Pointer to start of current run in 'entry->data()' or 'entry->tinyData()'.
+  const uint8_t* run_{nullptr};
   // Position of stream relative to 'run_'.
   int offsetInRun_{0};
   // Index of run in 'entry_->data()'
   int runIndex_ = -1;
   // Number of valid bytes above 'run_'.
   uint32_t runSize_ = 0;
-  // Position relative to 'region_.offset'.
+  // The position to be read from, it is relative to 'region_.offset'.
   uint64_t position_ = 0;
 
-  // A restricted view over 'region'. offset is relative to 'region_'. A cloned
+  // A restricted view over 'region_'. offset is relative to 'region_'. A cloned
   // CacheInputStream can cover a sub-range of the range of the original.
   std::optional<velox::common::Region> window_;
 

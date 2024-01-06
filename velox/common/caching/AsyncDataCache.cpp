@@ -15,6 +15,7 @@
  */
 
 #include "velox/common/caching/AsyncDataCache.h"
+#include <common/memory/Allocation.h>
 #include "velox/common/caching/FileIds.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/caching/SsdFile.h"
@@ -74,7 +75,7 @@ void AsyncDataCacheEntry::setExclusiveToShared(bool ssdSavable) {
   }
 
   auto* ssdCache = shard_->cache()->ssdCache();
-  if ((ssdCache != nullptr) && (ssdFile_ == nullptr)) {
+  if (ssdCache != nullptr && ssdFile_ == nullptr) {
     if (ssdCache->groupStats().shouldSaveToSsd(groupId_, trackingId_)) {
       ssdSaveable_ = true;
       shard_->cache()->possibleSsdSave(size_);
@@ -88,7 +89,7 @@ void AsyncDataCacheEntry::release() {
     // Dereferencing an exclusive entry without converting to shared means that
     // the content could not be shared, e.g. error in loading.
     auto promise = shard_->removeEntry(this);
-    // Realize the promise outside of the shard mutex.
+    // Realize the promise outside the shard mutex.
     if (promise != nullptr) {
       promise->setValue(true);
     }
@@ -124,7 +125,7 @@ void AsyncDataCacheEntry::initialize(FileCacheKey key) {
     tinyData_.shrink_to_fit();
     const auto sizePages = memory::AllocationTraits::numPages(size_);
     if (cache->allocator()->allocateNonContiguous(sizePages, data_)) {
-      cache->incrementCachedPages(data().numPages());
+      cache->incrementCachedPages(data_.numPages());
     } else {
       // No memory to cover 'this'.
       release();
@@ -279,6 +280,7 @@ CachePin CacheShard::initEntry(
   entry->initialize(
       FileCacheKey{StringIdLease(fileIds(), key.fileNum), key.offset});
   cache_->incrementNew(entry->size());
+
   CachePin pin;
   pin.setEntry(entry);
   return pin;
@@ -359,6 +361,8 @@ std::unique_ptr<folly::SharedPromise<bool>> CacheShard::removeEntry(
 }
 
 void CacheShard::removeEntryLocked(AsyncDataCacheEntry* entry) {
+  VELOX_DCHECK_NOT_NULL(entry);
+  VELOX_DCHECK(!entry->isShared(), "Shared pinned entry can not be removed");
   if (entry->key_.fileNum.hasValue()) {
     const auto it = entryMap_.find(
         RawFileCacheKey{entry->key_.fileNum.id(), entry->key_.offset});
@@ -392,7 +396,7 @@ uint64_t CacheShard::evict(
     memory::Allocation& acquired) {
   auto* ssdCache = cache_->ssdCache();
   const bool skipSsdSaveable =
-      (ssdCache != nullptr) && ssdCache->writeInProgress();
+      ssdCache != nullptr && ssdCache->writeInProgress();
   auto now = accessTime();
   std::vector<memory::Allocation> toFree;
   int64_t tinyEvicted = 0;
@@ -406,7 +410,7 @@ uint64_t CacheShard::evict(
     }
     int32_t counter = 0;
     int32_t numChecked = 0;
-    auto entryIndex = (clockHand_ % size);
+    auto entryIndex = clockHand_ % size;
     auto iter = entries_.begin() + entryIndex;
     while (++counter <= size) {
       if (++iter == entries_.end()) {
@@ -418,7 +422,7 @@ uint64_t CacheShard::evict(
 
       ++numEvictChecks_;
       ++clockHand_;
-      auto candidate = iter->get();
+      auto* candidate = iter->get();
       if (candidate == nullptr) {
         continue;
       }
@@ -474,11 +478,12 @@ uint64_t CacheShard::evict(
     }
   }
 
+  // Release the memory outside the mutex.
   ClockTimer t(allocClocks_);
   freeAllocations(toFree);
   cache_->incrementCachedPages(
       -memory::AllocationTraits::numPages(largeEvicted));
-  if (evictSaveableSkipped) {
+  if (evictSaveableSkipped > 0) {
     VELOX_CHECK_NOT_NULL(ssdCache);
     if (ssdCache->startWrite()) {
       // Rare. May occur if SSD is unusually slow. Useful for diagnostics.
@@ -512,8 +517,8 @@ void CacheShard::freeAllocations(std::vector<memory::Allocation>& allocations) {
 void CacheShard::calibrateThresholdLocked() {
   auto numSamples = std::min<int32_t>(kMaxEvictionSamples, entries_.size());
   auto now = accessTime();
-  auto entryIndex = (clockHand_ % entries_.size());
-  auto step = entries_.size() / numSamples;
+  auto entryIndex = clockHand_ % entries_.size();
+  const auto step = entries_.size() / numSamples;
   auto iter = entries_.begin() + entryIndex;
   evictionThreshold_ = percentile<int32_t>(
       [&]() -> int32_t {
@@ -560,7 +565,7 @@ void CacheShard::updateStats(CacheStats& stats) {
       ++stats.numShared;
     }
 
-    if (entry->isPrefetch_) {
+    if (entry->isPrefetch()) {
       ++stats.numPrefetch;
       stats.prefetchBytes += entry->size();
     }
@@ -601,10 +606,10 @@ void CacheShard::appendSsdSaveable(bool saveAll, std::vector<CachePin>& pins) {
             static_cast<double>(entries_.size()) * maxWriteRatio_);
   VELOX_CHECK(cache_->ssdCache()->writeInProgress());
   for (auto& entry : entries_) {
-    if (entry && (entry->ssdFile_ == nullptr) && !entry->isExclusive() &&
+    if (entry && entry->ssdFile_ == nullptr && !entry->isExclusive() &&
         entry->ssdSaveable()) {
-      CachePin pin;
       ++entry->numPins_;
+      CachePin pin;
       pin.setEntry(entry.get());
       pins.push_back(std::move(pin));
       if (pins.size() >= limit) {
@@ -632,7 +637,7 @@ bool CacheShard::removeFileEntries(
     auto entryIndex = -1;
     for (auto& cacheEntry : entries_) {
       entryIndex++;
-      if (!cacheEntry || !cacheEntry->key_.fileNum.hasValue()) {
+      if (cacheEntry == nullptr || !cacheEntry->key_.fileNum.hasValue()) {
         continue;
       }
       if (filesToRemove.count(cacheEntry->key_.fileNum.id()) == 0) {
@@ -714,13 +719,12 @@ AsyncDataCache::AsyncDataCache(
   }
 }
 
-AsyncDataCache::~AsyncDataCache() = default;
-
 // static
 std::shared_ptr<AsyncDataCache> AsyncDataCache::create(
     memory::MemoryAllocator* allocator,
     std::unique_ptr<SsdCache> ssdCache,
     const AsyncDataCache::Options& options) {
+  VELOX_DCHECK_NOT_NULL(allocator);
   auto cache =
       std::make_shared<AsyncDataCache>(options, allocator, std::move(ssdCache));
   allocator->registerCache(cache);
@@ -753,8 +757,11 @@ void AsyncDataCache::shutdown() {
 }
 
 void CacheShard::shutdown() {
+  // TODO(lingbin): 这里是不是需要加锁？
   entries_.clear();
   freeEntries_.clear();
+  entryMap_.clear();
+  emptySlots_.clear();
 }
 
 CachePin AsyncDataCache::findOrCreate(
@@ -800,10 +807,11 @@ bool AsyncDataCache::makeSpace(
   const int32_t kMaxAttempts = numShards_ * 4;
   // Evict at least 1MB even for small allocations to avoid constantly hitting
   // the mutex protected evict loop.
-  constexpr int32_t kMinEvictPages = 256;
+  constexpr MachinePageCount kMinEvictPages = 256;
   // If requesting less than kSmallSizePages try up to 4x more if
   // first try failed.
-  constexpr int32_t kSmallSizePages = 2048; // 8MB
+  constexpr MachinePageCount kSmallSizePages = 2048; // 8MB
+
   float sizeMultiplier = 1.2;
   // True if this thread is counted in 'numThreadsInAllocate_'.
   bool isCounted = false;
@@ -840,8 +848,8 @@ bool AsyncDataCache::makeSpace(
           << "Pause 0.5s after failed eviction waiting for SSD cache write to unpin memory";
       std::this_thread::sleep_for(std::chrono::milliseconds(500)); // NOLINT
     }
-    if (nthAttempt > kMaxAttempts / 2) {
-      if (!isCounted) {
+    if (nthAttempt >= kMaxAttempts / 2) {
+      if (isCounted == false) {
         rank = ++numThreadsInAllocate_;
         isCounted = true;
       }
@@ -881,13 +889,13 @@ uint64_t AsyncDataCache::shrink(uint64_t targetBytes) {
 
   RECORD_METRIC_VALUE(kMetricCacheShrinkCount);
   LOG(INFO) << "Try to shrink cache to free up "
-            << velox::succinctBytes(targetBytes) << "  memory";
+            << velox::succinctBytes(targetBytes) << " memory";
 
   uint64_t evictedBytes{0};
   uint64_t shrinkTimeUs{0};
   {
     MicrosecondTimer timer(&shrinkTimeUs);
-    for (int shard = 0; shard < shards_.size(); ++shard) {
+    for (int shard = 0; shard < kNumShards; ++shard) {
       memory::Allocation unused;
       evictedBytes += shards_[shardCounter_++ & shardMask_]->evict(
           std::max<uint64_t>(
@@ -976,7 +984,7 @@ void AsyncDataCache::possibleSsdSave(uint64_t bytes) {
 
 void AsyncDataCache::saveToSsd(bool saveAll) {
   std::vector<CachePin> pins;
-  VELOX_CHECK(ssdCache_->writeInProgress());
+  VELOX_CHECK(ssdCache_->writeInProgress(), "Should invoke startWrite() first");
   ssdSaveable_ = false;
   for (auto& shard : shards_) {
     shard->appendSsdSaveable(saveAll, pins);

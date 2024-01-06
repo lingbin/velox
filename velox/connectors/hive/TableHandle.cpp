@@ -41,12 +41,14 @@ std::unordered_map<V, K> invertMap(const std::unordered_map<K, V>& mapping) {
 
 } // namespace
 
+// static
 std::string HiveColumnHandle::columnTypeName(
     HiveColumnHandle::ColumnType type) {
   static const auto ctNames = columnTypeNames();
   return ctNames.at(type);
 }
 
+// static
 HiveColumnHandle::ColumnType HiveColumnHandle::columnTypeFromName(
     const std::string& name) {
   static const auto nameColumnTypes = invertMap(columnTypeNames());
@@ -82,6 +84,7 @@ std::string HiveColumnHandle::toString() const {
   return out.str();
 }
 
+// static
 ColumnHandlePtr HiveColumnHandle::create(const folly::dynamic& obj) {
   auto name = obj["hiveColumnHandleName"].asString();
   auto columnType = columnTypeFromName(obj["columnType"].asString());
@@ -99,6 +102,7 @@ ColumnHandlePtr HiveColumnHandle::create(const folly::dynamic& obj) {
       name, columnType, dataType, hiveType, std::move(requiredSubfields));
 }
 
+// static
 void HiveColumnHandle::registerSerDe() {
   auto& registry = DeserializationRegistryForSharedPtr();
   registry.Register("HiveColumnHandle", HiveColumnHandle::create);
@@ -106,7 +110,7 @@ void HiveColumnHandle::registerSerDe() {
 
 HiveTableHandle::HiveTableHandle(
     std::string connectorId,
-    const std::string& tableName,
+    std::string tableName,
     common::SubfieldFilters subfieldFilters,
     const core::TypedExprPtr& remainingFilter,
     const RowTypePtr& dataColumns,
@@ -116,7 +120,7 @@ HiveTableHandle::HiveTableHandle(
     double sampleRate,
     std::string dbName)
     : ConnectorTableHandle(std::move(connectorId)),
-      tableName_(tableName),
+      tableName_(std::move(tableName)),
       subfieldFilters_(std::move(subfieldFilters)),
       remainingFilter_(remainingFilter),
       sampleRate_(sampleRate),
@@ -219,8 +223,8 @@ folly::dynamic HiveTableHandle::serialize() const {
     pair["filter"] = filter->serialize();
     subfieldFilters.push_back(pair);
   }
-
   obj["subfieldFilters"] = subfieldFilters;
+
   if (remainingFilter_) {
     obj["remainingFilter"] = remainingFilter_->serialize();
   }
@@ -259,6 +263,7 @@ folly::dynamic HiveTableHandle::serialize() const {
   return obj;
 }
 
+// static
 ConnectorTableHandlePtr HiveTableHandle::create(
     const folly::dynamic& obj,
     void* context) {
@@ -272,7 +277,7 @@ ConnectorTableHandlePtr HiveTableHandle::create(
   }
 
   common::SubfieldFilters subfieldFilters;
-  folly::dynamic subfieldFiltersObj = obj["subfieldFilters"];
+  const folly::dynamic& subfieldFiltersObj = obj["subfieldFilters"];
   for (const auto& subfieldFilter : subfieldFiltersObj) {
     common::Subfield subfield(subfieldFilter["subfield"].asString());
     auto filter =
@@ -331,6 +336,7 @@ ConnectorTableHandlePtr HiveTableHandle::create(
       std::move(dbName));
 }
 
+// static
 void HiveTableHandle::registerSerDe() {
   auto& registry = DeserializationWithContextRegistryForSharedPtr();
   registry.Register("HiveTableHandle", create);

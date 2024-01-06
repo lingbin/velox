@@ -77,7 +77,7 @@ bool CachedBufferedInput::isBuffered(uint64_t /*offset*/, uint64_t /*length*/)
 bool CachedBufferedInput::shouldPreload(int32_t numPages) {
   // True if after scheduling this for preload, half the capacity would be in a
   // loading but not yet accessed state.
-  if (requests_.empty() && (numPages == 0)) {
+  if (requests_.empty() && numPages == 0) {
     return false;
   }
   for (const auto& request : requests_) {
@@ -85,7 +85,7 @@ bool CachedBufferedInput::shouldPreload(int32_t numPages) {
         std::min<int32_t>(request.size, options_.loadQuantum()));
   }
   const auto cachePages = cache_->incrementCachedPages(0);
-  auto* allocator = cache_->allocator();
+  const auto* allocator = cache_->allocator();
   const auto maxPages =
       memory::AllocationTraits::numPages(allocator->capacity());
   const auto allocatedPages = allocator->numAllocated();
@@ -167,8 +167,7 @@ void CachedBufferedInput::load(const LogType /*unused*/) {
   // 'requests_ is cleared on exit.
   auto requests = std::move(requests_);
   cache::SsdFile* ssdFile{nullptr};
-  auto* ssdCache = cache_->ssdCache();
-  if (ssdCache != nullptr) {
+  if (auto* ssdCache = cache_->ssdCache(); ssdCache != nullptr) {
     ssdFile = &ssdCache->file(fileNum_.id());
   }
 
@@ -189,7 +188,7 @@ void CachedBufferedInput::load(const LogType /*unused*/) {
                                                                          : 0;
     auto parts = makeRequestParts(
         request, trackingData, options_.loadQuantum(), extraRequests);
-    for (auto part : parts) {
+    for (auto* part : parts) {
       if (cache_->exists(part->key)) {
         continue;
       }
@@ -220,6 +219,7 @@ void CachedBufferedInput::load(const LogType /*unused*/) {
 template <bool kSsd>
 void CachedBufferedInput::makeLoads(std::vector<CacheRequest*> requests[2]) {
   std::vector<int32_t> groupEnds[2];
+
   groupEnds[1] = groupRequests<kSsd>(requests[1], true);
   moveCoalesced(
       requests[1],
@@ -228,6 +228,7 @@ void CachedBufferedInput::makeLoads(std::vector<CacheRequest*> requests[2]) {
       [](auto* request) { return getOffset<kSsd>(*request); },
       [](auto* request) { return getOffset<kSsd>(*request) + request->size; });
   groupEnds[0] = groupRequests<kSsd>(requests[0], false);
+
   readRegions(requests[1], true, groupEnds[1]);
   readRegions(requests[0], false, groupEnds[0]);
 }
@@ -236,7 +237,7 @@ template <bool kSsd>
 std::vector<int32_t> CachedBufferedInput::groupRequests(
     const std::vector<CacheRequest*>& requests,
     bool prefetch) const {
-  if (requests.empty() || (requests.size() < 2 && !prefetch)) {
+  if (requests.empty() || (requests.size() == 1 && !prefetch)) {
     return {};
   }
   const int32_t maxDistance = kSsd ? 20'000 : options_.maxCoalesceDistance();
@@ -264,6 +265,7 @@ std::vector<int32_t> CachedBufferedInput::groupRequests(
         return requests[index]->coalesces ? 1 : kNoCoalesce;
       },
       [&](CacheRequest* /*request*/, std::vector<char>& ranges) {
+        // TODO(lingbin): 这里是一个 “空的 coalesceIo”，所以这里可以什么都不做？
         ranges.push_back(0);
       },
       [&](int32_t /*gap*/, std::vector<char> /*ranges*/) { /*no op*/ },
@@ -291,7 +293,7 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
         ioStats_(std::move(ioStats)),
         groupId_(groupId) {
     requests_.reserve(requests.size());
-    for (const auto& request : requests) {
+    for (auto* request : requests) {
       size_ += request->size;
       requests_.push_back(std::move(*request));
     }
@@ -315,7 +317,7 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
       payload += request.size;
     }
     return fmt::format(
-        "<CoalescedLoad: {} entries, {} total {} extra>",
+        "<DwioCoalescedLoadBase: {} entries, {} total {} extra>",
         requests_.size(),
         succinctBytes(total),
         succinctBytes(total - payload));
@@ -338,19 +340,19 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
   }
 
   static std::vector<RawFileCacheKey> makeKeys(
-      std::vector<CacheRequest*>& requests) {
+      const std::vector<CacheRequest*>& requests) {
     std::vector<RawFileCacheKey> keys;
     keys.reserve(requests.size());
-    for (auto& request : requests) {
+    for (const auto* request : requests) {
       keys.push_back(request->key);
     }
     return keys;
   }
 
-  std::vector<int32_t> makeSizes(std::vector<CacheRequest*> requests) {
+  static std::vector<int32_t> makeSizes(std::vector<CacheRequest*> requests) {
     std::vector<int32_t> sizes;
     sizes.reserve(requests.size());
-    for (auto& request : requests) {
+    for (const auto& request : requests) {
       sizes.push_back(request->size);
     }
     return sizes;
@@ -388,6 +390,7 @@ class DwioCoalescedLoad : public DwioCoalescedLoadBase {
     return false;
   }
 
+ private:
   std::vector<CachePin> loadData(bool prefetch) override {
     std::vector<CachePin> pins;
     pins.reserve(keys_.size());
@@ -443,6 +446,7 @@ class SsdLoad : public DwioCoalescedLoadBase {
     return true;
   }
 
+ private:
   std::vector<CachePin> loadData(bool prefetch) override {
     std::vector<SsdPin> ssdPins;
     std::vector<CachePin> pins;
@@ -492,6 +496,9 @@ void CachedBufferedInput::readRegion(
   coalescedLoads_.push_back(load);
   streamToCoalescedLoad_.withWLock([&](auto& loads) {
     for (auto& request : requests) {
+      // TODO(lingbin): 这里好像有点问题，上面构造
+      // SsdLoad和DwioCoalescedLoad的时候，实际上会 move 掉这里的
+      // requests（参见它们的构造函数）
       loads[request->stream] = load;
     }
   });

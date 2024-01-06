@@ -2928,7 +2928,7 @@ TEST(MemoryPoolTest, debugModeWithFilter) {
 }
 
 TEST_P(MemoryPoolTest, debugModeWrapCapException) {
-  const uint64_t kMaxCap = 128L * MB;
+  const uint64_t kMaxCap = 192L * MB;
   MemoryManager::Options options;
   options.allocatorCapacity = kMaxCap;
   options.arbitratorCapacity = kMaxCap;
@@ -2941,9 +2941,11 @@ TEST_P(MemoryPoolTest, debugModeWrapCapException) {
       manager->addRootPool("MemoryCapExceptions", kMaxCap, nullptr, {{".*"}});
   auto pool1 = root->addLeafChild("static_quota_1", isLeafThreadSafe_);
   auto pool2 = root->addLeafChild("static_quota_2", isLeafThreadSafe_);
+  auto pool3 = root->addLeafChild("static_quota_3", isLeafThreadSafe_);
   {
     std::vector<void*> buffers{
         pool1->allocate(64L * MB), pool1->allocate(64L * MB)};
+    std::vector<void*> buffers2{pool3->allocate(64L * MB)};
     try {
       pool2->allocate(1L * MB);
     } catch (const velox::VeloxRuntimeError& ex) {

@@ -65,23 +65,14 @@ void ExchangeQueue::enqueueLocked(
   }
 
   totalBytes_ += page->size();
-  if (peakBytes_ < totalBytes_) {
-    peakBytes_ = totalBytes_;
-  }
+  peakBytes_ = std::max(peakBytes_, totalBytes_);
 
   ++receivedPages_;
   receivedBytes_ += page->size();
 
   queue_.push_back(std::move(page));
   const auto minBatchSize = minOutputBatchBytesLocked();
-  while (!promises_.empty()) {
-    VELOX_CHECK_LE(promises_.size(), numberOfConsumers_);
-    const int32_t unblockedConsumers = numberOfConsumers_ - promises_.size();
-    const int64_t unasignedBytes =
-        totalBytes_ - unblockedConsumers * minBatchSize;
-    if (unasignedBytes < minBatchSize) {
-      break;
-    }
+  if (!promises_.empty() && totalBytes_ >= minBatchSize) {
     // Resume one of the waiting drivers.
     auto it = promises_.begin();
     promises.push_back(std::move(it->second));
@@ -97,7 +88,7 @@ void ExchangeQueue::addPromiseLocked(
   *future = promise.getSemiFuture();
   auto it = promises_.find(consumerId);
   if (it != promises_.end()) {
-    // resolve stale promises outside the lock to avoid broken promises
+    // Resolve stale promises outside the lock to avoid broken promises.
     *stalePromise = std::move(it->second);
     it->second = std::move(promise);
   } else {
@@ -123,7 +114,7 @@ std::vector<std::unique_ptr<SerializedPageBase>> ExchangeQueue::dequeueLocked(
   *atEnd = false;
 
   // If we don't have enough bytes to return, we wait for more data to be
-  // available
+  // available.
   if (totalBytes_ < minOutputBatchBytesLocked()) {
     addPromiseLocked(consumerId, future, stalePromise);
     return {};

@@ -40,7 +40,7 @@ bool checkAddIdentityProjection(
   return false;
 }
 
-// Split stats to attrbitute cardinality reduction to the Filter node.
+// Split stats to attribute cardinality reduction to the Filter node.
 std::vector<OperatorStats> splitStats(
     const OperatorStats& combinedStats,
     const core::PlanNodeId& filterNodeId) {

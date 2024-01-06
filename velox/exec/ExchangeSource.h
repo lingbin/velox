@@ -15,6 +15,11 @@
  */
 #pragma once
 
+#include <atomic>
+#include <memory>
+#include <sstream>
+#include <utility>
+
 #include "velox/common/base/RuntimeMetrics.h"
 #include "velox/exec/ExchangeQueue.h"
 
@@ -46,13 +51,20 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
     return false;
   }
 
-  /// Returns true if there is no request to the source pending or if
-  /// this should be retried. If true, the caller is expected to call
-  /// request(). This is expected to be called while holding lock over
-  /// queue_.mutex(). This sets the status of 'this' to be pending. The
-  /// caller is thus expected to call request() without holding a lock over
-  /// queue_.mutex(). This pattern prevents multiple exchange consumer
-  /// threads from issuing the same request.
+  /// Returns true if there is no request to the source pending or if this
+  /// should be retried. On a true return, the implementation (subclass) is
+  /// expected to set the internal state to 'pending' (by setting
+  /// 'requestPending_' to be true), and the caller is then required to call
+  /// 'request()' or 'requestDataSizes()'. Note that this method must be called
+  /// while holding 'queue_.mutex()', however, the subsequent call to
+  /// `request()` or `requestDataSizes()` must then be made after releasing the
+  /// lock. If multiple threads call this method concurrently((while holding
+  /// 'queue_.mutex()')), at most one thread will observe a true return value.
+  ///
+  /// This "synchronized check-then-act" pattern ensures that, even with
+  /// multiple local exchange consumer threads, there is at most one in-flight
+  /// request per remote source at any time (avoiding duplicate requests to the
+  /// same remote task).
   virtual bool shouldRequestLocked() = 0;
 
   struct Response {
@@ -86,7 +98,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
       std::chrono::microseconds maxWait) = 0;
 
   /// Ask for available data sizes that can be fetched.  Normally should not
-  /// fetching any actual data (i.e. Response::bytes should be 0).  However for
+  /// fetch any actual data (i.e. Response::bytes should be 0).  However, for
   /// backward compatibility (e.g. communicating with coordinator), we allow
   /// small data (1MB) to be returned.
   virtual folly::SemiFuture<Response> requestDataSizes(
@@ -111,10 +123,9 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
     VELOX_UNREACHABLE();
   }
 
-  /// Returns runtime statistics. ExchangeSource is expected to report
-  /// Specify units of individual counters in ExchangeSource.
-  /// for an example: 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB,
-  /// min:  1.16GB'
+  /// Returns runtime statistics. ExchangeSource is expected to report specific
+  /// units of individual counters in ExchangeSource. For example:
+  /// 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB, min:  1.16GB'
   virtual folly::F14FastMap<std::string, RuntimeMetric> metrics() const {
     VELOX_NYI();
   }
@@ -165,13 +176,13 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   // to be accessed by external components after the query task is destroyed.
   // For instance, in Prestissimo, there might be a pending http request issued
   // by PrestoExchangeSource to fetch data from the remote task. When the http
-  // response returns back, the task might have already terminated and deleted
+  // response returns back, the task might have already terminated and deleted,
   // so we need to hold an additional shared reference on the memory pool to
   // keeps it alive.
   const std::shared_ptr<memory::MemoryPool> pool_;
 
   int64_t sequence_{0};
-  std::atomic<bool> requestPending_{false};
+  std::atomic_bool requestPending_{false};
   bool atEnd_{false};
 };
 

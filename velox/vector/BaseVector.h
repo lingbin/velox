@@ -73,7 +73,7 @@ class BaseVector {
   static constexpr uint64_t kNullHash = bits::kNullHash;
 
   BaseVector(
-      velox::memory::MemoryPool* pool,
+      memory::MemoryPool* pool,
       TypePtr type,
       VectorEncoding::Simple encoding,
       BufferPtr nulls,
@@ -89,7 +89,7 @@ class BaseVector {
     return encoding_;
   }
 
-  inline bool isLazy() const {
+  bool isLazy() const {
     return encoding() == VectorEncoding::Simple::LAZY;
   }
 
@@ -105,8 +105,8 @@ class BaseVector {
     return mayHaveNulls();
   }
 
-  inline bool isIndexInRange(vector_size_t index) const {
-    // This compiles better than index >= 0 && index < length_.
+  bool isIndexInRange(vector_size_t index) const {
+    // This compiles better than 'index >= 0 && index < length_'.
     return static_cast<uint32_t>(index) < static_cast<uint32_t>(length_);
   }
 
@@ -189,7 +189,7 @@ class BaseVector {
 
   /// Returns true if value at specified index is null or contains null.
   /// Primitive type values can be null, but cannot contain nulls. Arrays, maps
-  /// and structs can be null and can contains nulls. Non-null array may contain
+  /// and structs can be null and can contain nulls. Non-null array may contain
   /// one or more elements that are null or contain nulls themselves. Non-null
   /// maps may contain one more entry with key or value that's null or contains
   /// null. Non-null struct may contain a field that's null or contains null.
@@ -239,7 +239,7 @@ class BaseVector {
   }
 
   /// Returns a pointer to the raw null bitmap buffer of this vector. Notice
-  /// that users should not used this API to access nulls directly of a
+  /// that users should not use this API to access nulls directly of a
   /// ConstantVector or DictionaryVector. If the vector is a ConstantVector,
   /// rawNulls_ is only of size 1. If the vector is a DictionaryVector,
   /// rawNulls_ points to a raw buffer of only nulls in the top-level layer.
@@ -269,27 +269,27 @@ class BaseVector {
     return distinctValueCount_;
   }
 
-  /// @return the number of rows of data in this vector
+  /// @return the number of rows of data in this vector.
   vector_size_t size() const {
     return length_;
   }
 
   virtual void append(const BaseVector* other) {
-    auto totalSize = BaseVector::length_ + other->size();
-    auto previousSize = BaseVector::size();
+    auto totalSize = length_ + other->size();
+    auto previousSize = size();
     resize(totalSize);
     copy(other, previousSize, 0, other->size());
   }
 
   /// @return the number of bytes this vector takes on disk when in a compressed
-  /// and serialized format
+  /// and serialized format.
   std::optional<ByteCount> storageBytes() const {
     return storageByteCount_;
   }
 
   /// @return the number of bytes required to naively represent all of the data
   /// in this vector - the raw data size if not in a compressed or otherwise
-  /// optimized format
+  /// optimized format.
   std::optional<ByteCount> representedBytes() const {
     return representedByteCount_;
   }
@@ -371,7 +371,7 @@ class BaseVector {
   std::optional<vector_size_t> findDuplicateValue(
       vector_size_t start,
       vector_size_t size,
-      CompareFlags flags);
+      CompareFlags flags) const;
 
   /// @return the hash of the value at the given index in this vector
   virtual uint64_t hashValueAt(vector_size_t index) const = 0;
@@ -458,18 +458,20 @@ class BaseVector {
 
   /// Returns whether or not the nulls buffer can be modified.
   /// This does not guarantee the existence of the nulls buffer, if using this
-  /// within BaseVector you still may need to call ensureNulls.
+  /// within BaseVector you still may need to call 'ensureNulls'.
   virtual bool isNullsWritable() const {
-    return !nulls_ || (nulls_->isMutable());
+    return nulls_ == nullptr || nulls_->isMutable();
   }
 
-  /// Sets null when 'nulls' has a null value for active rows in 'rows'.
-  /// Is a no-op 'nulls' is a nullptr or 'rows' has no selections. This API
+  /// Sets null when 'nullBits' has a null value for active rows in 'rows'. Is a
+  /// no-op if 'nullBits' is a nullptr or 'rows' has no selections. This API
   /// throws if the vector is a ConstantVector.
-  virtual void addNulls(const uint64_t* nulls, const SelectivityVector& rows);
+  virtual void addNulls(
+      const uint64_t* nullBits,
+      const SelectivityVector& rows);
 
-  /// Sets nulls for all active row in 'nullRows'. Is a no-op if nullRows has no
-  /// selections. This API throws if the vector is a ConstantVector.
+  /// Sets nulls for all active row in 'nullRows'. Is a no-op if 'nullRows' has
+  /// no selections. This API throws if the vector is a ConstantVector.
   virtual void addNulls(const SelectivityVector& nullRows);
 
   /// Clears nulls for all active rows in 'nonNullRows'
@@ -776,7 +778,7 @@ class BaseVector {
   /// 'newSize' > 'currentSize'.
   ///
   /// If 'indices' is nullptr, read-only, not uniquely-referenced, or doesn't
-  /// have capacity for 'newSize' elements allocates new buffer and copies data
+  /// have capacity for 'newSize' elements, allocates new buffer and copies data
   /// to it. Updates '*rawIndices' to point to the start of 'indices' buffer.
   static void resizeIndices(
       vector_size_t currentSize,
@@ -908,7 +910,7 @@ class BaseVector {
   /// 'to' is greater than vector size. Returns values from the start of the
   /// vector if 'from' is negative.
   ///
-  /// The type of the 'delimiter' is a const char* and not an std::string to
+  /// The type of the 'delimiter' is a 'const char*' and not a 'std::string' to
   /// allow for invoking this method from LLDB.
   std::string toString(
       vector_size_t from,
@@ -948,7 +950,7 @@ class BaseVector {
   }
 
   /// Used to check internal state of a vector like sizes of the buffers,
-  /// enclosed child vectors, values in indices. Currently, its only used in
+  /// enclosed child vectors, values in indices. Currently, it is only used in
   /// debug builds to check the result of expressions and some interim results.
   virtual void validate(const VectorValidateOptions& options = {}) const;
 

@@ -110,9 +110,9 @@ TEST_F(StreamArenaTest, newRange) {
         testData.expectedContiguousAllocationSize +
             testData.expectedNonContiguousAllocationSize,
         arena->size());
-    const int allocateBytes =
+    const uint64_t allocateBytes =
         AllocationTraits::pageBytes(mmapAllocator_->numAllocated());
-    const int contiguousBytes =
+    const uint64_t contiguousBytes =
         AllocationTraits::pageBytes(mmapAllocator_->numExternalMapped());
     ASSERT_EQ(
         testData.expectedNonContiguousAllocationSize,

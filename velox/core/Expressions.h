@@ -240,7 +240,7 @@ class CallTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const override {
     const auto* casted = dynamic_cast<const CallTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -309,7 +309,7 @@ class FieldAccessTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const FieldAccessTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -392,7 +392,7 @@ class DereferenceTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const DereferenceTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);

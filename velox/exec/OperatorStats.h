@@ -61,6 +61,7 @@ struct MemoryStats {
     const auto poolStats = pool->stats();
     MemoryStats memStats;
     memStats.userMemoryReservation = poolStats.usedBytes;
+    memStats.revocableMemoryReservation = 0;
     memStats.systemMemoryReservation = 0;
     memStats.peakUserMemoryReservation = poolStats.peakBytes;
     memStats.peakSystemMemoryReservation = 0;
@@ -124,8 +125,8 @@ struct OperatorStats {
 
   std::optional<StatsSplitter> statsSplitter;
 
-  /// Name for reporting. We use Presto compatible names set at
-  /// construction of the Operator where applicable.
+  /// Name for reporting. We use Presto compatible names set at construction of
+  /// the Operator where applicable.
   std::string operatorType;
 
   /// Number of splits (or chunks of work). Split can be a part of data file to
@@ -139,24 +140,20 @@ struct OperatorStats {
   uint64_t rawInputPositions = 0;
 
   CpuWallTiming addInputTiming;
-
   /// Bytes of input in terms of retained size of input vectors.
   uint64_t inputBytes = 0;
   uint64_t inputPositions = 0;
-
-  /// Contains the dynamic filters stats if applied.
-  DynamicFilterStats dynamicFilterStats;
-
   /// Number of input batches / vectors. Allows to compute an average batch
   /// size.
   uint64_t inputVectors = 0;
 
-  CpuWallTiming getOutputTiming;
+  /// Contains the dynamic filters stats if applied.
+  DynamicFilterStats dynamicFilterStats;
 
+  CpuWallTiming getOutputTiming;
   /// Bytes of output in terms of retained size of vectors.
   uint64_t outputBytes = 0;
   uint64_t outputPositions = 0;
-
   /// Number of output batches / vectors. Allows to compute an average batch
   /// size.
   uint64_t outputVectors = 0;
@@ -174,18 +171,14 @@ struct OperatorStats {
 
   MemoryStats memoryStats;
 
-  // Total bytes in memory for spilling
+  // Total bytes in memory for spilling.
   uint64_t spilledInputBytes{0};
-
   // Total bytes written to file for spilling.
   uint64_t spilledBytes{0};
-
   // Total rows written for spilling.
   uint64_t spilledRows{0};
-
   // Total spilled partitions.
   uint32_t spilledPartitions{0};
-
   // Total current spilled files.
   uint32_t spilledFiles{0};
 
