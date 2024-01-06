@@ -117,7 +117,7 @@ class SignatureVariable {
 
 class FunctionSignature {
  public:
-  /// @param variables_ Generic type names used in return type
+  /// @param variables Generic type names used in return type
   /// and argument types (and constraints if necessary).
   /// @param returnType Return type. May use generic type names, e.g.
   /// array(T).

@@ -59,14 +59,14 @@ enum class StopReason {
 
 std::string stopReasonString(StopReason reason);
 
-std::ostream& operator<<(std::ostream& out, const StopReason& reason);
+std::ostream& operator<<(std::ostream& out, StopReason reason);
 
 /// Represents a Driver's state. This is used for cancellation, forcing
 /// release of and for waiting for memory. The fields are serialized on
 /// the mutex of the Driver's Task.
 ///
 /// The Driver goes through the following states:
-/// Not on thread. It is created and has not started. All flags are false.
+/// Not on thread - It is created and has not started. All flags are false.
 ///
 /// Enqueued - The Driver is added to an executor but does not yet have a
 /// thread. isEnqueued is true. Next states are terminated or on thread.
@@ -74,8 +74,8 @@ std::ostream& operator<<(std::ostream& out, const StopReason& reason);
 /// On thread - 'thread' is set to the thread that is running the Driver. Next
 /// states are blocked, terminated, suspended, enqueued.
 ///
-///  Blocked - The Driver is not on thread and is waiting for an external event.
-///  Next states are terminated, enqueued.
+/// Blocked - The Driver is not on thread and is waiting for an external event.
+/// Next states are terminated, enqueued.
 ///
 /// Suspended - The Driver is on thread, 'thread' and 'isSuspended' are set. The
 /// thread does not manipulate the Driver's state and is suspended as in waiting
@@ -83,10 +83,10 @@ std::ostream& operator<<(std::ostream& out, const StopReason& reason);
 /// we keep the stack so that when the wait is over the control stack is not
 /// lost. Next states are on thread or terminated.
 ///
-///  Terminated - 'isTerminated' is set. The Driver cannot run after this and
+/// Terminated - 'isTerminated' is set. The Driver cannot run after this and
 /// the state is final.
 ///
-/// CancelPool  allows terminating or pausing a set of Drivers. The Task API
+/// Task allows terminating or pausing a set of Drivers. The Task API
 /// allows starting or resuming Drivers. When terminate is requested the request
 /// is successful when all Drivers are off thread, blocked or suspended. When
 /// pause is requested, we have success when all Drivers are either enqueued,
@@ -213,7 +213,7 @@ class BlockingState {
   ContinueFuture future_;
   Operator* operator_;
   BlockingReason reason_;
-  uint64_t sinceUs_;
+  const uint64_t sinceUs_;
 
   static std::atomic_uint64_t numBlockedDrivers_;
 };
@@ -222,10 +222,10 @@ class BlockingState {
 constexpr uint32_t kUngroupedGroupId{std::numeric_limits<uint32_t>::max()};
 
 struct DriverCtx {
-  const int driverId;
-  const int pipelineId;
+  const int32_t driverId;
+  const int32_t pipelineId;
   /// Id of the split group this driver should process in case of grouped
-  /// execution, kUngroupedGroupId otherwise.
+  /// execution, 'kUngroupedGroupId' otherwise.
   const uint32_t splitGroupId;
   /// Id of the partition to use by this driver. For local exchange, for
   /// instance.
@@ -233,7 +233,7 @@ struct DriverCtx {
 
   std::shared_ptr<Task> task;
   Driver* driver{nullptr};
-  facebook::velox::process::ThreadDebugInfo threadDebugInfo;
+  process::ThreadDebugInfo threadDebugInfo;
   /// Tracks the traced operator ids. It is also used to avoid tracing the
   /// auxiliary operator such as the aggregation operator used by the table
   /// writer to generate the columns stats.
@@ -250,7 +250,7 @@ struct DriverCtx {
 
   const std::optional<TraceConfig>& traceConfig() const;
 
-  velox::memory::MemoryPool* addOperatorPool(
+  memory::MemoryPool* addOperatorPool(
       const core::PlanNodeId& planNodeId,
       const std::string& operatorType);
 
@@ -288,15 +288,17 @@ struct OpCallStatusRaw {
     return timeStartMs == 0;
   }
 
-  static std::string formatCall(Operator* op, const char* operatorMethod);
   size_t callDuration() const;
+
+  static std::string formatCall(Operator* op, const char* operatorMethod);
 };
 
 /// Structure holds the information about the current operator call the driver
 /// is in. Can be used to detect deadlocks and otherwise blocked calls.
 /// If timeStartMs is zero, then we aren't in an operator call.
-struct OpCallStatus {
-  OpCallStatus() {}
+class OpCallStatus {
+ public:
+  OpCallStatus() = default;
 
   /// The status accessor.
   OpCallStatusRaw operator()() const {
@@ -404,7 +406,7 @@ class Driver : public std::enable_shared_from_this<Driver> {
   bool mayPushdownAggregation(Operator* aggregation) const;
 
   /// Returns a subset of channels for which there are operators upstream from
-  /// filterSource that accept dynamically generated filters.
+  /// 'filterSource' that accept dynamically generated filters.
   std::unordered_set<column_index_t> canPushdownFilters(
       const Operator* filterSource,
       const std::vector<column_index_t>& channels) const;
@@ -721,7 +723,7 @@ struct DriverFactory {
   /// True if 'planNodes' contains a source node for the task, e.g. TableScan
   /// or Exchange.
   bool inputDriver{false};
-  /// True if 'planNodes' contains a sync node for the task, e.g.
+  /// True if 'planNodes' contains a sink node for the task, e.g.
   /// PartitionedOutput.
   bool outputDriver{false};
   /// Contains node ids for which Hash Join Bridges connect ungrouped
@@ -737,10 +739,10 @@ struct DriverFactory {
       std::shared_ptr<PipelinePushdownFilters> filters,
       std::function<int(int pipelineId)> numDrivers);
 
-  /// Replaces operators at indices 'begin' to 'end - 1' with
-  /// 'replaceWith, in the Driver being created.  Sets operator ids to be
-  /// consecutive after the replace. May only be called from inside a
-  /// DriverAdapter. Returns the replaced Operators.
+  /// Replaces operators at indices 'begin' to 'end - 1' with 'replaceWith', in
+  /// the Driver being created.  Sets operator ids to be consecutive after the
+  /// replacing. May only be called from inside a DriverAdapter. Returns the
+  /// replaced Operators.
   std::vector<std::unique_ptr<Operator>> replaceOperators(
       Driver& driver,
       int32_t begin,
@@ -789,10 +791,10 @@ struct DriverFactory {
   /// sets plan node in 'planNode'.
   bool needsLocalExchange(core::PlanNodePtr& planNode) const {
     VELOX_CHECK(!planNodes.empty());
-    if (auto exchangeNode =
+    if (auto localPartitionNode =
             std::dynamic_pointer_cast<const core::LocalPartitionNode>(
                 planNodes.front())) {
-      planNode = exchangeNode;
+      planNode = localPartitionNode;
       return true;
     }
     return false;

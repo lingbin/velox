@@ -54,12 +54,11 @@ class Tokenizer {
   bool firstSegment_ = true;
   std::unique_ptr<Subfield::PathElement> next_;
 
-  bool hasNextCharacter();
+  bool hasNextCharacter() const;
 
   std::unique_ptr<Subfield::PathElement> computeNext();
 
-  // Returns whether the expected char is a separator and
-  // can be found.
+  // Returns whether the expected char is a separator and can be found.
   bool tryMatchSeparator(char expected);
 
   void match(char expected);
@@ -84,7 +83,7 @@ class Tokenizer {
 
   void nextCharacter();
 
-  char peekCharacter();
+  char peekCharacter() const;
 
   std::unique_ptr<Subfield::PathElement> matchWildcardSubscript();
 };

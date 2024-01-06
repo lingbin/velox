@@ -164,7 +164,7 @@ class HiveTableHandle : public ConnectorTableHandle {
   /// 1.0 means no sampling. Default is no sampling.
   HiveTableHandle(
       std::string connectorId,
-      const std::string& tableName,
+      std::string tableName,
       bool filterPushdownEnabled,
       common::SubfieldFilters subfieldFilters,
       const core::TypedExprPtr& remainingFilter,

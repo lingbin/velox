@@ -19,18 +19,16 @@
 
 namespace facebook::velox {
 
-/**
- * The reason for centralizing these types is to maintain consistency in the
- * types used to represent e.g. a vector index, and other similar concepts.
- * Before this centralizing there was significant inconsistency in places as to
- * whether e.g. size_t vs int64_t vs uint32_t vs int32_t was used.
- */
+/// The reason for centralizing these types is to maintain consistency in the
+/// types used to represent e.g. a vector index, and other similar concepts.
+/// Before this centralizing there was significant inconsistency in places
+/// whether e.g. size_t vs int64_t vs uint32_t vs int32_t was used.
 
 using vector_size_t = int32_t;
 using ByteCount = int32_t;
 
-// This is used in SequenceVector as the type for sequence lengths. It is
-// involved in storage, and should not be changed.
+/// This is used in SequenceVector as the type for sequence lengths. It is
+/// involved in storage, and should not be changed.
 using SequenceLength = uint32_t;
 
 } // namespace facebook::velox

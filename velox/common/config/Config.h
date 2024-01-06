@@ -82,12 +82,12 @@ class ConfigBase : public IConfig {
       bool _mutable = false)
       : configs_(std::move(configs)), mutable_(_mutable) {}
 
-  virtual ~ConfigBase() {}
+  virtual ~ConfigBase() = default;
 
   template <typename T>
   ConfigBase& set(const Entry<T>& entry, const T& val) {
     VELOX_CHECK(mutable_, "Cannot set in immutable config");
-    std::unique_lock<std::shared_mutex> l(mutex_);
+    std::lock_guard<std::shared_mutex> l(mutex_);
     configs_[entry.key] = entry.toStr(val);
     return *this;
   }
@@ -97,7 +97,7 @@ class ConfigBase : public IConfig {
   template <typename T>
   ConfigBase& unset(const Entry<T>& entry) {
     VELOX_CHECK(mutable_, "Cannot unset in immutable config");
-    std::unique_lock<std::shared_mutex> l(mutex_);
+    std::lock_guard<std::shared_mutex> l(mutex_);
     configs_.erase(entry.key);
     return *this;
   }

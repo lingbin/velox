@@ -22,28 +22,18 @@
 namespace facebook::velox::dwio::common {
 
 void printBuffer(std::ostream& out, const char* buffer, uint64_t length) {
-  const uint64_t width = 24;
+  static constexpr uint64_t kWidth = 24;
   out << std::hex;
-  for (uint64_t line = 0; line < (length + width - 1) / width; ++line) {
-    out << std::setfill('0') << std::setw(7) << (line * width);
-    for (uint64_t byte = 0; byte < width && line * width + byte < length;
+  for (uint64_t line = 0; line < (length + kWidth - 1) / kWidth; ++line) {
+    out << std::setfill('0') << std::setw(7) << (line * kWidth);
+    for (uint64_t byte = 0; byte < kWidth && line * kWidth + byte < length;
          ++byte) {
       out << " " << std::setfill('0') << std::setw(2)
-          << static_cast<uint64_t>(0xff & buffer[line * width + byte]);
+          << static_cast<uint64_t>(0xff & buffer[line * kWidth + byte]);
     }
     out << "\n";
   }
   out << std::dec;
-}
-
-uint64_t PositionProvider::next() {
-  const uint64_t result = *position_;
-  ++position_;
-  return result;
-}
-
-bool PositionProvider::hasNext() const {
-  return position_ != end_;
 }
 
 void SeekableInputStream::readFully(char* buffer, size_t bufferSize) {
@@ -60,77 +50,72 @@ void SeekableInputStream::readFully(char* buffer, size_t bufferSize) {
     std::copy(bytes, bytes + bytesToCopy, buffer + pos);
     pos += bytesToCopy;
   }
-  // return remaining bytes back to stream
+  // Return remaining bytes back to stream.
   if (bytesToCopy < readLength) {
     BackUp(readLength - bytesToCopy);
   }
 }
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    const unsigned char* values,
+    const unsigned char* data,
     uint64_t size,
-    uint64_t blkSize)
-    : data_(reinterpret_cast<const char*>(values)), dataRead_{nullptr} {
-  length_ = size;
-  position_ = 0;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+    uint64_t blockSize)
+    : data_{reinterpret_cast<const char*>(data)},
+      dataRead_{nullptr},
+      length_{size},
+      blockSize_{blockSize == 0 ? length_ : blockSize} {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    const char* values,
+    const char* data,
     uint64_t size,
-    uint64_t blkSize)
-    : data_(values), dataRead_{nullptr} {
-  length_ = size;
-  position_ = 0;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+    uint64_t blockSize)
+    : data_(data),
+      dataRead_{nullptr},
+      length_(size),
+      blockSize_(blockSize == 0 ? length_ : blockSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    std::unique_ptr<char[]> values,
+    std::unique_ptr<char[]> data,
     uint64_t size,
-    uint64_t blkSize)
-    : ownedData_(std::move(values)),
+    uint64_t blockSize)
+    : ownedData_(std::move(data)),
       data_(ownedData_.get()),
-      dataRead_{nullptr} {
-  length_ = size;
-  position_ = 0;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+      dataRead_{nullptr},
+      length_(size),
+      blockSize_(blockSize == 0 ? length_ : blockSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    std::function<std::tuple<const char*, uint64_t>()> read,
-    uint64_t blkSize)
-    : data_(nullptr), dataRead_{std::move(read)} {
-  position_ = 0;
-  length_ = 0;
-  blockSize_ = blkSize;
-}
+    std::function<std::tuple<const char*, uint64_t>()> dataRead,
+    uint64_t blockSize)
+    : data_(nullptr),
+      dataRead_{std::move(dataRead)},
+      length_(0),
+      blockSize_(blockSize) {}
 
 void SeekableArrayInputStream::loadIfAvailable() {
   if (FOLLY_LIKELY(dataRead_ == nullptr)) {
     return;
   }
   const auto result = dataRead_();
-  auto size = std::get<1>(result);
+  const auto size = std::get<1>(result);
   VELOX_CHECK_LT(size, MAX_UINT64, "invalid data size");
   data_ = std::get<0>(result);
   length_ = size;
   if (blockSize_ == 0) {
     blockSize_ = length_;
   }
-  // just load once
+  // Just load once.
   dataRead_ = nullptr;
 }
 
 bool SeekableArrayInputStream::Next(const void** buffer, int32_t* size) {
   loadIfAvailable();
-  const uint64_t currentSize = std::min(length_ - position_, blockSize_);
-  if (currentSize > 0) {
+  const uint64_t bytesToRead = std::min(length_ - position_, blockSize_);
+  if (bytesToRead > 0) {
     *buffer = data_ + position_;
-    *size = static_cast<int32_t>(currentSize);
-    position_ += currentSize;
-    totalRead_ += currentSize;
+    *size = static_cast<int32_t>(bytesToRead);
+    position_ += bytesToRead;
+    totalRead_ += bytesToRead;
     return true;
   }
 
@@ -177,30 +162,33 @@ std::string SeekableArrayInputStream::getName() const {
 }
 
 size_t SeekableArrayInputStream::positionSize() const {
-  // not compressed, so only need 1 position (uncompressed position)
+  // Not compressed, so only need 1 position (uncompressed position)
   return 1;
 }
 
-static uint64_t computeBlock(uint64_t request, uint64_t length) {
-  return std::min(length, request == 0 ? 256 * 1024 : request);
+namespace {
+
+constexpr uint64_t kDefaultBlockSize = 256 * 1024;
+
+uint64_t computeBlock(uint64_t request, uint64_t length) {
+  return std::min(length, request == 0 ? kDefaultBlockSize : request);
 }
+
+} // namespace
 
 SeekableFileInputStream::SeekableFileInputStream(
     std::shared_ptr<ReadFileInputStream> input,
     uint64_t offset,
-    uint64_t byteCount,
+    uint64_t length,
     memory::MemoryPool& pool,
     LogType logType,
     uint64_t blockSize)
     : input_(std::move(input)),
       logType_(logType),
       start_(offset),
-      length_(byteCount),
+      length_(length),
       blockSize_(computeBlock(blockSize, length_)),
-      buffer_{pool} {
-  position_ = 0;
-  pushback_ = 0;
-}
+      buffer_{pool} {}
 
 bool SeekableFileInputStream::Next(const void** data, int32_t* size) {
   uint64_t bytesRead;
@@ -257,7 +245,7 @@ std::string SeekableFileInputStream::getName() const {
 }
 
 size_t SeekableFileInputStream::positionSize() const {
-  // not compressed, so only need 1 position (uncompressed position)
+  // Not compressed, so only need 1 position (uncompressed position).
   return 1;
 }
 

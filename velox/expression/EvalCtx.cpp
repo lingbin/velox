@@ -77,7 +77,7 @@ void EvalCtx::saveAndReset(ContextSaver& saver, const SelectivityVector& rows) {
 
 void EvalCtx::ensureErrorsVectorSize(EvalErrorsPtr& vector, vector_size_t size)
     const {
-  if (!vector) {
+  if (vector == nullptr) {
     vector = std::make_shared<EvalErrors>(pool(), size);
   } else {
     vector->ensureCapacity(size);
