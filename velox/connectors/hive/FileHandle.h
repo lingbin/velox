@@ -39,7 +39,7 @@ namespace facebook::velox {
 struct FileHandle {
   std::shared_ptr<ReadFile> file;
 
-  // Each time we make a new FileHandle we assign it a uuid and use that id as
+  // Each time we make a new FileHandle we assign it an uuid and use that id as
   // the identifier in downstream data caching structures. This saves a lot of
   // memory compared to using the filename as the identifier.
   StringIdLease uuid;
@@ -97,19 +97,20 @@ struct hash<facebook::velox::FileHandleKey> {
 } // namespace std
 
 namespace facebook::velox {
-using FileHandleCache =
-    SimpleLRUCache<facebook::velox::FileHandleKey, FileHandle>;
+
+using FileHandleCache = SimpleLRUCache<FileHandleKey, FileHandle>;
 
 // Creates FileHandles via the Generator interface the CachedFactory requires.
 class FileHandleGenerator {
  public:
-  FileHandleGenerator() {}
+  FileHandleGenerator() = default;
   FileHandleGenerator(std::shared_ptr<const config::ConfigBase> properties)
       : properties_(std::move(properties)) {}
+
   std::unique_ptr<FileHandle> operator()(
       const FileHandleKey& filename,
       const FileProperties* properties,
-      filesystems::File::IoStats* stats);
+      filesystems::File::IoStats* stats) const;
 
  private:
   const std::shared_ptr<const config::ConfigBase> properties_;

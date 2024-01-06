@@ -56,7 +56,7 @@ class StreamIdentifier {
     return StreamIdentifier(kSequentialFile);
   }
 
-  int32_t id_;
+  const int32_t id_;
 };
 
 struct StreamIdentifierHash {

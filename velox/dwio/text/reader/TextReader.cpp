@@ -185,7 +185,7 @@ TextRowReader::TextRowReader(
       (void)seekToRow(opts.skipRows());
     }
   } else {
-    // compressed text files, the first split reads the whole file, rest read 0
+    // Compressed text files, the first split reads the whole file, rest read 0
     if (pos_ != 0) {
       atEOF_ = true;
     }
@@ -274,7 +274,7 @@ uint64_t TextRowReader::next(
       DelimType delim = DelimTypeNone;
       const auto& ct = t->childAt(i);
       const auto& rct = reqT->childAt(i);
-      auto childVector = rowVecPtr->childAt(i).get();
+      auto* childVector = rowVecPtr->childAt(i).get();
 
       if (isSelectedField(ct)) {
         ++colIndex;

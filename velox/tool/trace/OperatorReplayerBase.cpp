@@ -41,7 +41,7 @@ OperatorReplayerBase::OperatorReplayerBase(
     const std::string& driverIds,
     uint64_t queryCapacity,
     folly::Executor* executor)
-    : queryId_(std::string(std::move(queryId))),
+    : queryId_(std::move(queryId)),
       taskId_(std::move(taskId)),
       nodeId_(std::move(nodeId)),
       nodeName_(std::move(nodeName)),
@@ -70,7 +70,7 @@ OperatorReplayerBase::OperatorReplayerBase(
   VELOX_CHECK_NOT_NULL(executor_);
 
   const auto taskMetaReader = exec::trace::TaskTraceMetadataReader(
-      taskTraceDir_, memory::MemoryManager::getInstance()->tracePool());
+      taskTraceDir_, memory::traceMemoryPool());
   queryConfigs_ = taskMetaReader.queryConfigs();
   connectorConfigs_ = taskMetaReader.connectorProperties();
   planFragment_ = taskMetaReader.queryPlan();

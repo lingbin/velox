@@ -20,12 +20,14 @@ namespace facebook::velox::connector {
 namespace {
 std::unordered_map<std::string, std::shared_ptr<ConnectorFactory>>&
 connectorFactories() {
+  // connectorName => ConnectorFactory.
   static std::unordered_map<std::string, std::shared_ptr<ConnectorFactory>>
       factories;
   return factories;
 }
 
 std::unordered_map<std::string, std::shared_ptr<Connector>>& connectors() {
+  // connectorId => Connector.
   static std::unordered_map<std::string, std::shared_ptr<Connector>> connectors;
   return connectors;
 }
@@ -104,6 +106,7 @@ getAllConnectors() {
   return connectors();
 }
 
+// static
 folly::Synchronized<
     std::unordered_map<std::string_view, std::weak_ptr<cache::ScanTracker>>>
     Connector::trackers_;
@@ -113,6 +116,7 @@ void Connector::unregisterTracker(cache::ScanTracker* tracker) {
   trackers_.withWLock([&](auto& trackers) { trackers.erase(tracker->id()); });
 }
 
+// static
 std::shared_ptr<cache::ScanTracker> Connector::getTracker(
     const std::string& scanId,
     int32_t loadQuantum) {
@@ -125,7 +129,7 @@ std::shared_ptr<cache::ScanTracker> Connector::getTracker(
       return newTracker;
     }
     std::shared_ptr<cache::ScanTracker> tracker = it->second.lock();
-    if (!tracker) {
+    if (tracker == nullptr) {
       tracker = std::make_shared<cache::ScanTracker>(
           scanId, unregisterTracker, loadQuantum);
       trackers[tracker->id()] = tracker;
@@ -147,6 +151,7 @@ commitStrategyNames() {
 
 VELOX_DEFINE_ENUM_NAME(CommitStrategy, commitStrategyNames);
 
+// static
 folly::dynamic ColumnHandle::serializeBase(std::string_view name) {
   folly::dynamic obj = folly::dynamic::object;
   obj["name"] = name;

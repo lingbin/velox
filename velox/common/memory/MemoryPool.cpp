@@ -97,7 +97,8 @@ struct MemoryUsageComp {
 using MemoryUsageHeap =
     std::priority_queue<MemoryUsage, std::vector<MemoryUsage>, MemoryUsageComp>;
 
-static constexpr size_t kCapMessageIndentSize = 4;
+// Redundant 'static' specifier on an anonymous namespace member
+constexpr size_t kCapMessageIndentSize = 4;
 
 std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
   std::vector<MemoryUsage> usages;
@@ -438,7 +439,7 @@ MemoryPoolImpl::MemoryPoolImpl(
     std::shared_ptr<MemoryPool> parent,
     std::unique_ptr<MemoryReclaimer> reclaimer,
     const Options& options)
-    : MemoryPool{name, kind, parent, options},
+    : MemoryPool{name, kind, std::move(parent), options},
       manager_{memoryManager},
       allocator_{manager_->allocator()},
       arbitrator_{manager_->arbitrator()},
@@ -527,12 +528,13 @@ void* MemoryPoolImpl::allocate(
   void* buffer = allocator_->allocateBytes(alignedSize, alignment_);
   if (FOLLY_UNLIKELY(buffer == nullptr)) {
     release(alignedSize);
-    handleAllocationFailure(fmt::format(
-        "{} failed with {} from {} {}",
-        __FUNCTION__,
-        succinctBytes(size),
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with {} from {} {}",
+            __FUNCTION__,
+            succinctBytes(size),
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(buffer, size);
   return buffer;
@@ -546,13 +548,14 @@ void* MemoryPoolImpl::allocateZeroFilled(int64_t numEntries, int64_t sizeEach) {
   void* buffer = allocator_->allocateZeroFilled(alignedSize);
   if (FOLLY_UNLIKELY(buffer == nullptr)) {
     release(alignedSize);
-    handleAllocationFailure(fmt::format(
-        "{} failed with {} entries and {} each from {} {}",
-        __FUNCTION__,
-        numEntries,
-        succinctBytes(sizeEach),
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with {} entries and {} each from {} {}",
+            __FUNCTION__,
+            numEntries,
+            succinctBytes(sizeEach),
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(buffer, size);
   return buffer;
@@ -566,13 +569,14 @@ void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
   void* newP = allocator_->allocateBytes(alignedNewSize, alignment_);
   if (FOLLY_UNLIKELY(newP == nullptr)) {
     release(alignedNewSize);
-    handleAllocationFailure(fmt::format(
-        "{} failed with new {} and old {} from {} {}",
-        __FUNCTION__,
-        succinctBytes(newSize),
-        succinctBytes(size),
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with new {} and old {} from {} {}",
+            __FUNCTION__,
+            succinctBytes(newSize),
+            succinctBytes(size),
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(newP, newSize);
   if (p != nullptr) {
@@ -615,12 +619,13 @@ void MemoryPoolImpl::allocateNonContiguous(
           },
           minSizeClass)) {
     VELOX_CHECK(out.empty());
-    handleAllocationFailure(fmt::format(
-        "{} failed with {} pages from {} {}",
-        __FUNCTION__,
-        numPages,
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with {} pages from {} {}",
+            __FUNCTION__,
+            numPages,
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(out);
   VELOX_CHECK(!out.empty());
@@ -667,12 +672,13 @@ void MemoryPoolImpl::allocateContiguous(
           },
           maxPages)) {
     VELOX_CHECK(out.empty());
-    handleAllocationFailure(fmt::format(
-        "{} failed with {} pages from {} {}",
-        __FUNCTION__,
-        numPages,
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with {} pages from {} {}",
+            __FUNCTION__,
+            numPages,
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(out);
   VELOX_CHECK(!out.empty());
@@ -700,12 +706,13 @@ void MemoryPoolImpl::growContiguous(
               release(allocBytes);
             }
           })) {
-    handleAllocationFailure(fmt::format(
-        "{} failed with {} pages from {} {}",
-        __FUNCTION__,
-        increment,
-        toString(),
-        allocator_->getAndClearFailureMessage()));
+    handleAllocationFailure(
+        fmt::format(
+            "{} failed with {} pages from {} {}",
+            __FUNCTION__,
+            increment,
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   if (FOLLY_UNLIKELY(debugEnabled())) {
     recordGrowDbg(allocation.data(), allocation.size());
@@ -763,7 +770,7 @@ std::shared_ptr<MemoryPool> MemoryPoolImpl::genChild(
       manager_,
       name,
       kind,
-      parent,
+      std::move(parent),
       std::move(reclaimer),
       Options{
           .alignment = alignment_,
@@ -1171,7 +1178,8 @@ void MemoryPoolImpl::setDestructionCallback(
 
 void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetCapacity(bytes);
+    toImpl(parent_)->testingSetCapacity(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   capacity_ = bytes;
@@ -1179,7 +1187,8 @@ void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
 
 void MemoryPoolImpl::testingSetReservation(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetReservation(bytes);
+    toImpl(parent_)->testingSetReservation(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   reservationBytes_ = bytes;
@@ -1256,19 +1265,20 @@ void MemoryPoolImpl::recordFreeDbg(const void* addr, uint64_t size) {
   if (allocResult == debugAllocRecords_.end()) {
     VELOX_FAIL("Freeing of un-allocated memory. Free address {}.", addrUint64);
   }
-  const auto allocRecord = allocResult->second;
+  const auto& allocRecord = allocResult->second;
   if (allocRecord.size != size) {
     const auto freeStackTrace = process::StackTrace().toString();
-    VELOX_FAIL(fmt::format(
-        "[MemoryPool] Trying to free {} bytes on an allocation of {} bytes.\n"
-        "======== Allocation Stack ========\n"
-        "{}\n"
-        "============ Free Stack ==========\n"
-        "{}\n",
-        size,
-        allocRecord.size,
-        allocRecord.callStack.toString(),
-        freeStackTrace));
+    VELOX_FAIL(
+        fmt::format(
+            "[MemoryPool] Trying to free {} bytes on an allocation of {} bytes.\n"
+            "======== Allocation Stack ========\n"
+            "{}\n"
+            "============ Free Stack ==========\n"
+            "{}\n",
+            size,
+            allocRecord.size,
+            allocRecord.callStack.toString(),
+            freeStackTrace));
   }
   debugAllocRecords_.erase(addrUint64);
 }
@@ -1356,11 +1366,11 @@ void MemoryPoolImpl::handleAllocationFailure(
   if (coreOnAllocationFailureEnabled_) {
     VELOX_MEM_LOG(ERROR) << failureMessage;
     // SIGBUS is one of the standard signals in Linux that triggers a core
-    // dump Normally it is raised by the operating system when a misaligned
+    // dump. Normally it is raised by the operating system when a misaligned
     // memory access occurs. On x86 and aarch64 misaligned access is allowed
     // by default hence this signal should never occur naturally. Raising a
     // signal other than SIGABRT makes it easier to distinguish an allocation
-    // failure from any other crash
+    // failure from any other crash.
     raise(SIGBUS);
   }
 

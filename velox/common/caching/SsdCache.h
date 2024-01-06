@@ -51,29 +51,30 @@ class SsdCache {
           checksumReadVerificationEnabled(_checksumReadVerificationEnabled),
           executor(_executor) {}
 
-    std::string filePrefix;
-    uint64_t maxBytes;
-    int32_t numShards;
+    const std::string filePrefix;
+    const uint64_t maxBytes;
+    const int32_t numShards;
 
     /// Checkpoint after every 'checkpointIntervalBytes'/'numShards' written
     /// into each file. 0 means no checkpointing.
-    uint64_t checkpointIntervalBytes;
+    const uint64_t checkpointIntervalBytes;
 
     /// True if copy on write should be disabled.
-    bool disableFileCow;
+    const bool disableFileCow;
 
     /// If true, checksum write to SSD is enabled.
-    bool checksumEnabled;
+    const bool checksumEnabled;
 
     /// If true, checksum read verification from SSD is enabled.
-    bool checksumReadVerificationEnabled;
+    const bool checksumReadVerificationEnabled;
 
     /// Executor for async fsync in checkpoint.
     folly::Executor* executor;
 
     std::string toString() const {
       return fmt::format(
-          "{} shards, capacity {}, checkpoint size {}, file cow {}, checksum {}, read verification {}",
+          "file prefix '{}', {} shards, capacity {}, checkpoint size {}, file cow {}, checksum {}, read verification {}",
+          filePrefix,
           numShards,
           succinctBytes(maxBytes),
           succinctBytes(checkpointIntervalBytes),
@@ -83,7 +84,7 @@ class SsdCache {
     }
   };
 
-  /// Constructs a cache with backing files at path 'filePrefix'.<ordinal>.
+  /// Constructs a cache with backing files at path 'filePrefix'<ordinal>.
   /// <ordinal> ranges from 0 to 'numShards' - 1.
   /// 'maxBytes' is the total capacity of the cache. This is rounded up to the
   /// next multiple of kRegionSize * 'numShards'. This means that all the shards
@@ -100,7 +101,10 @@ class SsdCache {
 
   /// Returns the shard corresponding to 'fileId'. 'fileId' is a file id from
   /// e.g. FileCacheKey.
-  SsdFile& file(uint64_t fileId);
+  SsdFile& file(uint64_t fileId) {
+    const auto index = fileId % numShards_;
+    return *files_[index];
+  }
 
   /// Returns the maximum capacity, rounded up from the capacity passed to the
   /// constructor.
@@ -121,7 +125,7 @@ class SsdCache {
   /// for the successfully stored entries. May evict existing entries from
   /// unpinned regions.
   ///
-  /// NOTE: startWrite() must have been called first and it must have returned
+  /// NOTE: startWrite() must have been called first, and it must have returned
   /// true.
   void write(std::vector<CachePin> pins);
 
@@ -166,10 +170,10 @@ class SsdCache {
 
   /// Waits until the pending ssd cache writes or checkpoints to finish. Used by
   /// test and Prestissimo worker operation.
-  void waitForWriteToFinish();
+  void waitForWriteToFinish() const;
 
  private:
-  void checkNotShutdownLocked() {
+  void checkNotShutdownLocked() const {
     VELOX_CHECK(
         !shutdown_, "Unexpected write after SSD cache has been shutdown");
   }
@@ -179,6 +183,7 @@ class SsdCache {
   // Stats for selecting entries to save from AsyncDataCache.
   const std::unique_ptr<FileGroupStats> groupStats_;
   folly::Executor* const executor_;
+
   mutable std::mutex mutex_;
 
   std::vector<std::unique_ptr<SsdFile>> files_;

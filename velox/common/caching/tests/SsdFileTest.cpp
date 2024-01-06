@@ -114,7 +114,7 @@ class SsdFileTest : public testing::Test {
   }
 
   // Corrupts the file by invalidate the last 1/10th of its content.
-  void corruptSsdFile(const std::string& path) {
+  static void corruptSsdFile(const std::string& path) {
     const auto fd = ::open(path.c_str(), O_WRONLY);
     const auto size = ::lseek(fd, 0, SEEK_END);
     ASSERT_EQ(ftruncate(fd, size / 10 * 9), 0);
@@ -140,7 +140,7 @@ class SsdFileTest : public testing::Test {
   }
 
   // Checks that the contents are consistent with what is set in
-  // initializeContents.
+  // 'initializeContents()'.
   static void checkContents(
       const memory::Allocation& alloc,
       int32_t numBytes,
@@ -200,7 +200,7 @@ class SsdFileTest : public testing::Test {
           cache_->findOrCreate(RawFileCacheKey{fileId, offset}, size, nullptr));
       bytesFromCache += size;
       EXPECT_FALSE(pins.back().empty());
-      auto entry = pins.back().entry();
+      auto* entry = pins.back().entry();
       if (entry && entry->isExclusive()) {
         initializeContents(fileId + offset, entry->data());
       }
@@ -231,8 +231,9 @@ class SsdFileTest : public testing::Test {
     std::vector<SsdPin> ssdPins;
     ssdPins.reserve(pins.size());
     for (auto& pin : pins) {
-      ssdPins.push_back(ssdFile_->find(RawFileCacheKey{
-          pin.entry()->key().fileNum.id(), pin.entry()->key().offset}));
+      ssdPins.push_back(ssdFile_->find(
+          RawFileCacheKey{
+              pin.entry()->key().fileNum.id(), pin.entry()->key().offset}));
       EXPECT_FALSE(ssdPins.back().empty());
     }
     ssdFile_->load(ssdPins, pins);
@@ -249,7 +250,7 @@ class SsdFileTest : public testing::Test {
     ssdFile_->write(pins);
     // Only Some pins get written because space cannot be cleared
     // because all regions are pinned. The file will not give out new
-    // pins so that this situation is not continued
+    // pins so that this situation is not continued.
     EXPECT_TRUE(
         ssdFile_->find(RawFileCacheKey{fileName_.id(), ssdSize}).empty());
     int32_t numWritten = 0;
@@ -345,8 +346,7 @@ TEST_F(SsdFileTest, writeAndRead) {
 
   // The SsdFile is almost full and the memory cache has the last batch written
   // and a few entries from the batch before that.
-  // We read back the same batches and check
-  // contents.
+  // We read back the same batches and check contents.
   for (auto startOffset = 0; startOffset <= kSsdSize - SsdFile::kRegionSize;
        startOffset += SsdFile::kRegionSize) {
     auto pins =
@@ -537,6 +537,7 @@ TEST_F(SsdFileTest, fileCorruption) {
   EXPECT_EQ(checkEntries({allEntries.begin(), allEntries.begin() + 100}), 100);
   EXPECT_EQ(
       checkEntries({allEntries.end() - 100, allEntries.end()}, false), 100);
+
   // Corrupt the SSD file, initialize the cache from checkpoint with read
   // verification enabled.
   ssdFile_->checkpoint(true);
@@ -868,8 +869,9 @@ TEST_F(SsdFileTest, dataFileErrorInjection) {
   std::vector<SsdPin> ssdPins;
   ssdPins.reserve(pins.size());
   for (auto& pin : pins) {
-    ssdPins.push_back(ssdFile_->find(RawFileCacheKey{
-        pin.entry()->key().fileNum.id(), pin.entry()->key().offset}));
+    ssdPins.push_back(ssdFile_->find(
+        RawFileCacheKey{
+            pin.entry()->key().fileNum.id(), pin.entry()->key().offset}));
   }
 
   SsdCacheStats statsWithReadErrorInjected;

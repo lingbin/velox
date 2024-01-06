@@ -28,8 +28,7 @@
 
 #include <vector>
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 namespace dwio::common {
 class ColumnStatistics;
 }
@@ -286,7 +285,7 @@ class ScanSpec {
   // Returns the child which produces values for 'channel'. Throws if not found.
   ScanSpec& getChildByChannel(column_index_t channel);
 
-  // sets filter order and filters of 'this' from 'other'. Used when
+  // Sets filter order and filters of 'this' from 'other'. Used when
   // initializing a ScanSpec for a new split or stripe. This transfers
   // dynamically acquired filters and adaptive filter order. 'other'
   // should not be used after this. Different splits or stripes may
@@ -415,7 +414,7 @@ class ScanSpec {
   // map with numeric key, this is the subscript as defined for array
   // or map.
   int64_t subscript_ = -1;
-  // Column name if this is a struct mamber. String key if this
+  // Column name if this is a struct member. String key if this
   // describes an operation on a map value.
   std::string fieldName_;
   // Ordinal position of the extracted value in the containing
@@ -510,8 +509,7 @@ bool testFilter(
     const TypePtr& type);
 
 } // namespace common
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox
 
 template <>
 struct fmt::formatter<facebook::velox::common::ScanSpec::ColumnType>

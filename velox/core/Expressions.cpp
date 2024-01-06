@@ -418,8 +418,7 @@ size_t ConstantTypedExpr::localHash() const {
 }
 
 std::string CallTypedExpr::toString() const {
-  std::string str{};
-  str += name();
+  std::string str = name();
   str += "(";
   for (size_t i = 0; i < inputs().size(); ++i) {
     auto& input = inputs().at(i);
@@ -464,7 +463,7 @@ TypedExprPtr FieldAccessTypedExpr::rewriteInputNames(
 
   auto newInputs = rewriteInputsRecursive(mapping);
   VELOX_CHECK_EQ(1, newInputs.size());
-  // Only rewrite name if input in InputTypedExpr. Rewrite in other
+  // Only rewrite name if input is InputTypedExpr. Rewrite in other
   // cases(like dereference) is unsound.
   if (!is_instance_of<InputTypedExpr>(newInputs[0])) {
     return std::make_shared<FieldAccessTypedExpr>(type(), newInputs[0], name_);
@@ -472,9 +471,9 @@ TypedExprPtr FieldAccessTypedExpr::rewriteInputNames(
   auto it = mapping.find(name_);
   auto newName = name_;
   if (it != mapping.end()) {
-    if (auto name =
+    if (auto fieldExpr =
             std::dynamic_pointer_cast<const FieldAccessTypedExpr>(it->second)) {
-      newName = name->name();
+      newName = fieldExpr->name();
     }
   }
   return std::make_shared<FieldAccessTypedExpr>(type(), newInputs[0], newName);

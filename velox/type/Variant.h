@@ -133,7 +133,7 @@ struct VariantTypeTraits<TypeKind::OPAQUE, usesCustomComparison> {
 
 class Variant {
  private:
-  Variant(TypeKind kind, void* ptr, bool usesCustomComparison = false)
+  Variant(TypeKind kind, const void* ptr, bool usesCustomComparison = false)
       : ptr_{ptr}, kind_{kind}, usesCustomComparison_(usesCustomComparison) {}
 
   template <TypeKind KIND>
@@ -182,7 +182,7 @@ class Variant {
 
  public:
   struct Hasher {
-    size_t operator()(Variant const& input) const noexcept {
+    size_t operator()(const Variant& input) const noexcept {
       return input.hash();
     }
   };
@@ -225,7 +225,7 @@ class Variant {
   // On 64-bit platforms `int64_t` is declared as `long int`, not `long long
   // int`, thus adding an extra overload to make literals like 1LL resolve
   // correctly. Note that one has to use template T because otherwise SFINAE
-  // doesn't work, but in this case T = long long
+  // doesn't work, but in this case T = long long.
   template <
       typename T = long long,
       std::enable_if_t<
@@ -265,7 +265,7 @@ class Variant {
             std::move(inputs)}};
   }
 
-  static Variant timestamp(const Timestamp& input) {
+  static Variant timestamp(Timestamp input) {
     return {
         TypeKind::TIMESTAMP,
         new typename detail::VariantTypeTraits<TypeKind::TIMESTAMP, false>::
@@ -330,8 +330,7 @@ class Variant {
       : ptr_{nullptr},
         kind_{other.kind_},
         usesCustomComparison_(other.usesCustomComparison_) {
-    auto op = other.ptr_;
-    if (op != nullptr) {
+    if (other.ptr_ != nullptr) {
       dynamicCopy(other.ptr_, other.kind_);
     }
   }
@@ -368,9 +367,9 @@ class Variant {
   }
 
   template <typename T>
-  static Variant create(const typename detail::VariantTypeTraits<
-                        CppToType<T>::typeKind,
-                        false>::value_type& v) {
+  static Variant create(
+      const typename detail::VariantTypeTraits<CppToType<T>::typeKind, false>::
+          value_type& v) {
     return create<CppToType<T>::typeKind>(v);
   }
 
@@ -507,11 +506,10 @@ class Variant {
       return static_cast<
           const typename detail::VariantTypeTraits<KIND, true>::stored_type*>(
           ptr_);
-    } else {
-      return static_cast<
-          const typename detail::VariantTypeTraits<KIND, false>::stored_type*>(
-          ptr_);
     }
+    return static_cast<
+        const typename detail::VariantTypeTraits<KIND, false>::stored_type*>(
+        ptr_);
   }
 
   template <typename T>

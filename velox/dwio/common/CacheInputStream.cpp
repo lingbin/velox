@@ -85,7 +85,7 @@ bool CacheInputStream::Next(const void** buffer, int32_t* size) {
 
   loadPosition();
 
-  *buffer = reinterpret_cast<const void**>(run_ + offsetInRun_);
+  *buffer = reinterpret_cast<const void*>(run_ + offsetInRun_);
   *size = runSize_ - offsetInRun_;
   if (window_.has_value()) {
     if (position_ + *size > window_->offset + window_->length) {
@@ -166,8 +166,8 @@ size_t CacheInputStream::positionSize() const {
 }
 
 void CacheInputStream::setRemainingBytes(uint64_t remainingBytes) {
-  VELOX_CHECK_GE(region_.length, position_ + remainingBytes);
-  window_ = Region{static_cast<uint64_t>(position_), remainingBytes};
+  VELOX_CHECK_LE(position_ + remainingBytes, region_.length);
+  window_ = Region{position_, remainingBytes};
 }
 
 namespace {
@@ -325,8 +325,8 @@ bool CacheInputStream::loadFromSsd(
 }
 
 std::string CacheInputStream::ssdFileName() const {
-  auto ssdCache = cache_->ssdCache();
-  if (!ssdCache) {
+  auto* ssdCache = cache_->ssdCache();
+  if (ssdCache == nullptr) {
     return "";
   }
   return ssdCache->file(fileNum_).fileName();
@@ -372,6 +372,8 @@ void CacheInputStream::loadPosition() {
       offsetInRun_ = offsetInEntry;
       offsetOfRun_ = 0;
     } else {
+      // 这里可以进行性能优化，如果是顺序读取，那么不需要调用
+      // findRun()，直接递增 run_ 即可。
       entry->data().findRun(offsetInEntry, &runIndex_, &offsetInRun_);
       offsetOfRun_ = offsetInEntry - offsetInRun_;
       const auto run = entry->data().runAt(runIndex_);

@@ -72,11 +72,11 @@ class InputStream {
   /**
    * Read length bytes from the file starting at offset into
    * the buffer starting at buf.
-   * @param buf the starting position of a buffer.
+   * @param buff the starting position of a buffer.
    * @param length the number of bytes to read.
    * @param offset the position in the stream to read from.
    */
-  virtual void read(void*, uint64_t, uint64_t, LogType) = 0;
+  virtual void read(void* buff, uint64_t length, uint64_t offset, LogType) = 0;
 
   /**
    * Read starting at offset into buffers, filling the buffers left to right. A
@@ -129,7 +129,7 @@ class InputStream {
   virtual void logRead(uint64_t offset, uint64_t length, LogType purpose);
 
  protected:
-  std::string path_;
+  const std::string path_;
   MetricsLogPtr metricsLog_;
   IoStatistics* stats_;
   filesystems::File::IoStats* fsStats_;
@@ -155,7 +155,7 @@ class ReadFileInputStream final : public InputStream {
     return readFile_->getNaturalReadSize();
   }
 
-  void read(void*, uint64_t, uint64_t, LogType) override;
+  void read(void* buff, uint64_t length, uint64_t offset, LogType) override;
 
   void read(
       const std::vector<folly::Range<char*>>& buffers,

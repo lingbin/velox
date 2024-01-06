@@ -97,9 +97,7 @@ struct OpaqueSerdeRegistry {
     return instance;
   }
 };
-} // namespace
 
-namespace {
 std::vector<TypePtr> deserializeChildTypes(const folly::dynamic& obj) {
   return velox::ISerializable::deserialize<std::vector<Type>>(obj["cTypes"]);
 }
@@ -362,7 +360,7 @@ std::vector<TypeParameter> createTypeParameters(
   std::vector<TypeParameter> parameters;
   parameters.reserve(children.size());
   for (const auto& child : children) {
-    parameters.push_back(TypeParameter(child));
+    parameters.emplace_back(child);
   }
   return parameters;
 }
@@ -596,10 +594,11 @@ void RowType::printChildren(std::stringstream& ss, std::string_view delimiter)
 RowTypePtr RowType::unionWith(const RowTypePtr& other) const {
   std::vector<std::string> names;
   std::vector<TypePtr> types;
-  copy(names_.begin(), names_.end(), back_inserter(names));
-  copy(other->names_.begin(), other->names_.end(), back_inserter(names));
-  copy(children_.begin(), children_.end(), back_inserter(types));
-  copy(other->children_.begin(), other->children_.end(), back_inserter(types));
+  std::copy(names_.begin(), names_.end(), back_inserter(names));
+  std::copy(other->names_.begin(), other->names_.end(), back_inserter(names));
+  std::copy(children_.begin(), children_.end(), back_inserter(types));
+  std::copy(
+      other->children_.begin(), other->children_.end(), back_inserter(types));
   return ROW(std::move(names), std::move(types));
 }
 
@@ -635,8 +634,9 @@ folly::dynamic SerializedTypeCache::serialize() {
   // populated.
   std::vector<std::pair<int32_t, const folly::dynamic*>> cacheEntries;
   for (const auto& [_, pair] : cache_) {
-    cacheEntries.emplace_back(std::make_pair<int32_t, const folly::dynamic*>(
-        (int32_t)pair.first, &pair.second));
+    cacheEntries.emplace_back(
+        std::make_pair<int32_t, const folly::dynamic*>(
+            (int32_t)pair.first, &pair.second));
   }
 
   std::sort(cacheEntries.begin(), cacheEntries.end(), [](auto& a, auto& b) {
@@ -773,7 +773,7 @@ bool MapType::equals(const Type& other) const {
 FunctionType::FunctionType(
     std::vector<std::shared_ptr<const Type>>&& argumentTypes,
     std::shared_ptr<const Type> returnType)
-    : children_(allChildren(std::move(argumentTypes), returnType)),
+    : children_(allChildren(std::move(argumentTypes), std::move(returnType))),
       parameters_{createTypeParameters(children_)} {}
 
 bool FunctionType::equivalent(const Type& other) const {
@@ -994,17 +994,17 @@ std::shared_ptr<const FunctionType> FUNCTION(
     return ScalarType<TypeKind::KIND>::create();             \
   }
 
-VELOX_DEFINE_SCALAR_ACCESSOR(INTEGER);
 VELOX_DEFINE_SCALAR_ACCESSOR(BOOLEAN);
 VELOX_DEFINE_SCALAR_ACCESSOR(TINYINT);
 VELOX_DEFINE_SCALAR_ACCESSOR(SMALLINT);
+VELOX_DEFINE_SCALAR_ACCESSOR(INTEGER);
 VELOX_DEFINE_SCALAR_ACCESSOR(BIGINT);
 VELOX_DEFINE_SCALAR_ACCESSOR(HUGEINT);
 VELOX_DEFINE_SCALAR_ACCESSOR(REAL);
 VELOX_DEFINE_SCALAR_ACCESSOR(DOUBLE);
-VELOX_DEFINE_SCALAR_ACCESSOR(TIMESTAMP);
 VELOX_DEFINE_SCALAR_ACCESSOR(VARCHAR);
 VELOX_DEFINE_SCALAR_ACCESSOR(VARBINARY);
+VELOX_DEFINE_SCALAR_ACCESSOR(TIMESTAMP);
 
 #undef VELOX_DEFINE_SCALAR_ACCESSOR
 
@@ -1044,6 +1044,7 @@ TypePtr createType(TypeKind kind, std::vector<TypePtr>&& children) {
         children.size(), 0, "UNKNOWN type should not have child types");
     return UNKNOWN();
   }
+
   return VELOX_DYNAMIC_TYPE_DISPATCH(createType, kind, std::move(children));
 }
 
@@ -1245,7 +1246,8 @@ void toTypeSql(const TypePtr& type, std::ostream& out) {
   }
 }
 
-std::string IntervalDayTimeType::valueToString(int64_t value) const {
+// static
+std::string IntervalDayTimeType::valueToString(int64_t value) {
   static const char* kIntervalFormat = "%s%lld %02d:%02d:%02d.%03d";
 
   int128_t remainMillis = value;
@@ -1277,9 +1279,10 @@ std::string IntervalDayTimeType::valueToString(int64_t value) const {
   return buf;
 }
 
-std::string IntervalYearMonthType::valueToString(int32_t value) const {
+// static
+std::string IntervalYearMonthType::valueToString(int32_t value) {
   std::ostringstream oss;
-  auto sign = "";
+  const auto* sign = "";
   int64_t longValue = value;
   if (longValue < 0) {
     sign = "-";
@@ -1289,10 +1292,12 @@ std::string IntervalYearMonthType::valueToString(int32_t value) const {
   return oss.str();
 }
 
-std::string DateType::toString(int32_t days) const {
+// static
+std::string DateType::toString(int32_t days) {
   return DateType::toIso8601(days);
 }
 
+// static
 std::string DateType::toIso8601(int32_t days) {
   // Find the number of seconds for the days_;
   // Casting 86400 to int64 to handle overflows gracefully.
@@ -1314,11 +1319,13 @@ std::string DateType::toIso8601(int32_t days) {
   return result;
 }
 
-int32_t DateType::toDays(folly::StringPiece in) const {
+// static
+int32_t DateType::toDays(folly::StringPiece in) {
   return toDays(in.data(), in.size());
 }
 
-int32_t DateType::toDays(const char* in, size_t len) const {
+// static
+int32_t DateType::toDays(const char* in, size_t len) {
   return util::fromDateString(in, len, util::ParseMode::kPrestoCast)
       .thenOrThrow(folly::identity, [&](const Status& status) {
         VELOX_USER_FAIL("{}", status.message());

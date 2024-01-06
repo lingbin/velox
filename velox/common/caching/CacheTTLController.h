@@ -55,9 +55,6 @@ class CacheTTLController {
   /// Return the process-wide singleton instance of CacheTTLController if it has
   /// been created. Otherwise, return nullptr.
   static CacheTTLController* getInstance() {
-    if (instance_ == nullptr) {
-      return nullptr;
-    }
     return instance_.get();
   }
 
@@ -82,7 +79,6 @@ class CacheTTLController {
   /// A process-wide singleton instance of CacheTTLController.
   static std::unique_ptr<CacheTTLController> instance_;
 
- private:
   // Prevent creating a random instance of CacheTTLController.
   explicit CacheTTLController(AsyncDataCache& cache) : cache_(cache) {}
 

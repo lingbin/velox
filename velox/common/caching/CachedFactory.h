@@ -163,7 +163,7 @@ class CachedFactory {
       std::unique_ptr<Generator> generator)
       : generator_(std::move(generator)), cache_(std::move(cache)) {}
 
-  CachedFactory(std::unique_ptr<Generator> generator)
+  explicit CachedFactory(std::unique_ptr<Generator> generator)
       : CachedFactory(nullptr, std::move(generator)) {}
 
   /// Returns the generator's output on the given key. If the output is in the
@@ -399,6 +399,7 @@ CachedPtr<Key, Value, Comparator, Hash> CachedFactory<
     // Will normally hit the cache now.
     if (Value* value = getCache(key)) {
       return CachedPtr<Key, Value, Comparator, Hash>(
+          // TODO(lingbin): 这里弄错了？ 应该 为true?
           /*fromCache=*/false,
           value,
           cache_.get(),
@@ -426,6 +427,7 @@ CachedPtr<Key, Value, Comparator, Hash> CachedFactory<
   CachedPtr<Key, Value, Comparator, Hash> result;
   if (inserted) {
     result = CachedPtr<Key, Value, Comparator, Hash>(
+        // TODO(lingbin): 这里弄错了？ 应该 为true?
         /*fromCache=*/false,
         rawValue,
         cache_.get(),

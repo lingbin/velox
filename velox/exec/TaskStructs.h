@@ -63,7 +63,7 @@ struct BarrierState {
   std::vector<std::shared_ptr<Driver>> drivers;
   /// Promises given to non-last peer drivers that the last driver will collect
   /// all hashtables from the peers and assembles them into one (HashBuilder
-  /// operator does that). After the last drier done its work, the promises are
+  /// operator does that). After the last driver done its work, the promises are
   /// fulfilled and the non-last drivers can continue.
   std::vector<ContinuePromise> allPeersFinishedPromises;
 };
@@ -154,7 +154,7 @@ class SplitsStore {
   std::vector<ContinuePromise> promises_;
 };
 
-/// Structure contains the current info on splits for a particular plan node.
+/// Structure contains the current info on splits for a leaf plan node.
 struct SplitsState {
   /// True if the source node is a table scan.
   bool sourceIsTableScan{false};

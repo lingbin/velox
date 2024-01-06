@@ -42,7 +42,7 @@ enum class Simple {
 
 inline std::ostream& operator<<(
     std::ostream& out,
-    const VectorEncoding::Simple& type) {
+    VectorEncoding::Simple type) {
   switch (type) {
     case VectorEncoding::Simple::BIASED:
       return out << "BIASED";
