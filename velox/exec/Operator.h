@@ -98,7 +98,7 @@ class OperatorCtx {
   const core::PlanNodeId planNodeId_;
   int32_t operatorId_;
   const std::string operatorType_;
-  velox::memory::MemoryPool* const pool_;
+  memory::MemoryPool* const pool_;
 
   // These members are created on demand.
   mutable std::unique_ptr<core::ExecCtx> execCtx_;
@@ -352,7 +352,7 @@ class Operator : public BaseRuntimeStatWriter {
     return stats_;
   }
 
-  void recordBlockingTime(uint64_t start, BlockingReason reason);
+  void recordBlockingTime(uint64_t startMicros, BlockingReason reason);
 
   virtual std::string toString() const;
 
@@ -649,8 +649,8 @@ class Operator : public BaseRuntimeStatWriter {
 
   bool noMoreInput_ = false;
   std::vector<IdentityProjection> identityProjections_;
-  std::vector<VectorPtr> results_;
 
+  std::vector<VectorPtr> results_;
   /// Maps between index in results_ and index in output RowVector.
   std::vector<IdentityProjection> resultProjections_;
 

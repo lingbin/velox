@@ -229,7 +229,7 @@ class CallTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const override {
     const auto* casted = dynamic_cast<const CallTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -298,7 +298,7 @@ class FieldAccessTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const FieldAccessTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -381,7 +381,7 @@ class DereferenceTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const DereferenceTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -528,7 +528,7 @@ using LambdaTypedExprPtr = std::shared_ptr<const LambdaTypedExpr>;
 class CastTypedExpr : public ITypedExpr {
  public:
   /// @param type Type to convert to. This is the return type of the CAST
-  /// expresion.
+  /// expression.
   /// @param input Single input. The type of input is referred to as from-type
   /// and expected to be different from to-type.
   /// @param isTryCast Whether this expression is used for `try_cast`.

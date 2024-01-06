@@ -46,6 +46,7 @@ struct IdentityGenerator {
     return std::make_unique<int>(value);
   }
 };
+
 } // namespace
 
 TEST(CachedFactoryTest, basicGeneration) {
@@ -69,6 +70,7 @@ TEST(CachedFactoryTest, basicGeneration) {
     ASSERT_EQ(factory.cacheStats().pinnedSize, 1);
   }
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
+  ASSERT_EQ(factory.cacheStats().numElements, 1);
 
   {
     auto val3 = factory.generate(1);
@@ -87,6 +89,7 @@ TEST(CachedFactoryTest, basicGeneration) {
     ASSERT_EQ(factory.cacheStats().pinnedSize, 3);
   }
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
+  ASSERT_EQ(factory.cacheStats().numElements, 3);
 
   {
     auto val6 = factory.generate(1);
@@ -105,26 +108,14 @@ TEST(CachedFactoryTest, basicGeneration) {
     ASSERT_EQ(factory.cacheStats().pinnedSize, 3);
   }
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
+  ASSERT_EQ(factory.cacheStats().numElements, 4);
 
   factory.clearCache();
   ASSERT_EQ(factory.currentSize(), 0);
   ASSERT_EQ(factory.cacheStats().curSize, 0);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
+  ASSERT_EQ(factory.cacheStats().numElements, 0);
 }
-
-struct DoublerWithExceptionsGenerator {
-  std::unique_ptr<int> operator()(
-      const int& value,
-      const void* /*properties*/ = nullptr,
-      void* /*statistics*/ = nullptr) {
-    if (value == 3) {
-      VELOX_FAIL("3 is bad");
-    }
-    ++generated;
-    return std::make_unique<int>(value * 2);
-  }
-  int generated = 0;
-};
 
 TEST(CachedFactoryTest, clearCache) {
   auto generator = std::make_unique<DoublerGenerator>();
@@ -158,6 +149,24 @@ TEST(CachedFactoryTest, clearCache) {
   ASSERT_EQ(factory.currentSize(), 0);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
 }
+
+namespace {
+
+struct DoublerWithExceptionsGenerator {
+  std::unique_ptr<int> operator()(
+      const int& value,
+      const void* /*properties*/ = nullptr,
+      void* /*statistics*/ = nullptr) {
+    if (value == 3) {
+      VELOX_FAIL("3 is bad");
+    }
+    ++generated;
+    return std::make_unique<int>(value * 2);
+  }
+  int generated = 0;
+};
+
+} // namespace
 
 TEST(CachedFactoryTest, basicExceptionHandling) {
   auto generator = std::make_unique<DoublerWithExceptionsGenerator>();
@@ -207,6 +216,7 @@ TEST(CachedFactoryTest, multiThreadedGenerationAgain) {
   auto* generated = &generator->generated;
   CachedFactory<int, int, DoublerGenerator> factory(
       std::make_unique<SimpleLRUCache<int, int>>(1000), std::move(generator));
+  // 修改为 普通的 CPUThreadPool即可？
   folly::EDFThreadPoolExecutor pool(
       100, std::make_shared<folly::NamedThreadFactory>("test_pool"));
   const int numValues = 5;
@@ -240,14 +250,17 @@ TEST(CachedFactoryTest, lruCacheEviction) {
   auto val1 = factory.generate(1);
   ASSERT_FALSE(val1.fromCache());
   ASSERT_TRUE(val1.cached());
+
   auto val2 = factory.generate(2);
   ASSERT_FALSE(val2.fromCache());
   ASSERT_TRUE(val2.cached());
+
   auto val3 = factory.generate(3);
   ASSERT_FALSE(val3.fromCache());
   ASSERT_TRUE(val3.cached());
   ASSERT_EQ(factory.currentSize(), 3);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 3);
+
   auto val4 = factory.generate(4);
   ASSERT_FALSE(val4.fromCache());
   ASSERT_FALSE(val4.cached());
@@ -274,11 +287,14 @@ TEST(CachedFactoryTest, lruCacheEviction) {
   val1.testingClear();
   val2.testingClear();
   val3.testingClear();
+  ASSERT_EQ(factory.currentSize(), 3);
+  ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
 
   val4 = factory.generate(4);
   ASSERT_FALSE(val4.fromCache());
   ASSERT_TRUE(val4.cached());
   ASSERT_EQ(factory.cacheStats().curSize, 3);
+  ASSERT_EQ(factory.cacheStats().pinnedSize, 1);
   {
     auto val = factory.generate(4);
     ASSERT_TRUE(val.fromCache());
@@ -333,6 +349,7 @@ TEST(CachedFactoryTest, cacheExpiration) {
   ASSERT_EQ(factory.cacheStats().pinnedSize, 3);
 
   val1.testingClear();
+  // The expired cache entry 1 should be evicted.
   ASSERT_EQ(factory.currentSize(), 2);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 2);
 
@@ -344,8 +361,10 @@ TEST(CachedFactoryTest, cacheExpiration) {
 
   val2.testingClear();
   val3.testingClear();
+  // The expired cache entry 2 and 3 should be evicted.
   ASSERT_EQ(factory.currentSize(), 1);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 1);
+
   val4.testingClear();
   ASSERT_EQ(factory.currentSize(), 1);
   ASSERT_EQ(factory.cacheStats().pinnedSize, 0);
@@ -400,7 +419,7 @@ TEST(CachedFactoryTest, retrievedCached) {
   ASSERT_EQ(*generated, 5);
 }
 
-TEST(CachedFactoryTest, clearCacheWithManyEntries) {
+TEST(CachedFactoryTest, clearCacheWithManyPinnedEntries) {
   auto generator = std::make_unique<DoublerGenerator>();
   CachedFactory<int, int, DoublerGenerator> factory(
       std::make_unique<SimpleLRUCache<int, int>>(1000), std::move(generator));

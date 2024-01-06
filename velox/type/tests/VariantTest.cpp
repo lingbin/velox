@@ -606,6 +606,9 @@ TEST(VariantTest, typeWithCustomComparison) {
   ASSERT_FALSE(null.equals(one));
   ASSERT_FALSE(null.equalsWithEpsilon(one));
 
+  ASSERT_TRUE(null.equals(null));
+  ASSERT_TRUE(null.equalsWithEpsilon(null));
+
   ASSERT_FALSE(zero < zeroEquivalent);
   ASSERT_FALSE(zero.lessThanWithEpsilon(zeroEquivalent));
 

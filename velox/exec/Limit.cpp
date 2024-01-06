@@ -77,6 +77,7 @@ RowVectorPtr Limit::getOutput() {
     std::iota(rawIndices, rawIndices + outputSize, remainingOffset_);
 
     auto output = fillOutput(outputSize, indices);
+    input_ = nullptr;
     remainingOffset_ = 0;
     remainingLimit_ -= outputSize;
     if (remainingLimit_ == 0) {

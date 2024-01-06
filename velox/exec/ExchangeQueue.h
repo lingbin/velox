@@ -19,8 +19,8 @@
 
 namespace facebook::velox::exec {
 
-/// Corresponds to Presto SerializedPage, i.e. a container for serialize vectors
-/// in Presto wire format.
+/// Corresponds to Presto SerializedPage, i.e. a container for serialized
+/// vectors in Presto wire format.
 class SerializedPage {
  public:
   /// Construct from IOBuf chain.
@@ -49,8 +49,8 @@ class SerializedPage {
   }
 
  private:
-  static int64_t chainBytes(folly::IOBuf& iobuf) {
-    int64_t size = 0;
+  static uint64_t chainBytes(folly::IOBuf& iobuf) {
+    uint64_t size = 0;
     for (auto& range : iobuf) {
       size += range.size();
     }
@@ -60,11 +60,11 @@ class SerializedPage {
   // Buffers containing the serialized data. The memory is owned by 'iobuf_'.
   std::vector<ByteRange> ranges_;
 
-  // IOBuf holding the data in 'ranges_.
+  // IOBuf holding the data in 'ranges_'.
   std::unique_ptr<folly::IOBuf> iobuf_;
 
   // Number of payload bytes in 'iobuf_'.
-  const int64_t iobufBytes_;
+  const uint64_t iobufBytes_;
 
   // Number of payload rows, if provided.
   const std::optional<int64_t> numRows_;
@@ -77,8 +77,8 @@ class SerializedPage {
 };
 
 /// Queue of results retrieved from source. Owned by shared_ptr by
-/// Exchange and client threads and registered callbacks waiting
-/// for input.
+/// ExchangeClient and client threads and registered callbacks waiting for
+/// input.
 class ExchangeQueue {
  public:
   explicit ExchangeQueue(
@@ -111,15 +111,15 @@ class ExchangeQueue {
       std::unique_ptr<SerializedPage>&& page,
       std::vector<ContinuePromise>& promises);
 
-  /// If data is permanently not available, e.g. the source cannot be
-  /// contacted, this registers an error message and causes the reading
-  /// Exchanges to throw with the message.
+  /// If data is permanently not available, e.g. the source cannot be contacted,
+  /// this registers an error message and causes the reading Exchanges to throw
+  /// with the message.
   void setError(const std::string& error);
 
   /// Returns pages of data.
   ///
   /// Returns empty list if no data is available. If data is still expected,
-  /// sets 'atEnd' to false and 'future' to a Future that will complete when
+  /// sets 'atEnd' to false and 'future' to a future that will complete when
   /// data arrives. If no more data is expected, sets 'atEnd' to true. Returns
   /// at least one page if data is available. If multiple pages are available,
   /// returns as many pages as fit within 'maxBytes', but no fewer than one.

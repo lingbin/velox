@@ -364,8 +364,8 @@ struct ArrayVectorBase : BaseVector {
     BaseVector::resize(size, setNotNull);
   }
 
-  /// Its the caller responsibility to make sure that `offsets_` and `sizes_`
-  /// are safe to write at index i, i.ex not shared, or not large enough.
+  /// It's the caller responsibility to make sure that `offsets_` and `sizes_`
+  /// are safe to write at index i, ie, not shared, or not large enough.
   void
   setOffsetAndSize(vector_size_t i, vector_size_t offset, vector_size_t size) {
     DCHECK_LT(i, BaseVector::length_);

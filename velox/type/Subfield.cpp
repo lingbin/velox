@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "velox/type/Subfield.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <folly/container/F14Map.h>
+#include <string>
 #include "velox/type/Tokenizer.h"
 
 namespace facebook::velox::common {
@@ -56,7 +58,7 @@ Subfield::Subfield(
   path_ = std::move(pathElements);
 }
 
-Subfield::Subfield(std::vector<std::unique_ptr<Subfield::PathElement>>&& path)
+Subfield::Subfield(std::vector<std::unique_ptr<PathElement>>&& path)
     : path_(std::move(path)) {
   VELOX_CHECK_GE(path_.size(), 1);
   VELOX_CHECK_EQ(
