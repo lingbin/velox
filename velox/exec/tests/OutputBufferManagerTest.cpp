@@ -324,11 +324,11 @@ class OutputBufferManagerTest : public testing::Test {
     rng.seed(destination);
     int64_t nextSequence{0};
     while (true) {
-      if (earlyTermination && folly::Random().oneIn(200)) {
+      if (earlyTermination && folly::Random::oneIn(200)) {
         bufferManager_->deleteResults(taskId, destination);
         return;
       }
-      const int64_t maxBytes = folly::Random().oneIn(4, rng) ? 32'000'000 : 1;
+      const int64_t maxBytes = folly::Random::oneIn(4, rng) ? 32'000'000 : 1;
       bool atEnd{false};
       folly::EventCount dataWait;
       auto dataWaitKey = dataWait.prepareWait();
@@ -375,8 +375,9 @@ class OutputBufferManagerTest : public testing::Test {
               std::vector<std::unique_ptr<folly::IOBuf>> pages,
               int64_t inSequence,
               std::vector<int64_t> remainingBytes) {
-            promise.setValue(Response{
-                std::move(pages), inSequence, std::move(remainingBytes)});
+            promise.setValue(
+                Response{
+                    std::move(pages), inSequence, std::move(remainingBytes)});
           });
       future.wait();
       ASSERT_TRUE(future.isReady());
@@ -783,7 +784,7 @@ TEST_P(OutputBufferManagerWithDifferentSerdeKindsTest, basicPartitioned) {
       taskId, rowType_, PartitionedOutputNode::Kind::kPartitioned, 5, 1);
   verifyOutputBuffer(task, OutputBufferStatus::kInitiated);
 
-  // Duplicateb update buffers with the same settings are allowed and ignored.
+  // Duplicate update buffers with the same settings are allowed and ignored.
   ASSERT_TRUE(bufferManager_->updateOutputBuffers(taskId, 5, true));
   ASSERT_FALSE(bufferManager_->isFinished(taskId));
   // Partitioned output buffer doesn't allow to update with different number
@@ -943,12 +944,12 @@ TEST_P(OutputBufferManagerWithDifferentSerdeKindsTest, basicArbitrary) {
   }
   EXPECT_FALSE(bufferManager_->isFinished(taskId));
 
-  std::unordered_map<int, int> ackedSeqbyDestination;
+  std::unordered_map<int, int> ackedSeqByDestination;
 
   for (int destination = 0; destination < numDestinations; destination++) {
     fetchOne(taskId, destination, 0, 1);
     acknowledge(taskId, destination, 1);
-    ackedSeqbyDestination[destination] = 1;
+    ackedSeqByDestination[destination] = 1;
     // Try to re-fetch already ack-ed data - should fail
     VELOX_ASSERT_THROW(fetchOne(taskId, destination, 0), "");
   }
@@ -964,21 +965,22 @@ TEST_P(OutputBufferManagerWithDifferentSerdeKindsTest, basicArbitrary) {
   ASSERT_TRUE(receivedData0);
   ASSERT_TRUE(receivedData1);
   acknowledge(taskId, 0, 2);
-  ackedSeqbyDestination[0] = 2;
+  ackedSeqByDestination[0] = 2;
   acknowledge(taskId, 1, 2);
-  ackedSeqbyDestination[1] = 2;
+  ackedSeqByDestination[1] = 2;
+
   bool receivedData{false};
   registerForData(taskId, 4, 1, 1, receivedData);
   enqueue(taskId, rowType_, size);
   enqueue(taskId, rowType_, size);
   ASSERT_TRUE(receivedData);
   acknowledge(taskId, 4, 2);
-  ackedSeqbyDestination[4] = 2;
+  ackedSeqByDestination[4] = 2;
 
   bufferManager_->updateOutputBuffers(taskId, ++numDestinations, false);
   bufferManager_->updateOutputBuffers(taskId, ++numDestinations, false);
   fetchOneAndAck(taskId, numDestinations - 1, 0);
-  ackedSeqbyDestination[numDestinations - 1] = 1;
+  ackedSeqByDestination[numDestinations - 1] = 1;
 
   bufferManager_->updateOutputBuffers(taskId, numDestinations - 1, false);
   VELOX_ASSERT_THROW(
@@ -990,19 +992,19 @@ TEST_P(OutputBufferManagerWithDifferentSerdeKindsTest, basicArbitrary) {
   enqueue(taskId, rowType_, size);
   ASSERT_TRUE(receivedData);
   acknowledge(taskId, numDestinations - 2, 1);
-  ackedSeqbyDestination[numDestinations - 2] = 1;
+  ackedSeqByDestination[numDestinations - 2] = 1;
 
   noMoreData(taskId);
   EXPECT_FALSE(bufferManager_->isFinished(taskId));
   EXPECT_TRUE(task->isRunning());
   for (int i = 0; i < numDestinations; ++i) {
-    fetchEndMarker(taskId, i, ackedSeqbyDestination[i]);
+    fetchEndMarker(taskId, i, ackedSeqByDestination[i]);
   }
   EXPECT_TRUE(bufferManager_->isFinished(taskId));
   EXPECT_FALSE(task->isRunning());
 
   // NOTE: arbitrary buffer finish condition doesn't depend on no more
-  // (destination )buffers update flag.
+  // (destination) buffers update flag.
   bufferManager_->updateOutputBuffers(taskId, numDestinations, true);
 
   EXPECT_TRUE(bufferManager_->isFinished(taskId));
@@ -1149,6 +1151,30 @@ TEST_P(
   EXPECT_TRUE(task->isFinished());
 }
 
+TEST_F(OutputBufferManagerTest, emptyArbitrary) {
+  const vector_size_t size = 100;
+  int numDestinations = 1;
+  const std::string taskId = "t-empty";
+  auto task = initializeTask(
+      taskId,
+      rowType_,
+      PartitionedOutputNode::Kind::kArbitrary,
+      numDestinations,
+      1);
+  verifyOutputBuffer(task, OutputBufferStatus::kInitiated);
+
+  enqueue(taskId, rowType_, size);
+  noMoreData(taskId);
+  fetchOne(taskId, 0, 0, 1);
+
+  // bool receivedData0{false};
+  // registerForData(taskId, 0, 1, 1, receivedData0);
+  // ASSERT_TRUE(receivedData0);
+
+  bufferManager_->deleteResults(taskId, 0);
+  bufferManager_->removeTask(taskId);
+}
+
 TEST_P(
     OutputBufferManagerWithDifferentSerdeKindsTest,
     broadcastWithDynamicAddedDestination) {
@@ -1207,19 +1233,19 @@ TEST_P(
   for (int i = 0; i < numDestinations; ++i) {
     enqueue(taskId, rowType_, size);
   }
-  std::unordered_map<int, int> ackedSeqbyDestination;
+  std::unordered_map<int, int> ackedSeqByDestination;
 
   for (int destination = 0; destination < 5; destination++) {
     fetchOne(taskId, destination, 0, 1);
     acknowledge(taskId, destination, 1);
-    ackedSeqbyDestination[destination] = 1;
+    ackedSeqByDestination[destination] = 1;
   }
   EXPECT_FALSE(bufferManager_->isFinished(taskId));
 
   // Dynamic added destination.
   enqueue(taskId, rowType_, size);
   fetchOneAndAck(taskId, numDestinations, 0);
-  ackedSeqbyDestination[numDestinations] = 1;
+  ackedSeqByDestination[numDestinations] = 1;
 
   bufferManager_->updateOutputBuffers(taskId, numDestinations - 1, false);
   bufferManager_->updateOutputBuffers(taskId, numDestinations, false);
@@ -1227,13 +1253,13 @@ TEST_P(
 
   enqueue(taskId, rowType_, size);
   fetchOneAndAck(taskId, numDestinations + 10, 0);
-  ackedSeqbyDestination[numDestinations + 10] = 1;
+  ackedSeqByDestination[numDestinations + 10] = 1;
 
   bufferManager_->updateOutputBuffers(taskId, numDestinations, true);
 
   enqueue(taskId, rowType_, size);
   fetchOneAndAck(taskId, numDestinations + 9, 0);
-  ackedSeqbyDestination[numDestinations + 9] = 1;
+  ackedSeqByDestination[numDestinations + 9] = 1;
 
   VELOX_ASSERT_THROW(
       fetch(taskId, numDestinations + 20, 0, 1'000'000'000, 1), "");
@@ -1243,7 +1269,7 @@ TEST_P(
   noMoreData(taskId);
   EXPECT_TRUE(task->isRunning());
   for (int i = 0; i <= numDestinations + 10; ++i) {
-    fetchEndMarker(taskId, i, ackedSeqbyDestination[i]);
+    fetchEndMarker(taskId, i, ackedSeqByDestination[i]);
   }
   EXPECT_TRUE(bufferManager_->isFinished(taskId));
 
@@ -1284,8 +1310,7 @@ TEST_P(AllOutputBufferManagerTest, outputBufferUtilization) {
   const auto destination = 0;
   auto task = initializeTask(taskId, rowType_, outputKind_, 1, 1);
   verifyOutputBuffer(task, OutputBufferStatus::kInitiated);
-  if (outputKind_ ==
-      facebook::velox::core::PartitionedOutputNode::Kind::kBroadcast) {
+  if (outputKind_ == core::PartitionedOutputNode::Kind::kBroadcast) {
     bufferManager_->updateOutputBuffers(taskId, destination, true);
   }
 
@@ -1564,7 +1589,7 @@ TEST_P(AllOutputBufferManagerTest, multiFetchers) {
         break;
       }
       ++producedPages[partition];
-      if (folly::Random().oneIn(4)) {
+      if (folly::Random::oneIn(4)) {
         std::this_thread::sleep_for(std::chrono::microseconds(5)); // NOLINT
       }
       if (i == 1000 &&
@@ -1584,8 +1609,8 @@ TEST_P(AllOutputBufferManagerTest, multiFetchers) {
     }
     noMoreData(taskId);
 
-    for (int i = 0; i < threads.size(); ++i) {
-      threads[i].join();
+    for (auto& thread : threads) {
+      thread.join();
     }
 
     if (!earlyTermination) {

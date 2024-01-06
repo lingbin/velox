@@ -66,4 +66,12 @@ TEST(String, StringWriter) {
     dst = createStringWriter(sampleTest);
     EXPECT_EQ(StringView(dst), StringView(sampleTest));
   }
+  {
+    StringWriter src = createStringWriter(sampleTest);
+    char* data = src.data();
+    StringWriter dst;
+    dst = std::move(src);
+    EXPECT_EQ(dst.data(), data);
+    EXPECT_EQ(StringView(dst), StringView(sampleTest));
+  }
 }

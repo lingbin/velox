@@ -82,7 +82,7 @@ std::string TraceContext::statusLine() {
       out << label << ": numThreads=" << data.numThreads
           << " numEnters=" << data.numEnters
           << " avgMs=" << (data.totalMs / data.numEnters)
-          << " maxMs=" << data.maxMs << " continued=" << continued << std::endl;
+          << " maxMs=" << data.maxMs << " continued=" << continued << "ms\n";
     }
   }
   return out.str();

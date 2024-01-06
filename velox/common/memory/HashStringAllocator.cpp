@@ -292,7 +292,7 @@ void HashStringAllocator::newSlab() {
   VELOX_CHECK_NOT_NULL(run);
   // We check we got exactly the requested amount. checkConsistency() depends on
   // slabs made here coinciding with ranges from AllocationPool::rangeAt().
-  // Sometimes the last range can be several huge pages for severl huge page
+  // Sometimes the last range can be several huge pages for several huge page
   // sized arenas but checkConsistency() can interpret that.
   VELOX_CHECK_EQ(state_.pool().freeBytes(), 0);
   const auto available = needed - kHeaderSize - kSimdPadding;
@@ -516,7 +516,7 @@ void HashStringAllocator::free(Header* header) {
 
 // static
 int64_t HashStringAllocator::offset(Header* header, Position position) {
-  static const int64_t kOutOfRange = -1;
+  static constexpr int64_t kOutOfRange = -1;
   if (!position.isSet()) {
     return kOutOfRange;
   }

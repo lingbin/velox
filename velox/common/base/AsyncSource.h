@@ -208,7 +208,7 @@ class AsyncSource {
   std::optional<process::ThreadDebugInfo> threadDebugInfo_;
 
   mutable std::mutex mutex_;
-  // True if 'prepare() is making the item.
+  // True if 'prepare()' is making the item.
   bool making_{false};
   std::unique_ptr<ContinuePromise> promise_;
   std::unique_ptr<Item> item_;

@@ -218,6 +218,7 @@ void VectorStreamGroup::append(
 
 void VectorStreamGroup::flush(OutputStream* out) {
   serializer_->flush(out);
+
 }
 
 // static

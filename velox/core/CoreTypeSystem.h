@@ -65,6 +65,14 @@ struct StringWriter : public UDFOutputString {
     return *this;
   }
 
+  StringWriter& operator=(StringWriter&& rh) noexcept {
+    storage_ = std::move(rh.storage_);
+    setData(storage_.data());
+    setSize(rh.size());
+    setCapacity(rh.capacity());
+    return *this;
+  }
+
   template <typename T>
   void operator+=(const T& input) {
     append(input);
@@ -99,18 +107,10 @@ struct StringWriter : public UDFOutputString {
     append(std::string_view(input));
   }
 
-  StringWriter& operator=(StringWriter&& rh) noexcept {
-    storage_ = std::move(rh.storage_);
-    setData(storage_.data());
-    setSize(rh.size());
-    setCapacity(rh.capacity());
-    return *this;
-  }
-
   void reserve(size_t size) override {
     // Resizing the storage not StringWriter size.
-    // This allow us to write directly write into storage_.data() and assuring
-    // what we wrote wont be overwritten on future resize calls.
+    // This allows us to write directly write into storage_.data() and assuring
+    // what we wrote won't be overwritten on future resize calls.
     storage_.resize(size);
     setData(storage_.data());
     setCapacity(size);

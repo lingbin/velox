@@ -21,7 +21,7 @@
 namespace facebook::velox::exec {
 
 /// nullptr in pages indicates that there is no more data.
-/// sequence is the same as specified in BufferManager::getData call. The
+/// 'sequence' is the same as specified in BufferManager::getData call. The
 /// caller is expected to advance sequence by the number of entries in groups
 /// and call BufferManager::acknowledge.
 using DataAvailableCallback = std::function<void(
@@ -65,7 +65,7 @@ class ArbitraryBuffer {
   }
 
   /// Returns true if this arbitrary buffer will not receive any new pages from
-  /// enqueue() but it can still has buffered pages waiting to dispatch to
+  /// enqueue() but it can still have buffered pages waiting to dispatch to
   /// destination on data fetch.
   bool hasNoMoreData() const {
     return !pages_.empty() && (pages_.back() == nullptr);
@@ -95,8 +95,7 @@ class DestinationBuffer {
   /// The data transferred by the destination buffer has two phases:
   /// 1. Buffered: the data resides in the buffer after enqueued and before
   ///              acked / deleted.
-  /// 2. Sent: the data is removed from the buffer after it is acked or
-  ///          deleted.
+  /// 2. Sent: the data is removed from the buffer after it is acked or deleted.
   struct Stats {
     void recordEnqueue(const SerializedPage& data);
 
@@ -189,7 +188,7 @@ class DestinationBuffer {
 
   std::vector<std::shared_ptr<SerializedPage>> data_;
   // The sequence number of the first in 'data_'.
-  int64_t sequence_ = 0;
+  int64_t sequence_{0};
   DataAvailableCallback notify_{nullptr};
   DataConsumerActiveCheckCallback aliveCheck_{nullptr};
   // The sequence number of the first item to pass to 'notify'.
@@ -325,8 +324,7 @@ class OutputBuffer {
   Stats stats();
 
  private:
-  // Percentage of maxSize below which a blocked producer should
-  // be unblocked.
+  // Percentage of maxSize below which a blocked producer should be unblocked.
   static constexpr int32_t kContinuePct = 90;
 
   void updateStatsWithEnqueuedPageLocked(int64_t pageBytes, int64_t pageRows);
@@ -350,7 +348,7 @@ class OutputBuffer {
 
   /// Given an updated total number of broadcast buffers, add any missing ones
   /// and enqueue data that has been produced so far (e.g. dataToBroadcast_).
-  void addOutputBuffersLocked(int numBuffers);
+  void addOutputBuffersLocked(int32_t numBuffers);
 
   void enqueueBroadcastOutputLocked(
       std::unique_ptr<SerializedPage> data,
@@ -381,8 +379,8 @@ class OutputBuffer {
 
   const std::shared_ptr<Task> task_;
   const core::PartitionedOutputNode::Kind kind_;
-  /// If 'bufferedBytes_' > 'maxSize_', each producer is blocked after adding
-  /// data.
+  // If 'bufferedBytes_' > 'maxSize_', each producer is blocked after adding
+  // data.
   const uint64_t maxSize_;
   // When 'bufferedBytes_' goes below 'continueSize_', blocked producers are
   // resumed.

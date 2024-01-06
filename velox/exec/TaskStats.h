@@ -29,8 +29,10 @@ struct OperatorStats;
 
 /// Stores execution stats per pipeline.
 struct PipelineStats {
-  /// Cumulative OperatorStats for finished Drivers. The subscript is the
-  /// operator id, which is the initial ordinal position of the operator in the
+  // https://github.com/facebookincubator/velox/pull/3210
+
+  /// Cumulative OperatorStats for Drivers. The subscript is the operator id,
+  /// which is the initial ordinal position of the operator in the
   /// DriverFactory.
   std::vector<OperatorStats> operatorStats;
 
@@ -40,7 +42,7 @@ struct PipelineStats {
   /// True if contains the source node for the task.
   bool inputPipeline;
 
-  /// True if contains the sync node for the task.
+  /// True if contains the sink node for the task.
   bool outputPipeline;
 
   PipelineStats(bool _inputPipeline, bool _outputPipeline)
@@ -61,12 +63,12 @@ struct TaskStats {
   int64_t runningTableScanSplitWeights{0};
   int64_t queuedTableScanSplitWeights{0};
 
-  /// The subscript is given by each Operator's
-  /// DriverCtx::pipelineId. This is a sum total reflecting fully
-  /// processed Splits for Drivers of this pipeline.
+  /// The subscript is given by each Operator's DriverCtx::pipelineId. This
+  /// is a sum total reflecting fully processed Splits for Drivers of this
+  /// pipeline.
   std::vector<PipelineStats> pipelineStats;
 
-  /// Epoch time (ms) when task starts to run
+  /// Epoch time (ms) when task starts to run.
   uint64_t executionStartTimeMs{0};
 
   /// Epoch time (ms) when last split is processed. For some tasks there might

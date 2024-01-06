@@ -44,7 +44,7 @@ struct RowIdProperties {
 
 struct HiveConnectorSplit : public connector::ConnectorSplit {
   const std::string filePath;
-  dwio::common::FileFormat fileFormat;
+  const dwio::common::FileFormat fileFormat;
   const uint64_t start;
   const uint64_t length;
 

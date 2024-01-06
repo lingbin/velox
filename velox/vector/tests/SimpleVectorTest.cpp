@@ -321,11 +321,13 @@ TEST_F(SimpleVectorNonParameterizedTest, isAsciiIndex) {
     auto vector = maker_.encodedVector(encoding, stringData_);
     SelectivityVector all(stringData_.size());
     vector->computeAndSetIsAscii(all);
-
     assertIsAscii(vector, all, false);
 
     ASSERT_FALSE(vector->isAscii(stringData_.size() + 1).has_value());
     EXPECT_THROW(vector->isAscii(-1).has_value(), VeloxException);
+    ASSERT_FALSE(vector->isAscii(0).value());
+    // The first row is non-ASCII, the check will return 'false' for all rows.
+    ASSERT_FALSE(vector->isAscii(1).value());
   }
 }
 
@@ -336,7 +338,6 @@ TEST_F(SimpleVectorNonParameterizedTest, isAsciiSourceRows) {
     auto vector = maker_.encodedVector(encoding, stringData_);
     SelectivityVector all(stringData_.size());
     vector->computeAndSetIsAscii(all);
-
     assertIsAscii(vector, all, false);
 
     vector_size_t sourceMappings[] = {0, 2, 1, 3, 5, 6, 4};
@@ -351,7 +352,7 @@ TEST_F(SimpleVectorNonParameterizedTest, isAsciiSourceRows) {
     ASSERT_TRUE(ascii.has_value());
     ASSERT_TRUE(ascii.value());
 
-    // Ensure we return nullopt if we arent a subset.
+    // Ensure we return nullopt if we are not a subset.
     SelectivityVector some(all.size(), false);
     some.setValid(0, true);
     some.updateBounds();
@@ -369,7 +370,6 @@ TEST_F(SimpleVectorNonParameterizedTest, invalidateIsAscii) {
     auto vector = maker_.encodedVector(encoding, stringData_);
     SelectivityVector all(stringData_.size());
     vector->computeAndSetIsAscii(all);
-
     assertIsAscii(vector, all, false);
 
     vector->invalidateIsAscii();
@@ -380,8 +380,8 @@ TEST_F(SimpleVectorNonParameterizedTest, invalidateIsAscii) {
 TEST_F(SimpleVectorNonParameterizedTest, setAscii) {
   for (auto encoding : kAsciiEncodings) {
     LOG(INFO) << "Running:" << encoding;
-    auto vector = maker_.encodedVector(encoding, stringData_);
 
+    auto vector = maker_.encodedVector(encoding, stringData_);
     SelectivityVector all(stringData_.size());
     vector->computeAndSetIsAscii(all);
     assertIsAscii(vector, all, false);
@@ -475,7 +475,7 @@ TEST_F(SimpleVectorNonParameterizedTest, stringsAsciiResize) {
   // Note that constant vector turns to non-const here, because const cannot be
   // reused for some reason.
   BaseVector::prepareForReuse(constVector, constVector->size());
-  vector->validate();
+  constVector->validate();
 
   asciiInfo = &vector->as<SimpleVector<StringView>>()->testGetAsciiInfo();
   EXPECT_FALSE(asciiInfo->readLockedAsciiComputedRows()->hasSelections());
@@ -499,7 +499,7 @@ TEST_F(SimpleVectorNonParameterizedTest, stringsAsciiResize) {
   // Note that constant vector turns to non-const here, because const cannot be
   // reused for some reason.
   BaseVector::prepareForReuse(constVector, numRows * 4);
-  vector->validate();
+  constVector->validate();
 
   asciiInfo = &vector->as<SimpleVector<StringView>>()->testGetAsciiInfo();
   EXPECT_FALSE(asciiInfo->readLockedAsciiComputedRows()->hasSelections());

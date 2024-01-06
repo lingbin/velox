@@ -52,8 +52,8 @@ class CpuWallTimer {
   ~CpuWallTimer();
 
  private:
-  uint64_t cpuTimeStart_;
-  std::chrono::steady_clock::time_point wallTimeStart_;
+  const uint64_t cpuTimeStart_;
+  const std::chrono::steady_clock::time_point wallTimeStart_;
   CpuWallTiming& timing_;
 };
 

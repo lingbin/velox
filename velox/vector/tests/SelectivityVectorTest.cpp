@@ -31,7 +31,6 @@ void assertState(
 
   size_t startIndexIncl = 0;
   size_t endIndexExcl = 0;
-
   size_t count = 0;
 
   for (size_t i = 0; i < expected.size(); ++i) {
@@ -225,12 +224,11 @@ TEST(SelectivityVectorTest, setValidRange) {
 TEST(SelectivityVectorTest, clearAll) {
   auto size = 3;
   // Explicitly set all bits to false.
-  // Will call clearAll
-  SelectivityVector vector(size, false);
+  SelectivityVector vector(size, true);
+  vector.clearAll();
 
   // Build another vector and set all bits to 0 in brute-force way
   SelectivityVector expected(size);
-
   for (auto i = 0; i < size; ++i) {
     expected.setValid(i, false);
   }
@@ -241,12 +239,11 @@ TEST(SelectivityVectorTest, clearAll) {
 
 TEST(SelectivityVectorTest, setAll) {
   auto size = 3;
-  // Initialize with all bits to false
-  // Will call clearAll
+  // Initialize with all bits to false.
   SelectivityVector vector(size, false);
   vector.setAll();
 
-  // Build another vector and set all bits to 1 in brute-force way
+  // Build another vector and set all bits to 1 in brute-force way.
   SelectivityVector expected(size, true);
 
   EXPECT_EQ(expected, vector);
@@ -311,6 +308,7 @@ TEST(SelectivityVectorTest, iterator) {
     }
   }
   vector.updateBounds();
+
   int32_t count = 0;
   SelectivityIterator iter(vector);
   while (iter.next(row)) {
@@ -336,6 +334,7 @@ TEST(SelectivityVectorTest, iterator) {
   EXPECT_EQ(fromBits.begin(), 67);
   EXPECT_EQ(fromBits.end(), 227);
   EXPECT_FALSE(fromBits.isAllSelected());
+
   count = 0;
   fromBits.applyToSelected([&count](int32_t row) {
     EXPECT_EQ(row, count + 67);
@@ -344,6 +343,7 @@ TEST(SelectivityVectorTest, iterator) {
   });
   EXPECT_EQ(count, bits::countBits(&contiguous[0], 0, 240));
   EXPECT_FALSE(fromBits.isAllSelected());
+
   count = 0;
   fromBits.applyToSelected([&count](int32_t row) {
     EXPECT_EQ(row, count + 67);
@@ -351,6 +351,7 @@ TEST(SelectivityVectorTest, iterator) {
     return true;
   });
   EXPECT_EQ(count, bits::countBits(&contiguous[0], 0, 240));
+
   count = 0;
   SelectivityIterator iter2(fromBits);
   while (iter2.next(row)) {
@@ -400,11 +401,13 @@ TEST(SelectivityVectorTest, fillAndCompare) {
   second.setAll();
   // The significant 10 bits are equal, the rest are not. Expect == to be true.
   EXPECT_TRUE(first == second);
+
   first.resizeFill(200, false);
   second.resizeFill(300, false);
   EXPECT_FALSE(second.isAllSelected());
   // Vectors with nothing selected are equal even if their max size differs.
-  EXPECT_FALSE(first != second);
+  EXPECT_EQ(first, second);
+
   first.resizeFill(100, true);
   EXPECT_TRUE(first.isAllSelected());
   second.resize(100);

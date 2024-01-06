@@ -30,8 +30,8 @@ namespace {
   }
 
 std::mutex& instanceMutex() {
-  static std::mutex instanceMu;
-  return instanceMu;
+  static std::mutex instanceMutex;
+  return instanceMutex;
 }
 
 // Global instance. Must be called while holding a lock over instanceMutex().

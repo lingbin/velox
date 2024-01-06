@@ -838,8 +838,8 @@ BigintValuesUsingHashTable::BigintValuesUsingHashTable(
       }
     }
   }
-  // Replicate the last element of hashTable kPaddingEntries times at 'size_' so
-  // that one can load a full vector of elements past the last used index.
+  // Replicate the last element of hashTable kPaddingElements times at 'size_'
+  // so that one can load a full vector of elements past the last used index.
   for (auto i = 0; i < kPaddingElements; ++i) {
     hashTable_[sizeMask_ + 1 + i] = hashTable_[sizeMask_];
   }
@@ -954,7 +954,7 @@ bool BigintValuesUsingHashTable::testInt64Range(
     return false;
   }
   auto it = std::lower_bound(values_.begin(), values_.end(), min);
-  assert(it != values_.end()); // min is already tested to be <= max_.
+  VELOX_CHECK(it != values_.end()); // min is already tested to be <= max_.
   if (min == *it) {
     return true;
   }
@@ -1090,7 +1090,7 @@ bool NegatedBigintValuesUsingHashTable::testInt64Range(
       nonNegated_->values().begin(), nonNegated_->values().end(), min);
   auto hi = std::lower_bound(
       nonNegated_->values().begin(), nonNegated_->values().end(), max);
-  assert(
+  VELOX_CHECK(
       lo !=
       nonNegated_->values().end()); // min is already tested to be <= max_.
   if (min != *lo || max != *hi) {
@@ -1919,7 +1919,7 @@ std::unique_ptr<Filter> NegatedBigintRange::mergeWith(
       if (this->lower() > otherNegatedRange->lower()) {
         return other->mergeWith(this);
       }
-      assert(this->lower() <= otherNegatedRange->lower());
+      VELOX_CHECK(this->lower() <= otherNegatedRange->lower());
       if (this->upper() + 1 < otherNegatedRange->lower()) {
         std::vector<std::unique_ptr<common::BigintRange>> outRanges;
         int64_t smallLower = this->lower();
