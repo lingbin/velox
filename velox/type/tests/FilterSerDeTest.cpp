@@ -40,9 +40,9 @@ class FilterSerDeTest : public testing::Test {
   }
 
   template <typename T>
-  const std::vector<T> getValues(T lower, T upper) {
-    size_t sz =
-        3 + folly::Random::rand32() % 7; // values size must greater than 1
+  std::vector<T> getValues(T lower, T upper) {
+    // values size must greater than 1.
+    size_t sz = 3 + folly::Random::rand32() % 7;
     std::vector<T> values;
     values.reserve(sz);
     for (size_t i = 0; i < sz; ++i) {

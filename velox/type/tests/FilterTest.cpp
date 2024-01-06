@@ -235,6 +235,11 @@ TEST(FilterTest, negatedBigintRange) {
   auto filter_with_null = filter->clone(true);
   EXPECT_TRUE(filter_with_null->testNull());
   EXPECT_TRUE(filter_with_null->testInt64Range(5, 15, true));
+
+  auto filter1 = notBetween(-5, 15, false);
+  auto filter2 = notBetween(-10, 10, false);
+  auto result = filter1->mergeWith(filter2.get());
+  EXPECT_EQ("xx", result->toString());
 }
 
 TEST(FilterTest, bigintValuesUsingHashTable) {
@@ -456,7 +461,7 @@ TEST(FilterTest, bigintValuesUsingBitmask) {
 
 TEST(FilterTest, negatedBigintValuesUsingBitmask) {
   auto filter = createNegatedBigintValues({1, 6, 1000, 8, 9, 100, 10}, false);
-  auto castedFilter =
+  auto* castedFilter =
       dynamic_cast<NegatedBigintValuesUsingBitmask*>(filter.get());
   ASSERT_TRUE(castedFilter);
   std::vector<int64_t> filterVals = {1, 6, 8, 9, 10, 100, 1000};
@@ -510,13 +515,13 @@ TEST(FilterTest, negatedBigintValuesUsingBitmask) {
 }
 
 TEST(FilterTest, negatedBigintValuesEdgeCases) {
-  // cases that should be represented by a non-integer filter
+  // Cases that should be represented by a non-integer filter
   auto always_true = createNegatedBigintValues({}, true);
   ASSERT_TRUE(dynamic_cast<AlwaysTrue*>(always_true.get()));
   auto not_null = createNegatedBigintValues({}, false);
   ASSERT_TRUE(dynamic_cast<IsNotNull*>(not_null.get()));
 
-  // cases that should trigger creation of a NegatedBigintRange filter
+  // Cases that should trigger creation of a NegatedBigintRange filter
   auto negated_range = createNegatedBigintValues({1, 2, 3, 4, 5, 6, 7}, false);
   ASSERT_TRUE(dynamic_cast<NegatedBigintRange*>(negated_range.get()));
   EXPECT_FALSE(negated_range->testInt64(1));
@@ -594,6 +599,8 @@ TEST(FilterTest, bigintMultiRange) {
 
 TEST(FilterTest, boolValue) {
   auto boolValueTrue = boolEqual(true);
+  ASSERT_TRUE(dynamic_cast<BoolValue*>(boolValueTrue.get()));
+
   EXPECT_TRUE(boolValueTrue->testBool(true));
 
   EXPECT_FALSE(boolValueTrue->testNull());
@@ -604,6 +611,8 @@ TEST(FilterTest, boolValue) {
   EXPECT_FALSE(boolValueTrue->testInt64Range(0, 0, false));
 
   auto boolValueFalse = boolEqual(false);
+  ASSERT_TRUE(dynamic_cast<BoolValue*>(boolValueFalse.get()));
+
   EXPECT_TRUE(boolValueFalse->testBool(false));
 
   EXPECT_FALSE(boolValueFalse->testNull());

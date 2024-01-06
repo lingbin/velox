@@ -32,11 +32,11 @@ class ITypedExpr : public ISerializable {
   ITypedExpr(TypePtr type, std::vector<TypedExprPtr> inputs)
       : type_{std::move(type)}, inputs_{std::move(inputs)} {}
 
+  virtual ~ITypedExpr() = default;
+
   const TypePtr& type() const {
     return type_;
   }
-
-  virtual ~ITypedExpr() = default;
 
   const std::vector<TypedExprPtr>& inputs() const {
     return inputs_;

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <utility>
+
 #include "velox/common/base/RuntimeMetrics.h"
 #include "velox/exec/ExchangeQueue.h"
 
@@ -23,11 +25,11 @@ namespace facebook::velox::exec {
 class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
  public:
   ExchangeSource(
-      const std::string& taskId,
+      std::string remoteTaskId,
       int destination,
       std::shared_ptr<ExchangeQueue> queue,
       memory::MemoryPool* pool)
-      : taskId_(taskId),
+      : remoteTaskId_(std::move(remoteTaskId)),
         destination_(destination),
         queue_(std::move(queue)),
         pool_(pool->shared_from_this()) {}
@@ -40,8 +42,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
       std::shared_ptr<ExchangeQueue> queue,
       memory::MemoryPool* pool);
 
-  /// Temporary API to indicate whether 'metrics()' API
-  /// is supported.
+  /// Temporary API to indicate whether 'metrics()' API is supported.
   virtual bool supportsMetrics() const {
     return false;
   }
@@ -103,24 +104,23 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
     VELOX_UNREACHABLE();
   }
 
-  /// Returns runtime statistics. ExchangeSource is expected to report
-  /// Specify units of individual counters in ExchangeSource.
-  /// for an example: 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB,
-  /// min:  1.16GB'
+  /// Returns runtime statistics. ExchangeSource is expected to report specific
+  /// units of individual counters in ExchangeSource. For example:
+  /// 'totalBytes ：count: 9, sum: 11.17GB, max: 1.39GB, min:  1.16GB'
   virtual folly::F14FastMap<std::string, RuntimeMetric> metrics() const {
     VELOX_NYI();
   }
 
   virtual std::string toString() {
     std::stringstream out;
-    out << "[ExchangeSource " << taskId_ << ":" << destination_
+    out << "[ExchangeSource " << remoteTaskId_ << ":" << destination_
         << (requestPending_ ? " pending " : "") << (atEnd_ ? " at end" : "");
     return out.str();
   }
 
   virtual folly::dynamic toJson() {
     folly::dynamic obj = folly::dynamic::object;
-    obj["taskId"] = taskId_;
+    obj["taskId"] = remoteTaskId_;
     obj["destination"] = destination_;
     obj["sequence"] = sequence_;
     obj["requestPending"] = requestPending_.load();
@@ -129,7 +129,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   }
 
   using Factory = std::function<std::shared_ptr<ExchangeSource>(
-      const std::string& taskId,
+      const std::string& remoteTaskId,
       int destination,
       std::shared_ptr<ExchangeQueue> queue,
       memory::MemoryPool* pool)>;
@@ -147,7 +147,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
 
  protected:
   // ID of the task producing data
-  const std::string taskId_;
+  const std::string remoteTaskId_;
   // Destination number of 'this' on producer
   const int destination_;
   const std::shared_ptr<ExchangeQueue> queue_{nullptr};
@@ -155,7 +155,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   // to be accessed by external components after the query task is destroyed.
   // For instance, in Prestissimo, there might be a pending http request issued
   // by PrestoExchangeSource to fetch data from the remote task. When the http
-  // response returns back, the task might have already terminated and deleted
+  // response returns back, the task might have already terminated and deleted,
   // so we need to hold an additional shared reference on the memory pool to
   // keeps it alive.
   const std::shared_ptr<memory::MemoryPool> pool_;

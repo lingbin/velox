@@ -643,6 +643,7 @@ TEST_F(DateTimeFunctionsTest, hour) {
   EXPECT_EQ(19, hour(Timestamp(998423705, 321000000)));
 
   setQueryTimeZone("Pacific/Apia");
+  // setQueryTimeZone("UTC");
 
   EXPECT_EQ(std::nullopt, hour(std::nullopt));
   EXPECT_EQ(13, hour(Timestamp(0, 0)));
@@ -3583,6 +3584,33 @@ TEST_F(DateTimeFunctionsTest, dateFormat) {
   VELOX_ASSERT_THROW(
       dateFormat(timestamp, "%x"),
       "Date format specifier is not supported: WEEK_YEAR");
+}
+
+TEST_F(DateTimeFunctionsTest, dateFormat2) {
+  using util::fromTimestampString;
+  setQueryTimeZone("Asia/Shanghai");
+
+  EXPECT_EQ(
+      "-2000-02-29 08:05:44.987000",
+      dateFormat(
+          fromTimestampString("-2000-02-29 00:00:01.987"),
+          "%Y-%m-%d %H:%i:%s.%f"));
+
+  setQueryTimeZone("America/Los_Angeles");
+  EXPECT_EQ(
+      "-2000-02-28 00:00:00.987000",
+      dateFormat(
+          fromTimestampString("-2000-02-28 00:00:00.987"),
+          "%Y-%m-%d %H:%i:%s.%f"));
+
+  // Same timestamps with a different timezone. Pacific Daylight Time (North
+  // America) PDT UTC-8:00.
+  // setQueryTimeZone("America/Los_Angeles");
+  // EXPECT_EQ(
+  //     "-2000-02-28 16:07:03.987000",
+  //     dateFormat(
+  //         fromTimestampString("-2000-02-29 00:00:00.987"),
+  //         "%Y-%m-%d %H:%i:%s.%f"));
 }
 
 TEST_F(DateTimeFunctionsTest, dateFormatTimestampWithTimezone) {

@@ -246,6 +246,11 @@ TEST(TypeTest, shortDecimal) {
   VELOX_ASSERT_THROW(
       DECIMAL(0, 0), "Precision of decimal type must be at least 1");
 
+  VELOX_ASSERT_THROW(
+      DECIMAL(19, 5), "Precision of decimal type must not exceed 18");
+  VELOX_ASSERT_THROW(
+      DECIMAL(10, 11), "Scale of decimal type must not exceed its precision");
+
   EXPECT_STREQ(shortDecimal->name(), "DECIMAL");
   EXPECT_EQ(shortDecimal->parameters().size(), 2);
   EXPECT_TRUE(
@@ -842,6 +847,11 @@ TEST(TypeTest, unknownArray) {
   testTypeSerde(unknownArray);
 
   ASSERT_EQ(0, unknownArray->elementType()->cppSizeInBytes());
+}
+
+TEST(TypeTest, xxx) {
+  TypePtr type = UNKNOWN();
+  EXPECT_EQ(type->cppSizeInBytes(), 0);
 }
 
 TEST(TypeTest, isVariadicType) {

@@ -109,7 +109,7 @@ class RowPartitions {
   /// capacity given at construction.
   void appendPartitions(folly::Range<const uint8_t*> partitions);
 
-  auto& allocation() const {
+  const auto& allocation() const {
     return allocation_;
   }
 
@@ -135,7 +135,7 @@ class RowColumn {
   static constexpr int32_t kNotNullOffset = -1;
 
   RowColumn(int32_t offset, int32_t nullOffset)
-      : packedOffsets_(PackOffsets(offset, nullOffset)) {}
+      : packedOffsets_(packOffsets(offset, nullOffset)) {}
 
   int32_t offset() const {
     return packedOffsets_ >> 32;
@@ -164,7 +164,7 @@ class RowColumn {
   }
 
  private:
-  static uint64_t PackOffsets(int32_t offset, int32_t nullOffset) {
+  static uint64_t packOffsets(int32_t offset, int32_t nullOffset) {
     if (nullOffset == kNotNullOffset) {
       // If the column is not nullable, The low word is 0, meaning
       // that a null check will AND 0 to the 0th byte of the row,
@@ -185,10 +185,8 @@ class RowContainer {
   /// The number of flags (bits) per accumulator, one for null and one for
   /// initialized.
   static constexpr size_t kNumAccumulatorFlags = 2;
-  using Eraser = std::function<void(folly::Range<char**> rows)>;
 
-  /// 'keyTypes' gives the type of row and use 'allocator' for bulk
-  /// allocation.
+  /// 'keyTypes' gives the type of row and use 'pool' for bulk allocation.
   RowContainer(const std::vector<TypePtr>& keyTypes, memory::MemoryPool* pool)
       : RowContainer(keyTypes, std::vector<TypePtr>{}, pool) {}
 
@@ -199,7 +197,7 @@ class RowContainer {
       : RowContainer(
             keyTypes,
             true, // nullableKeys
-            std::vector<Accumulator>{},
+            {}, // accumulators
             dependentTypes,
             false, // hasNext
             false, // isJoinBuild
@@ -214,8 +212,8 @@ class RowContainer {
   /// 'keyTypes' gives the type of the key of each row. For a group by,
   /// order by or right outer join build side these may be
   /// nullable. 'nullableKeys' specifies if these have a null flag.
-  /// 'aggregates' is a vector of Aggregate for a group by payload,
-  /// empty otherwise. 'DependentTypes' gives the types of non-key
+  /// 'accumulators' is a vector of Accumulator for a group by payload,
+  /// empty otherwise. 'dependentTypes' gives the types of non-key
   /// columns for a hash join build side or an order by. 'hasNext' is
   /// true for a hash join build side where keys can be
   /// non-unique. 'isJoinBuild' is true for hash join build sides. This
@@ -225,7 +223,7 @@ class RowContainer {
   /// join. 'hasNormalizedKey' specifies that an extra word is left
   /// below each row for a normalized key that collapses all parts
   /// into one word for faster comparison. The bulk allocation is done
-  /// from 'allocator'. ContainerRowSerde is used for serializing complex
+  /// from 'pool'. ContainerRowSerde is used for serializing complex
   /// type values into the container.
   RowContainer(
       const std::vector<TypePtr>& keyTypes,
@@ -291,7 +289,7 @@ class RowContainer {
     ::memset(row, 0, fixedRowSize_);
   }
 
-  /// Stores the 'index'th value in 'decoded' into 'row' at 'columnIndex'.
+  /// Stores the index'th value in 'decoded' into 'row' at 'columnIndex'.
   void store(
       const DecodedVector& decoded,
       vector_size_t index,
@@ -690,7 +688,7 @@ class RowContainer {
   /// Hashes the values of 'columnIndex' for 'rows'.  If 'mix' is true, mixes
   /// the hash with the existing value in 'result'.
   void hash(
-      int32_t columnIndex,
+      int32_t columnInex,
       folly::Range<char**> rows,
       bool mix,
       uint64_t* result);
@@ -1395,23 +1393,26 @@ class RowContainer {
   std::vector<Accumulator> accumulators_;
 
   bool usesExternalMemory_ = false;
-  // Types of non-aggregate columns. Keys first. Corresponds pairwise
-  // to 'typeKinds_' and 'rowColumns_'.
+  // Types of non-aggregate columns. Keys first. Corresponds pairwise to
+  // 'typeKinds_'.
   std::vector<TypePtr> types_;
   std::vector<TypeKind> typeKinds_;
   int32_t nextOffset_ = 0;
   // Indicates if this row container has rows with duplicate keys. This only
   // applies if 'nextOffset_' is set.
   tsan_atomic<bool> hasDuplicateRows_{false};
-  // Bit position of null bit  in the row. 0 if no null flag. Order is keys,
-  // accumulators, dependent.
+  // Bit position of null bit in the row. Order is keys, accumulators,
+  // dependent.
   std::vector<int32_t> nullOffsets_;
-  // Position of field or accumulator. Corresponds 1:1 to 'nullOffset_'.
+  // Position of field or accumulator.
+  // 不再是 一一对应的，因为 key列可能没有（nullableKyes==false）的时候；
+  // 并且每个accumulator对应2个bit。
+  // Corresponds 1:1 to 'nullOffsets_'.
   std::vector<int32_t> offsets_;
-  // Offset and null indicator offset of non-aggregate fields as a single word.
-  // Corresponds pairwise to 'types_'.
+  // Offset and null indicator offset of each fields as a single word.
+  // Corresponds pairwise to 'offsets_'.
   std::vector<RowColumn> rowColumns_;
-  // Bit offset of the probed flag for a full or right outer join  payload. 0 if
+  // Bit offset of the probed flag for a full or right outer join payload. 0 if
   // not applicable.
   int32_t probedFlagOffset_ = 0;
 
@@ -1428,11 +1429,11 @@ class RowContainer {
   // This is the original normalized key size regardless of whether
   // disableNormalizedKeys() is called or not.
   int originalNormalizedKeySize_;
-  // Extra bytes to reserve before  each added row for a normalized key. Set to
+  // Extra bytes to reserve before each added row for a normalized key. Set to
   // 0 after deciding not to use normalized keys.
   int normalizedKeySize_;
-  // Copied over the null bits of each row on initialization. Keys are
-  // not null, aggregates are null.
+  // Copied over the null bits of each row on initialization. All flags start as
+  // 0.
   std::vector<uint8_t> initialNulls_;
   uint64_t numRows_ = 0;
   // Head of linked list of free rows.

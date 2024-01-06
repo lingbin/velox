@@ -254,7 +254,7 @@ class HashStringAllocator : public StreamArena {
 
   /// Ensures that one can write at least 'bytes' data starting at 'position'
   /// without allocating more space. 'position' can be changed but will
-  /// logically point at the same data. Data to the right of 'position is not
+  /// logically point at the same data. Data to the right of 'position' is not
   /// preserved.
   void ensureAvailable(int32_t bytes, Position& position);
 

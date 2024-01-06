@@ -82,7 +82,7 @@ template <typename T>
 std::unique_ptr<SimpleVector<uint64_t>> FlatVector<T>::hashAll() const {
   BufferPtr hashBuffer =
       AlignedBuffer::allocate<uint64_t>(BaseVector::length_, BaseVector::pool_);
-  auto hashData = hashBuffer->asMutable<uint64_t>();
+  auto* hashData = hashBuffer->asMutable<uint64_t>();
 
   if (rawValues_ != nullptr) { // non all-null case
     folly::hasher<T> hasher;
@@ -91,7 +91,7 @@ std::unique_ptr<SimpleVector<uint64_t>> FlatVector<T>::hashAll() const {
     }
   }
 
-  // overwrite the null hash values
+  // Overwrite the null hash values.
   if (BaseVector::rawNulls_ != nullptr) {
     for (size_t i = 0; i < BaseVector::length_; ++i) {
       if (bits::isBitNull(BaseVector::rawNulls_, i)) {

@@ -108,7 +108,8 @@ class NoopArbitrator : public MemoryArbitrator {
 
   // Noop arbitrator has no memory capacity limit so no operation needed for
   // memory pool capacity release.
-  uint64_t shrinkCapacity(MemoryPool* pool, uint64_t /*unused*/) override {
+  uint64_t shrinkCapacity(MemoryPool* /* pool */, uint64_t /* targetBytes */)
+      override {
     // No-op
     return 0;
   }
@@ -116,9 +117,9 @@ class NoopArbitrator : public MemoryArbitrator {
   // Noop arbitrator has no memory capacity limit so no operation needed for
   // memory pool capacity shrink.
   uint64_t shrinkCapacity(
-      uint64_t /* unused */,
-      bool /* unused */,
-      bool /* unused */) override {
+      uint64_t /* targetBytes */,
+      bool /* allowSpill */,
+      bool /* allowAbort */) override {
     return 0;
   }
 
@@ -130,7 +131,7 @@ class NoopArbitrator : public MemoryArbitrator {
 
   std::string toString() const override {
     return fmt::format(
-        "ARBIRTATOR[{} CAPACITY[{}]]",
+        "ARBITRATOR[{} CAPACITY[{}]]",
         kind(),
         capacity_ == kMaxMemory ? "UNLIMITED" : succinctBytes(capacity_));
   }
@@ -142,33 +143,35 @@ thread_local MemoryArbitrationContext* arbitrationCtx{nullptr};
 std::unique_ptr<MemoryArbitrator> MemoryArbitrator::create(
     const Config& config) {
   if (config.kind.empty()) {
-    // if kind is not set, return noop arbitrator.
+    // If kind is not set, return noop arbitrator.
     return std::make_unique<NoopArbitrator>(config);
   }
   auto& factory = arbitratorFactories().getFactory(config.kind);
   return factory(config);
 }
 
+// static
 bool MemoryArbitrator::registerFactory(
     const std::string& kind,
     MemoryArbitrator::Factory factory) {
   return arbitratorFactories().registerFactory(kind, std::move(factory));
 }
 
+// static
 void MemoryArbitrator::unregisterFactory(const std::string& kind) {
   arbitratorFactories().unregisterFactory(kind);
 }
 
-/*static*/ bool MemoryArbitrator::growPool(
+// static
+bool MemoryArbitrator::growPool(
     MemoryPool* pool,
     uint64_t growBytes,
     uint64_t reservationBytes) {
   return pool->grow(growBytes, reservationBytes);
 }
 
-/*static*/ uint64_t MemoryArbitrator::shrinkPool(
-    MemoryPool* pool,
-    uint64_t targetBytes) {
+// static
+uint64_t MemoryArbitrator::shrinkPool(MemoryPool* pool, uint64_t targetBytes) {
   return pool->shrink(targetBytes);
 }
 

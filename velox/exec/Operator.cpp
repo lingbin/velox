@@ -237,6 +237,7 @@ void Operator::unregisterAllOperators() {
   translators().clear();
 }
 
+// static
 std::optional<uint32_t> Operator::maxDrivers(
     const core::PlanNodePtr& planNode) {
   for (auto& translator : translators()) {
@@ -338,12 +339,12 @@ vector_size_t Operator::outputBatchRows(
   return std::max<vector_size_t>(batchSize, 1);
 }
 
-void Operator::recordBlockingTime(uint64_t start, BlockingReason reason) {
-  uint64_t now =
+void Operator::recordBlockingTime(uint64_t startUs, BlockingReason reason) {
+  uint64_t nowUs =
       std::chrono::duration_cast<std::chrono::microseconds>(
           std::chrono::high_resolution_clock::now().time_since_epoch())
           .count();
-  const auto wallNanos = (now - start) * 1000;
+  const auto wallNanos = (nowUs - startUs) * 1000;
   const auto blockReason = blockingReasonToString(reason).substr(1);
 
   auto lockedStats = stats_.wlock();
@@ -579,10 +580,12 @@ void OperatorStats::clear() {
   addInputTiming.clear();
   inputBytes = 0;
   inputPositions = 0;
+  inputVectors = 0;
 
   getOutputTiming.clear();
   outputBytes = 0;
   outputPositions = 0;
+  outputVectors = 0;
 
   physicalWrittenBytes = 0;
 

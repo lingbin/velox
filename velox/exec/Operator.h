@@ -110,8 +110,8 @@ struct OperatorStats {
   int32_t pipelineId = 0;
   core::PlanNodeId planNodeId;
 
-  /// Name for reporting. We use Presto compatible names set at
-  /// construction of the Operator where applicable.
+  /// Name for reporting. We use Presto compatible names set at construction of
+  /// the Operator where applicable.
   std::string operatorType;
 
   /// Number of splits (or chunks of work). Split can be a part of data file to
@@ -517,7 +517,7 @@ class Operator : public BaseRuntimeStatWriter {
     return stats_;
   }
 
-  void recordBlockingTime(uint64_t start, BlockingReason reason);
+  void recordBlockingTime(uint64_t startUs, BlockingReason reason);
 
   virtual std::string toString() const;
 
@@ -562,7 +562,7 @@ class Operator : public BaseRuntimeStatWriter {
     return operatorCtx_->planNodeId();
   }
 
-  const int32_t operatorId() const {
+  int32_t operatorId() const {
     return operatorCtx_->operatorId();
   }
 

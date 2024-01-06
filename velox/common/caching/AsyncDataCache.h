@@ -73,7 +73,7 @@ struct AccessStats {
   // expensive and many entries are checked one after the other. lastUse == 0
   // means explicitly evictable.
   int32_t score(AccessTime now, uint64_t /*size*/) const {
-    if (!lastUse) {
+    if (lastUse == 0) {
       return std::numeric_limits<int32_t>::max();
     }
     return (now - lastUse) / (1 + numUses);
@@ -155,8 +155,8 @@ class AsyncDataCacheEntry {
   ~AsyncDataCacheEntry();
 
   /// Sets the key and allocates the entry's memory.  Resets
-  ///  all other state. The entry must be held exclusively and must
-  ///  hold no memory when calling this.
+  /// all other state. The entry must be held exclusively and must
+  /// hold no memory when calling this.
   void initialize(FileCacheKey key);
 
   memory::Allocation& data() {
@@ -376,6 +376,7 @@ class CachePin {
     release();
     entry_ = nullptr;
   }
+
   AsyncDataCacheEntry* entry() const {
     return entry_;
   }
@@ -730,11 +731,11 @@ class AsyncDataCache : public memory::Cache {
       memory::MemoryAllocator* allocator,
       std::unique_ptr<SsdCache> ssdCache = nullptr);
 
-  AsyncDataCache(
+  explicit AsyncDataCache(
       memory::MemoryAllocator* allocator,
       std::unique_ptr<SsdCache> ssdCache = nullptr);
 
-  ~AsyncDataCache() override;
+  ~AsyncDataCache() override = default;
 
   static std::shared_ptr<AsyncDataCache> create(
       memory::MemoryAllocator* allocator,
@@ -750,9 +751,9 @@ class AsyncDataCache : public memory::Cache {
   void shutdown();
 
   /// Calls 'allocate' until this returns true. Returns true if
-  /// allocate returns true. and Tries to evict at least 'numPages' of
+  /// allocate returns true. And tries to evict at least 'numPages' of
   /// cache after each failed call to 'allocate'.  May pause to wait
-  /// for SSD cache flush if ''ssdCache_' is set and is busy
+  /// for SSD cache flush if 'ssdCache_' is set and is busy
   /// writing. Does random back-off after several failures and
   /// eventually gives up. Allocation must not be serialized by a mutex
   /// for memory arbitration to work.
@@ -820,9 +821,9 @@ class AsyncDataCache : public memory::Cache {
   /// triggers a background write of eligible entries to SSD.
   void possibleSsdSave(uint64_t bytes);
 
-  /// Sets a callback applied to new entries at the point where
-  ///  they are set to shared mode. Used for testing and can be used for
-  /// e.g. checking checksums.
+  /// Sets a callback applied to new entries at the point where they are set to
+  /// shared mode. Used for testing and can be used for. e.g. checking
+  /// checksums.
   void setVerifyHook(std::function<void(const AsyncDataCacheEntry&)> hook) {
     verifyHook_ = hook;
   }

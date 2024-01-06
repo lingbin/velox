@@ -201,7 +201,7 @@ TEST_F(ExchangeClientTest, stats) {
   // Enqueue 3 pages.
   std::vector<uint64_t> pageBytes;
   uint64_t totalBytes = 0;
-  for (auto vector : data) {
+  for (const auto& vector : data) {
     const auto pageSize = enqueue(taskId, 17, vector);
     totalBytes += pageSize;
     pageBytes.push_back(pageSize);

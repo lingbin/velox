@@ -266,7 +266,6 @@ class Filter : public velox::ISerializable {
  protected:
   folly::dynamic serializeBase(std::string_view name) const;
 
- protected:
   const bool nullAllowed_;
 
  private:
@@ -984,7 +983,7 @@ class BigintValuesUsingHashTable final : public Filter {
   mergeWith(int64_t min, int64_t max, const Filter* other) const;
 
   static constexpr int64_t kEmptyMarker = 0xdeadbeefbadefeedL;
-  // from Murmur hash
+  // From Murmur hash.
   static constexpr uint64_t M = 0xc6a4a7935bd1e995L;
 
   const int64_t min_;

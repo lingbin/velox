@@ -102,9 +102,9 @@ void AllocationPool::newRunImpl(MachinePageCount numPages) {
             16 * AllocationTraits::kHugePageSize,
             bits::nextPowerOfTwo(
                 usedBytes_ + AllocationTraits::kHugePageSize)));
-    // Round 'numPages' to no of pages in huge page. Allocating this plus an
+    // Round 'numPages' to number of pages in huge page. Allocating this plus an
     // extra huge page guarantees that 'numPages' worth of contiguous aligned
-    // huge pages will be founfd in the allocation.
+    // huge pages will be found in the allocation.
     numPages = bits::roundUp(numPages, AllocationTraits::numPagesInHugePage());
     if (AllocationTraits::pageBytes(numPages) +
             AllocationTraits::kHugePageSize >

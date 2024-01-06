@@ -328,7 +328,7 @@ RowVectorPtr PartitionedOutput::getOutput() {
       bufferManager, "OutputBufferManager was already destructed");
 
   // Limit serialized pages to 1MB.
-  static const uint64_t kMaxPageSize = 1 << 20;
+  static constexpr uint64_t kMaxPageSize = 1 << 20;
   const uint64_t maxPageSize = std::max<uint64_t>(
       kMinDestinationSize,
       std::min<uint64_t>(kMaxPageSize, maxBufferedBytes_ / numDestinations_));

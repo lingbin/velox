@@ -179,7 +179,7 @@ uint32_t maxDrivers(
     const core::QueryConfig& queryConfig) {
   uint32_t count = maxDriversForConsumer(driverFactory.consumerNode);
   if (count == 1) {
-    return count;
+    return 1;
   }
   for (auto& node : driverFactory.planNodes) {
     if (auto topN = std::dynamic_pointer_cast<const core::TopNNode>(node)) {
@@ -330,14 +330,14 @@ void LocalPlanner::determineGroupedExecutionPipelines(
       size_t numGroupedExecutionSources{0};
       for (const auto& sourceNode : localPartitionNode->sources()) {
         for (auto& anotherFactory : driverFactories) {
-          if (sourceNode == anotherFactory->planNodes.back() and
+          if (sourceNode == anotherFactory->planNodes.back() &&
               anotherFactory->groupedExecution) {
             ++numGroupedExecutionSources;
             break;
           }
         }
       }
-      if (numGroupedExecutionSources > 0 and
+      if (numGroupedExecutionSources > 0 &&
           numGroupedExecutionSources == localPartitionNode->sources().size()) {
         factory->groupedExecution = true;
       }

@@ -88,7 +88,8 @@ MemoryAllocator::SizeMix MemoryAllocator::allocationSize(
       "Requesting minimum size {} larger than largest size class {}",
       minSizeClass,
       sizeClassSizes_.back());
-  MemoryAllocator::SizeMix mix;
+  SizeMix mix;
+  // "neededPages" must be signed, the plan finishes when it becomes negative.
   int32_t neededPages = numPages;
   MachinePageCount pagesToAlloc{0};
   for (int32_t sizeIndex = sizeClassSizes_.size() - 1; sizeIndex >= 0;
@@ -136,11 +137,12 @@ bool MemoryAllocator::isAlignmentValid(
     uint64_t allocateBytes,
     uint16_t alignmentBytes) {
   return (alignmentBytes == kMinAlignment) ||
-      (alignmentBytes >= kMinAlignment && alignmentBytes <= kMaxAlignment &&
+      (alignmentBytes > kMinAlignment && alignmentBytes <= kMaxAlignment &&
        allocateBytes % alignmentBytes == 0 &&
        (alignmentBytes & (alignmentBytes - 1)) == 0);
 }
 
+// static
 void MemoryAllocator::alignmentCheck(
     uint64_t allocateBytes,
     uint16_t alignmentBytes) {
@@ -184,6 +186,7 @@ bool MemoryAllocator::allocateNonContiguous(
       reservationCB(reservationBytes, false);
     }
   };
+
   if (numPages == 0) {
     cleanupAllocAndReleaseReservation(bytesToFree);
     return true;
@@ -378,10 +381,10 @@ std::string Stats::toString() const {
   int64_t totalClocks = 0;
   int64_t totalBytes = 0;
   int64_t totalAllocations = 0;
-  for (auto i = 0; i < sizes.size(); ++i) {
-    totalClocks += sizes[i].clocks();
-    totalBytes += sizes[i].totalBytes;
-    totalAllocations += sizes[i].numAllocations;
+  for (const auto& size : sizes) {
+    totalClocks += size.clocks();
+    totalBytes += size.totalBytes;
+    totalAllocations += size.numAllocations;
   }
   out << fmt::format(
       "Alloc: {}MB {} Gigaclocks Allocations={}, advised={} MB\n",
@@ -398,11 +401,11 @@ std::string Stats::toString() const {
   });
   for (auto i : indices) {
     // Do not report size classes with under 1M clocks.
-    if (sizes[i].clocks() < 1000000) {
+    if (sizes[i].clocks() < 1'000'000) {
       break;
     }
     out << fmt::format(
-        "Size {}K: {}MB {} Megaclocks {} Allocations\n",
+        "Size {}KB: {}MB {} Megaclocks {} Allocations\n",
         sizes[i].size * 4,
         sizes[i].totalBytes >> 20,
         sizes[i].clocks() >> 20,
@@ -428,7 +431,7 @@ void MemoryAllocator::useHugePages(
       enable ? MADV_HUGEPAGE : MADV_NOHUGEPAGE);
   if (rc != 0) {
     VELOX_MEM_LOG(WARNING) << "madvise hugepage errno="
-                           << folly ::errnoStr(errno);
+                           << folly::errnoStr(errno);
   }
 #endif
 }

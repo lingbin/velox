@@ -32,8 +32,7 @@ class VectorHasherTest : public testing::Test, public VectorTestBase {
 
   void SetUp() override {
     allRows_ = SelectivityVector(100);
-
-    oddRows_ = VectorHasherTest::makeOddRows(100);
+    oddRows_ = makeOddRows(100);
   }
 
   static SelectivityVector makeOddRows(vector_size_t size) {
@@ -161,7 +160,7 @@ class VectorHasherTest : public testing::Test, public VectorTestBase {
 };
 
 TEST_F(VectorHasherTest, flat) {
-  auto hasher = exec::VectorHasher::create(BIGINT(), 1);
+  auto hasher = VectorHasher::create(BIGINT(), 1);
   ASSERT_EQ(hasher->channel(), 1);
   ASSERT_EQ(hasher->typeKind(), TypeKind::BIGINT);
 
@@ -258,7 +257,7 @@ TEST_F(VectorHasherTest, nans) {
 }
 
 TEST_F(VectorHasherTest, nonNullConstant) {
-  auto hasher = exec::VectorHasher::create(INTEGER(), 1);
+  auto hasher = VectorHasher::create(INTEGER(), 1);
   auto vector = BaseVector::createConstant(INTEGER(), 123, 100, pool());
 
   auto hash = folly::hasher<int32_t>()(123);
@@ -532,7 +531,7 @@ TEST_F(VectorHasherTest, integerIds) {
 
   hasher = exec::VectorHasher::create(BIGINT(), 1);
   hasher->enableValueIds(1, VectorHasher::kNoLimit);
-  // We add values that are over 100K distinct and withmax - min > int64_t max.
+  // We add values that are over 100K distinct and with max - min > int64_t max.
   hasher->decode(*vector, rows);
   EXPECT_TRUE(hasher->computeValueIds(rows, hashes));
   // null is still 0.

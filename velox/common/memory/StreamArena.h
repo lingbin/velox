@@ -46,7 +46,7 @@ class StreamArena {
   /// is also not counted in the payload size of the multipart entry.
   virtual void newRange(int32_t bytes, ByteRange* lastRange, ByteRange* range);
 
-  /// sets 'range' to point to a small piece of memory owned by this. These
+  /// Sets 'range' to point to a small piece of memory owned by this. These
   /// always come from the heap. The use case is for headers that may change
   /// length based on data properties, not for bulk data. See 'newRange' for the
   /// meaning of 'lastRange'.
@@ -67,8 +67,9 @@ class StreamArena {
   virtual void clear();
 
  private:
+  static constexpr memory::MachinePageCount kAllocationQuantum_{2};
+
   memory::MemoryPool* const pool_;
-  const memory::MachinePageCount allocationQuantum_{2};
 
   // All non-contiguous allocations.
   std::vector<std::unique_ptr<memory::Allocation>> allocations_;

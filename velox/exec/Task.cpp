@@ -17,6 +17,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <string>
+#include <utility>
 
 #include "velox/common/base/Counters.h"
 #include "velox/common/base/StatsReporter.h"
@@ -238,7 +239,7 @@ bool unregisterTaskListener(const std::shared_ptr<TaskListener>& listener) {
 
 // static.
 std::shared_ptr<Task> Task::create(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -246,7 +247,7 @@ std::shared_ptr<Task> Task::create(
     Consumer consumer,
     std::function<void(std::exception_ptr)> onError) {
   return Task::create(
-      taskId,
+      std::move(taskId),
       std::move(planFragment),
       destination,
       std::move(queryCtx),
@@ -258,7 +259,7 @@ std::shared_ptr<Task> Task::create(
 
 // static
 std::shared_ptr<Task> Task::create(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -266,7 +267,7 @@ std::shared_ptr<Task> Task::create(
     ConsumerSupplier consumerSupplier,
     std::function<void(std::exception_ptr)> onError) {
   auto task = std::shared_ptr<Task>(new Task(
-      taskId,
+      std::move(taskId),
       std::move(planFragment),
       destination,
       std::move(queryCtx),
@@ -279,7 +280,7 @@ std::shared_ptr<Task> Task::create(
 }
 
 Task::Task(
-    const std::string& taskId,
+    std::string taskId,
     core::PlanFragment planFragment,
     int destination,
     std::shared_ptr<core::QueryCtx> queryCtx,
@@ -287,7 +288,7 @@ Task::Task(
     ConsumerSupplier consumerSupplier,
     std::function<void(std::exception_ptr)> onError)
     : uuid_{makeUuid()},
-      taskId_(taskId),
+      taskId_(std::move(taskId)),
       destination_(destination),
       mode_(mode),
       queryCtx_(std::move(queryCtx)),
@@ -314,12 +315,12 @@ Task::~Task() {
   // TODO(spershin): Temporary code designed to reveal what causes SIGABRT in
   // jemalloc when destroying some Tasks.
   std::string clearStage;
-  facebook::velox::process::ThreadDebugInfo debugInfoForTask{
+  process::ThreadDebugInfo debugInfoForTask{
       queryCtx_->queryId(), taskId_, [&]() {
         LOG(ERROR) << "Task::~Task(" << taskId_
                    << "), failure during clearing stage: " << clearStage;
       }};
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(debugInfoForTask);
+  process::ScopedThreadDebugInfo scopedInfo(debugInfoForTask);
 
   TestValue::adjust("facebook::velox::exec::Task::~Task", this);
 
@@ -731,20 +732,20 @@ RowVectorPtr Task::next(ContinueFuture* future) {
 }
 
 void Task::start(uint32_t maxDrivers, uint32_t concurrentSplitGroups) {
-  facebook::velox::process::ThreadDebugInfo threadDebugInfo{
+  process::ThreadDebugInfo threadDebugInfo{
       queryCtx()->queryId(), taskId_, nullptr};
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(threadDebugInfo);
   checkExecutionMode(ExecutionMode::kParallel);
 
   try {
     VELOX_CHECK_GE(
         maxDrivers,
         1,
-        "maxDrivers parameter must be greater then or equal to 1");
+        "maxDrivers parameter must be greater than or equal to 1");
     VELOX_CHECK_GE(
         concurrentSplitGroups,
         1,
-        "concurrentSplitGroups parameter must be greater then or equal to 1");
+        "concurrentSplitGroups parameter must be greater than or equal to 1");
 
     {
       std::unique_lock<std::timed_mutex> l(mutex_);
@@ -889,8 +890,7 @@ void Task::initializePartitionOutput() {
   auto bufferManager = bufferManager_.lock();
   VELOX_CHECK_NOT_NULL(
       bufferManager,
-      "Unable to initialize task. "
-      "PartitionedOutputBufferManager was already destructed");
+      "Unable to initialize task. OutputBufferManager was already destructed");
   std::shared_ptr<const core::PartitionedOutputNode> partitionedOutputNode{
       nullptr};
   int numOutputDrivers{0};
@@ -1314,7 +1314,7 @@ void Task::addSplit(const core::PlanNodeId& planNodeId, exec::Split&& split) {
   }
 
   if (!isTaskRunning) {
-    // Safe because 'split' is moved away above only if 'isTaskRunning'.
+    // Safe because 'split' is moved away above only if 'isTaskRunning' is true.
     // @lint-ignore CLANGTIDY bugprone-use-after-move
     addRemoteSplit(planNodeId, split);
   }
@@ -1917,7 +1917,7 @@ std::shared_ptr<JoinBridge> Task::getCustomJoinBridgeInternal(
       splitGroupId, planNodeId, &SplitGroupState::custom_bridges);
 }
 
-//  static
+// static
 std::string Task::shortId(const std::string& id) {
   if (id.size() < 12) {
     return id;

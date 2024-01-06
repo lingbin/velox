@@ -64,7 +64,7 @@ struct ConnectorSplit : public ISerializable {
     return nullptr;
   }
 
-  virtual ~ConnectorSplit() {}
+  virtual ~ConnectorSplit() = default;
 
   virtual std::string toString() const {
     return fmt::format("[split: {}]", connectorId);
@@ -109,10 +109,10 @@ class ConnectorTableHandle : public ISerializable {
 
 using ConnectorTableHandlePtr = std::shared_ptr<const ConnectorTableHandle>;
 
-/// Represents a request for writing to connector
+/// Represents a request for writing to connector.
 class ConnectorInsertTableHandle : public ISerializable {
  public:
-  virtual ~ConnectorInsertTableHandle() {}
+  virtual ~ConnectorInsertTableHandle() = default;
 
   /// Whether multi-threaded write is supported by this connector. Planner uses
   /// this flag to determine number of drivers.
@@ -195,13 +195,13 @@ class DataSource {
   static constexpr int64_t kUnknownRowSize = -1;
   virtual ~DataSource() = default;
 
-  /// Add split to process, then call next multiple times to process the split.
-  /// A split must be fully processed by next before another split can be
-  /// added. Next returns nullptr to indicate that current split is fully
+  /// Add split to process, then call 'next' multiple times to process the
+  /// split. A split must be fully processed by 'next' before another split can
+  /// be added. 'next' returns nullptr to indicate that current split is fully
   /// processed.
   virtual void addSplit(std::shared_ptr<ConnectorSplit> split) = 0;
 
-  /// Process a split added via addSplit. Returns nullptr if split has been
+  /// Process a split added via 'addSplit'. Returns nullptr if split has been
   /// fully processed. Returns std::nullopt and sets the 'future' if started
   /// asynchronous work and needs to wait for it to complete to continue
   /// processing. The caller will wait for the 'future' to complete before
@@ -233,7 +233,7 @@ class DataSource {
     return false;
   }
 
-  /// Initializes this from 'source'. 'source' is effectively moved into 'this'
+  /// Initializes this from 'source'. 'source' is effectively moved into 'this'.
   /// Adaptation like dynamic filters stay in effect but the parts dealing with
   /// open files, prefetched data etc. are moved. 'source' is freed after the
   /// move.
@@ -242,10 +242,10 @@ class DataSource {
   }
 
   /// Returns a connector dependent row size if available. This can be
-  /// called after addSplit().  This estimates uncompressed data
-  /// sizes. This is better than getCompletedBytes()/getCompletedRows()
+  /// called after 'addSplit()'.  This estimates uncompressed data
+  /// sizes. This is better than 'getCompletedBytes()'/'getCompletedRows()'
   /// since these track sizes before decompression and may include
-  /// read-ahead and extra IO from coalescing reads and  will not
+  /// read-ahead and extra IO from coalescing reads and will not
   /// fully account for size of sparsely accessed columns.
   virtual int64_t estimatedRowSize() {
     return kUnknownRowSize;
@@ -489,7 +489,7 @@ class ConnectorFactory {
 };
 
 /// Adds a factory for creating connectors to the registry using connector name
-/// as the key. Throws if factor with the same name is already present. Always
+/// as the key. Throws if factory with the same name is already present. Always
 /// returns true. The return value makes it easy to use with
 /// FB_ANONYMOUS_VARIABLE.
 bool registerConnectorFactory(std::shared_ptr<ConnectorFactory> factory);

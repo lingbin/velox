@@ -123,7 +123,7 @@ class HiveTableHandle : public ConnectorTableHandle {
  public:
   HiveTableHandle(
       std::string connectorId,
-      const std::string& tableName,
+      std::string tableName,
       bool filterPushdownEnabled,
       SubfieldFilters subfieldFilters,
       const core::TypedExprPtr& remainingFilter,

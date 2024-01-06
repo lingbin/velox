@@ -74,7 +74,7 @@ struct DriverStats {
 /// the mutex of the Driver's Task.
 ///
 /// The Driver goes through the following states:
-/// Not on thread. It is created and has not started. All flags are false.
+/// Not on thread - It is created and has not started. All flags are false.
 ///
 /// Enqueued - The Driver is added to an executor but does not yet have a
 /// thread. isEnqueued is true. Next states are terminated or on thread.
@@ -82,8 +82,8 @@ struct DriverStats {
 /// On thread - 'thread' is set to the thread that is running the Driver. Next
 /// states are blocked, terminated, suspended, enqueued.
 ///
-///  Blocked - The Driver is not on thread and is waiting for an external event.
-///  Next states are terminated, enqueued.
+/// Blocked - The Driver is not on thread and is waiting for an external event.
+/// Next states are terminated, enqueued.
 ///
 /// Suspended - The Driver is on thread, 'thread' and 'isSuspended' are set. The
 /// thread does not manipulate the Driver's state and is suspended as in waiting
@@ -91,10 +91,10 @@ struct DriverStats {
 /// we keep the stack so that when the wait is over the control stack is not
 /// lost. Next states are on thread or terminated.
 ///
-///  Terminated - 'isTerminated' is set. The Driver cannot run after this and
+/// Terminated - 'isTerminated' is set. The Driver cannot run after this and
 /// the state is final.
 ///
-/// CancelPool  allows terminating or pausing a set of Drivers. The Task API
+/// Task allows terminating or pausing a set of Drivers. The Task API
 /// allows starting or resuming Drivers. When terminate is requested the request
 /// is successful when all Drivers are off thread, blocked or suspended. When
 /// pause is requested, we have success when all Drivers are either enqueued,
@@ -256,7 +256,7 @@ class BlockingState {
   ContinueFuture future_;
   Operator* operator_;
   BlockingReason reason_;
-  uint64_t sinceMicros_;
+  const uint64_t sinceMicros_;
 
   static std::atomic_uint64_t numBlockedDrivers_;
 };
@@ -276,7 +276,7 @@ struct DriverCtx {
 
   std::shared_ptr<Task> task;
   Driver* driver{nullptr};
-  facebook::velox::process::ThreadDebugInfo threadDebugInfo;
+  process::ThreadDebugInfo threadDebugInfo;
   /// Tracks the traced operator ids. It is also used to avoid tracing the
   /// auxiliary operator such as the aggregation operator used by the table
   /// writer to generate the columns stats.
@@ -293,7 +293,7 @@ struct DriverCtx {
 
   const std::optional<trace::QueryTraceConfig>& traceConfig() const;
 
-  velox::memory::MemoryPool* addOperatorPool(
+  memory::MemoryPool* addOperatorPool(
       const core::PlanNodeId& planNodeId,
       const std::string& operatorType);
 
@@ -628,7 +628,7 @@ struct DriverFactory {
   /// True if 'planNodes' contains a source node for the task, e.g. TableScan
   /// or Exchange.
   bool inputDriver{false};
-  /// True if 'planNodes' contains a sync node for the task, e.g.
+  /// True if 'planNodes' contains a sink node for the task, e.g.
   /// PartitionedOutput.
   bool outputDriver{false};
   /// Contains node ids for which Hash Join Bridges connect ungrouped

@@ -86,7 +86,7 @@ class BaseRuntimeStatWriter {
 void setThreadLocalRunTimeStatWriter(
     BaseRuntimeStatWriter* FOLLY_NULLABLE writer);
 
-/// Retrives the current runtime stats writer.
+/// Retrieves the current runtime stats writer.
 BaseRuntimeStatWriter* FOLLY_NULLABLE getThreadLocalRunTimeStatWriter();
 
 /// Writes runtime counter to the current Operator running on that thread.

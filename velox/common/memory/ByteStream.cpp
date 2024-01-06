@@ -91,7 +91,7 @@ std::streampos BufferInputStream::tellp() const {
   if (ranges_.empty()) {
     return 0;
   }
-  assert(current_);
+  VELOX_DCHECK_NOT_NULL(current_);
   int64_t size = 0;
   for (auto& range : ranges_) {
     if (&range == current_) {
@@ -341,7 +341,7 @@ void ByteOutputStream::extend(int32_t bytes) {
 
   // Check if rewriting existing content. If so, move to next range and start at
   // 0.
-  if ((current_ != nullptr) && (current_ != &ranges_.back())) {
+  if (current_ != nullptr && current_ != &ranges_.back()) {
     ++current_;
     current_->position = 0;
     return;

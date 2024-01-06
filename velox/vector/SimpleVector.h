@@ -34,8 +34,7 @@
 #include "velox/vector/BaseVector.h"
 #include "velox/vector/TypeAliases.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 namespace exec {
 class EvalCtx;
@@ -269,7 +268,7 @@ class SimpleVector : public BaseVector {
   /// the SelectivityVector to corresponding indexes in this vector. Then we
   /// return:
   /// 1. True if all specified rows after the translation are known to be ASCII.
-  /// 2. False if all specified rows after translation contain atleast one non
+  /// 2. False if all specified rows after translation contain at least one non
   ///    ASCII character.
   /// 3. std::nullopt if ASCII-ness is not known for even one of the translated
   /// rows. If rowMappings is null then we revert to indexes in the
@@ -548,5 +547,4 @@ inline uint64_t SimpleVector<ComplexType>::hashValueAt(
 template <typename T>
 using SimpleVectorPtr = std::shared_ptr<SimpleVector<T>>;
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

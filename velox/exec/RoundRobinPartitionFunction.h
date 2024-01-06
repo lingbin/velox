@@ -59,7 +59,7 @@ class RoundRobinPartitionFunctionSpec : public core::PartitionFunctionSpec {
 
   static core::PartitionFunctionSpecPtr deserialize(
       const folly::dynamic& obj,
-      void* context) {
+      void* /* context */) {
     return std::make_shared<RoundRobinPartitionFunctionSpec>();
   }
 };

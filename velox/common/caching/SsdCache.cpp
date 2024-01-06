@@ -15,15 +15,12 @@
  */
 #include "velox/common/caching/SsdCache.h"
 #include <folly/Executor.h>
-#include <folly/portability/SysUio.h>
 #include "velox/common/base/Exceptions.h"
 #include "velox/common/caching/FileIds.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/testutil/TestValue.h"
-#include "velox/common/time/Timer.h"
 
 #include <filesystem>
-#include <numeric>
 
 using facebook::velox::common::testutil::TestValue;
 
@@ -91,7 +88,8 @@ bool SsdCache::startWrite() {
 }
 
 void SsdCache::write(std::vector<CachePin> pins) {
-  VELOX_CHECK_EQ(numShards_, writesInProgress_);
+  VELOX_CHECK_EQ(
+      numShards_, writesInProgress_, "startWrite() have not been called");
 
   TestValue::adjust("facebook::velox::cache::SsdCache::write", this);
 
@@ -99,7 +97,7 @@ void SsdCache::write(std::vector<CachePin> pins) {
 
   uint64_t bytes = 0;
   std::vector<std::vector<CachePin>> shards(numShards_);
-  for (auto& pin : pins) {
+  for (const auto& pin : pins) {
     bytes += pin.checkedEntry()->size();
     const auto& target = file(pin.checkedEntry()->key().fileNum.id());
     shards[target.shardId()].push_back(std::move(pin));

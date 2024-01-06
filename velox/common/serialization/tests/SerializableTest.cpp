@@ -15,13 +15,12 @@
  */
 
 #include "velox/common/serialization/Serializable.h"
+#include <folly/container/F14Map.h>
+#include <folly/json.h>
 #include <gtest/gtest.h>
-#include "folly/container/F14Map.h"
-#include "folly/json.h"
 
-using namespace ::facebook::velox;
+namespace facebook::velox {
 
-namespace {
 TEST(SerializableTest, options) {
   auto opts = getSerializationOptions();
 
@@ -181,4 +180,4 @@ TEST(SerializableTest, map) {
   testMap<folly::F14FastMap, int32_t, std::string>(vals.begin(), vals.end());
 }
 
-} // namespace
+} // namespace facebook::velox

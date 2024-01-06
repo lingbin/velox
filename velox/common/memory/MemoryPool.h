@@ -297,7 +297,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Rounds up to a power of 2 >= size, or to a size halfway between
   /// two consecutive powers of two, i.e 8, 12, 16, 24, 32, .... This
   /// coincides with JEMalloc size classes.
-  virtual size_t preferredSize(size_t size);
+  static size_t preferredSize(size_t size);
 
   /// Returns the memory allocation alignment size applied internally by this
   /// memory pool object.
@@ -399,10 +399,9 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Invoked by the memory arbitrator to abort a root memory pool. The function
   /// forwards the request to the corresponding query object to abort its
   /// execution through the reclaimer. The function throws if the reclaimer is
-  /// not set, otherwise returns a future to wait for the abort processing to
-  /// completion. We expect the query object to release its used memory soon
-  /// after the abort completes. 'error' should be the cause of the abortion. It
-  /// will be propagated to task level for accurate error exposure.
+  /// not set. We expect the query object to release its used memory soon after
+  /// the abort completes. 'error' should be the cause of the abortion. It will
+  /// be propagated to task level for accurate error exposure.
   virtual void abort(const std::exception_ptr& error) = 0;
 
   /// Returns true if this memory pool has been aborted.
@@ -559,7 +558,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   std::unordered_map<std::string, std::weak_ptr<MemoryPool>> children_;
 
   friend class MemoryReclaimer;
-  friend class velox::exec::ParallelMemoryReclaimer;
+  friend class exec::ParallelMemoryReclaimer;
   friend class MemoryManager;
   friend class MemoryArbitrator;
   friend class velox::memory::TestArbitrator;
@@ -748,8 +747,8 @@ class MemoryPoolImpl : public MemoryPool {
   }
 
   static folly::Synchronized<std::string>& debugPoolNameRegex() {
-    static folly::Synchronized<std::string> debugPoolNameRegex_;
-    return debugPoolNameRegex_;
+    static folly::Synchronized<std::string> debugPoolNameRegex;
+    return debugPoolNameRegex;
   }
 
   std::shared_ptr<MemoryPool> genChild(
@@ -845,8 +844,8 @@ class MemoryPoolImpl : public MemoryPool {
     return true;
   }
 
-  // Returns the needed reservation size. If there is sufficient unused memory
-  // reservation, this function returns zero.
+  // Returns the reservation size that needs to be increased. If there is
+  // sufficient unused memory reservation, this function returns zero.
   FOLLY_ALWAYS_INLINE int64_t reservationSizeLocked(int64_t size) {
     const int64_t neededSize =
         size - (reservationBytes_ - usedReservationBytes_);
@@ -870,7 +869,7 @@ class MemoryPoolImpl : public MemoryPool {
   // specified 'size'. If 'releaseOnly' is true, then we only release the unused
   // reservation if 'minReservationBytes_' is set. 'releaseThreadSafe' processes
   // the memory reservation release with mutex lock protection at the leaf
-  // memory pool while 'reserveThreadSafe' doesn't.
+  // memory pool while 'releaseNonThreadSafe' doesn't.
   void release(uint64_t bytes, bool releaseOnly = false);
 
   void releaseThreadSafe(uint64_t size, bool releaseOnly);
@@ -1016,9 +1015,7 @@ class MemoryPoolImpl : public MemoryPool {
 
   // Serializes updates on 'reservationBytes_', 'usedReservationBytes_'
   // and 'minReservationBytes_' to make reservation decision on a consistent
-  // read/write of those counters. incrementReservation()/decrementReservation()
-  // work based on atomic 'reservationBytes_' without mutex as children updating
-  // the same parent do not have to be serialized.
+  // read/write of those counters.
   mutable std::mutex mutex_;
 
   DestructionCallback destructionCb_;

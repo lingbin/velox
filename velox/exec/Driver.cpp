@@ -99,7 +99,7 @@ const std::optional<trace::QueryTraceConfig>& DriverCtx::traceConfig() const {
   return task->queryTraceConfig();
 }
 
-velox::memory::MemoryPool* DriverCtx::addOperatorPool(
+memory::MemoryPool* DriverCtx::addOperatorPool(
     const core::PlanNodeId& planNodeId,
     const std::string& operatorType) {
   return task->addOperatorPool(
@@ -161,15 +161,15 @@ BlockingState::BlockingState(
               .count()) {
   // Set before leaving the thread.
   driver_->state().hasBlockingFuture = true;
-  numBlockedDrivers_++;
+  ++numBlockedDrivers_;
 }
 
 // static
 void BlockingState::setResume(std::shared_ptr<BlockingState> state) {
   VELOX_CHECK(!state->driver_->isOnThread());
-  auto& exec = folly::QueuedImmediateExecutor::instance();
+  auto& executor = folly::QueuedImmediateExecutor::instance();
   std::move(state->future_)
-      .via(&exec)
+      .via(&executor)
       .thenValue([state](auto&& /* unused */) {
         auto& driver = state->driver_;
         auto& task = driver->task();
@@ -189,7 +189,7 @@ void BlockingState::setResume(std::shared_ptr<BlockingState> state) {
         Driver::enqueue(state->driver_);
       })
       .thenError(
-          folly::tag_t<std::exception>{}, [state](std::exception const& e) {
+          folly::tag_t<std::exception>{}, [state](const std::exception& e) {
             try {
               VELOX_FAIL(
                   "A ContinueFuture for task {} was realized with error: {}",
@@ -232,7 +232,7 @@ std::ostream& operator<<(std::ostream& out, const StopReason& reason) {
 void Driver::enqueue(std::shared_ptr<Driver> driver) {
   process::ScopedThreadDebugInfo scopedInfo(
       driver->driverCtx()->threadDebugInfo);
-  // This is expected to be called inside the Driver's Tasks's mutex.
+  // This is expected to be called inside the Driver's Task's mutex.
   driver->enqueueInternal();
   if (driver->closed_) {
     return;
@@ -495,6 +495,8 @@ StopReason Driver::runInternal(
     return stop;
   }
 
+  // See 7121fb9628b9d0446e0b6911acc4c609eb585fdf
+  // No need this comment, because task no long stored into a local var.
   // Update the queued time after entering the Task to ensure the stats have not
   // been deleted.
   if (curOperatorId_ < operators_.size()) {
@@ -730,7 +732,7 @@ StopReason Driver::runInternal(
     }
   } catch (velox::VeloxException&) {
     task()->setError(std::current_exception());
-    // The CancelPoolGuard will close 'self' and remove from Task.
+    // The CancelGuard will close 'self' and remove from Task.
     return StopReason::kAlreadyTerminated;
   } catch (std::exception&) {
     task()->setError(std::current_exception());
@@ -756,8 +758,7 @@ void Driver::recordYieldCount() {
 // static
 void Driver::run(std::shared_ptr<Driver> self) {
   process::TraceContext trace("Driver::run");
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(
-      self->driverCtx()->threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(self->driverCtx()->threadDebugInfo);
   ScopedDriverThreadContext scopedDriverThreadContext(*self->driverCtx());
   std::shared_ptr<BlockingState> blockingState;
   RowVectorPtr nullResult;
@@ -768,7 +769,11 @@ void Driver::run(std::shared_ptr<Driver> self) {
   VELOX_CHECK_NULL(
       nullResult,
       "The last operator (sink) must not produce any results. "
+<<<<<<< HEAD
       "Results need to be consumed by either a callback or another operator. ");
+=======
+      "Results need to be consumed by either a callback or another operator.")
+>>>>>>> 197c2f54b (lingbin-temp-update: temp-commit-at-20240106)
 
   // There can be a race between Task terminating and the Driver being on the
   // thread and exiting the runInternal() in a blocked state. If this happens
@@ -804,7 +809,7 @@ void Driver::run(std::shared_ptr<Driver> self) {
 
 void Driver::initializeOperatorStats(std::vector<OperatorStats>& stats) {
   stats.resize(operators_.size(), OperatorStats(0, 0, "", ""));
-  // Initialize the place in stats given by the operatorId. Use the
+  // Initialize the stats in place given by the operatorId. Use the
   // operatorId instead of i as the index to document the usage. The
   // operators are sequentially numbered but they could be reordered
   // in the pipeline later, so the ordinal position of the Operator is

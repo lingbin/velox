@@ -139,9 +139,9 @@ struct Timestamp {
 
   // Keep it in header for getting inlined.
   int64_t toNanos() const {
-    // int64 can store around 292 years in nanos ~ till 2262-04-12.
-    // When an integer overflow occurs in the calculation,
-    // an exception will be thrown.
+    // "int64" can store around 292 years in nanos ~ till 2262-04-12.
+    // When an integer overflow occurs in the calculation, an exception will be
+    // thrown.
     try {
       return checkedPlus(
           checkedMultiply(seconds_, (int64_t)1'000'000'000), (int64_t)nanos_);
@@ -183,8 +183,8 @@ struct Timestamp {
 
   // Keep it in header for getting inlined.
   int64_t toMicros() const {
-    // When an integer overflow occurs in the calculation,
-    // an exception will be thrown.
+    // When an integer overflow occurs in the calculation, an exception will be
+    // thrown.
     try {
       return checkedPlus(
           checkedMultiply(seconds_, (int64_t)1'000'000),
@@ -267,7 +267,7 @@ struct Timestamp {
     return Timestamp(second, nano);
   }
 
-  static const Timestamp minMillis() {
+  static Timestamp minMillis() {
     // The minimum Timestamp that toMillis() method will not overflow.
     // Used to calculate the minimum value of the Presto timestamp.
     constexpr int64_t kMin = std::numeric_limits<int64_t>::min();
@@ -277,7 +277,7 @@ struct Timestamp {
             kNanosecondsInMillisecond);
   }
 
-  static const Timestamp maxMillis() {
+  static Timestamp maxMillis() {
     // The maximum Timestamp that toMillis() method will not overflow.
     // Used to calculate the maximum value of the Presto timestamp.
     constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
@@ -481,6 +481,7 @@ class numeric_limits<facebook::velox::Timestamp> {
   static facebook::velox::Timestamp min() {
     return facebook::velox::Timestamp::min();
   }
+
   static facebook::velox::Timestamp max() {
     return facebook::velox::Timestamp::max();
   }

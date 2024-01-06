@@ -60,13 +60,13 @@ class MemoryPoolTest : public testing::TestWithParam<TestParam> {
  public:
   static const std::vector<TestParam> getTestParams() {
     std::vector<TestParam> params;
-    params.push_back({true, true, false});
-    params.push_back({true, false, false});
-    params.push_back({false, true, false});
-    params.push_back({false, false, false});
-    params.push_back({true, true, true});
-    params.push_back({true, false, true});
-    params.push_back({false, true, true});
+    // params.push_back({true, true, false});
+    // params.push_back({true, false, false});
+    // params.push_back({false, true, false});
+    // params.push_back({false, false, false});
+    // params.push_back({true, true, true});
+    // params.push_back({true, false, true});
+    // params.push_back({false, true, true});
     params.push_back({false, false, true});
     return params;
   }

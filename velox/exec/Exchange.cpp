@@ -18,12 +18,12 @@
 
 namespace facebook::velox::exec {
 
-void Exchange::addTaskIds(std::vector<std::string>& taskIds) {
-  std::shuffle(std::begin(taskIds), std::end(taskIds), rng_);
-  for (const std::string& taskId : taskIds) {
-    exchangeClient_->addRemoteTaskId(taskId);
+void Exchange::addRemoteTaskIds(std::vector<std::string>& remoteTaskIds) {
+  std::shuffle(std::begin(remoteTaskIds), std::end(remoteTaskIds), rng_);
+  for (const std::string& remoteTaskId : remoteTaskIds) {
+    exchangeClient_->addRemoteTaskId(remoteTaskId);
   }
-  stats_.wlock()->numSplits += taskIds.size();
+  stats_.wlock()->numSplits += remoteTaskIds.size();
 }
 
 bool Exchange::getSplits(ContinueFuture* future) {
@@ -33,7 +33,7 @@ bool Exchange::getSplits(ContinueFuture* future) {
   if (noMoreSplits_) {
     return false;
   }
-  std::vector<std::string> taskIds;
+  std::vector<std::string> remoteTaskIds;
   for (;;) {
     exec::Split split;
     auto reason = operatorCtx_->task()->getSplitOrFuture(
@@ -43,9 +43,9 @@ bool Exchange::getSplits(ContinueFuture* future) {
         auto remoteSplit = std::dynamic_pointer_cast<RemoteConnectorSplit>(
             split.connectorSplit);
         VELOX_CHECK(remoteSplit, "Wrong type of split");
-        taskIds.push_back(remoteSplit->taskId);
+        remoteTaskIds.push_back(remoteSplit->taskId);
       } else {
-        addTaskIds(taskIds);
+        addRemoteTaskIds(remoteTaskIds);
         exchangeClient_->noMoreRemoteTasks();
         noMoreSplits_ = true;
         if (atEnd_) {
@@ -56,7 +56,7 @@ bool Exchange::getSplits(ContinueFuture* future) {
         return false;
       }
     } else {
-      addTaskIds(taskIds);
+      addRemoteTaskIds(remoteTaskIds);
       return true;
     }
   }
@@ -67,8 +67,7 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
     return BlockingReason::kNotBlocked;
   }
 
-  // Start fetching data right away. Do not wait for all
-  // splits to be available.
+  // Start fetching data right away. Do not wait for all splits to be available.
 
   if (!splitFuture_.valid()) {
     getSplits(&splitFuture_);
@@ -168,13 +167,12 @@ void Exchange::recordExchangeClientStats() {
     lockedStats->runtimeStats.insert({name, value});
   }
 
-  auto backgroundCpuTimeMs =
-      exchangeClientStats.find(ExchangeClient::kBackgroundCpuTimeMs);
-  if (backgroundCpuTimeMs != exchangeClientStats.end()) {
+  auto iter = exchangeClientStats.find(ExchangeClient::kBackgroundCpuTimeMs);
+  if (iter != exchangeClientStats.end()) {
     const CpuWallTiming backgroundTiming{
-        static_cast<uint64_t>(backgroundCpuTimeMs->second.count),
+        static_cast<uint64_t>(iter->second.count),
         0,
-        static_cast<uint64_t>(backgroundCpuTimeMs->second.sum) *
+        static_cast<uint64_t>(iter->second.sum) *
             Timestamp::kNanosecondsInMillisecond};
     lockedStats->backgroundTiming.clear();
     lockedStats->backgroundTiming.add(backgroundTiming);

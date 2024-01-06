@@ -94,7 +94,7 @@ HashBuild::HashBuild(
   // Identify the non-key build side columns and make a decoder for each.
   const int32_t numDependents = inputType->size() - numKeys;
   if (numDependents > 0) {
-    // Number of join keys (numKeys) may be less then number of input columns
+    // Number of join keys (numKeys) may be less than number of input columns
     // (inputType->size()). In this case numDependents is negative and cannot be
     // used to call 'reserve'. This happens when we join different probe side
     // keys with the same build side key: SELECT * FROM t LEFT JOIN u ON t.k1 =
@@ -385,8 +385,8 @@ void HashBuild::addInput(RowVectorPtr input) {
     hashes_.resize(activeRows_.end());
   }
 
-  // As long as analyzeKeys is true, we keep running the keys through
-  // the Vectorhashers so that we get a possible mapping of the keys
+  // As long as analyzeKeys_ is true, we keep running the keys through
+  // the VectorHashers so that we get a possible mapping of the keys
   // to small ints for array or normalized key. When mayUseValueIds is
   // false for the first time we stop. We do not retain the value ids
   // since the final ones will only be known after all data is
@@ -398,7 +398,7 @@ void HashBuild::addInput(RowVectorPtr input) {
       analyzeKeys_ = hasher->mayUseValueIds();
     }
   }
-  auto rows = table_->rows();
+  auto* rows = table_->rows();
   FlatVector<bool>* spillProbedFlagVector{nullptr};
   if (isInputFromSpill() && needProbedFlagSpill_) {
     spillProbedFlagVector =
@@ -702,8 +702,8 @@ bool HashBuild::finishHashBuild() {
       std::lock_guard<std::mutex> l(build->mutex_);
       VELOX_CHECK(
           !build->stateCleared_,
-          "Internal state for a peer is empty. It might have already"
-          " been closed.");
+          "Internal state for a peer is empty. It might have already been "
+          "closed.");
       numRows += build->table_->rows()->numRows();
     }
     otherBuilds.push_back(build);
@@ -720,8 +720,8 @@ bool HashBuild::finishHashBuild() {
       std::lock_guard<std::mutex> l(build->mutex_);
       VELOX_CHECK(
           !build->stateCleared_,
-          "Internal state for a peer is empty. It might have already"
-          " been closed.");
+          "Internal state for a peer is empty. It might have already been "
+          "closed.");
       build->stateCleared_ = true;
       VELOX_CHECK_NOT_NULL(build->table_);
       otherTables.push_back(std::move(build->table_));

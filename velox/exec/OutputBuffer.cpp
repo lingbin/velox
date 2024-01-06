@@ -344,7 +344,11 @@ OutputBuffer::OutputBuffer(
 
 void OutputBuffer::updateOutputBuffers(int numBuffers, bool noMoreBuffers) {
   if (isPartitioned()) {
-    VELOX_CHECK_EQ(buffers_.size(), numBuffers);
+    VELOX_CHECK_EQ(
+        buffers_.size(),
+        numBuffers,
+        "Partitioned output buffer doesn't allow to update with different "
+        "number of output buffers once created.");
     VELOX_CHECK(noMoreBuffers);
     noMoreBuffers_ = true;
     return;
@@ -544,8 +548,8 @@ void OutputBuffer::enqueuePartitionedOutputLocked(
   VELOX_DCHECK(isPartitioned());
   VELOX_CHECK_NULL(arbitraryBuffer_);
   VELOX_DCHECK(dataAvailableCbs.empty());
-
   VELOX_CHECK_LT(destination, buffers_.size());
+
   auto* buffer = buffers_[destination].get();
   if (buffer != nullptr) {
     buffer->enqueue(std::move(data));

@@ -74,7 +74,7 @@ HiveDataSource::HiveDataSource(
       pool_(connectorQueryCtx->memoryPool()),
       outputType_(outputType),
       expressionEvaluator_(connectorQueryCtx->expressionEvaluator()) {
-  // Column handled keyed on the column alias, the name used in the query.
+  // Column handles keyed on the column alias, the name used in the query.
   for (const auto& [canonicalizedName, columnHandle] : columnHandles) {
     auto handle = std::dynamic_pointer_cast<HiveColumnHandle>(columnHandle);
     VELOX_CHECK_NOT_NULL(
@@ -361,7 +361,7 @@ std::optional<RowVectorPtr> HiveDataSource::next(
       !output_->mayHaveNulls(), "Top-level row vector cannot have nulls");
   auto rowsRemaining = output_->size();
   if (rowsRemaining == 0) {
-    // no rows passed the pushed down filters.
+    // No rows passed the pushed down filters.
     return getEmptyOutput();
   }
 

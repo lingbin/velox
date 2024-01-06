@@ -265,7 +265,7 @@ class ScanSpec {
   // Returns the child which produces values for 'channel'. Throws if not found.
   ScanSpec& getChildByChannel(column_index_t channel);
 
-  // sets filter order and filters of 'this' from 'other'. Used when
+  // Sets filter order and filters of 'this' from 'other'. Used when
   // initializing a ScanSpec for a new split or stripe. This transfers
   // dynamically acquired filters and adaptive filter order. 'other'
   // should not be used after this. Different splits or stripes may

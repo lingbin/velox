@@ -95,7 +95,7 @@ class FileSystem {
   /// Deletes the file at 'path'. Throws on error.
   virtual void remove(std::string_view path) = 0;
 
-  /// Rename the file at 'path' to `newpath`. Throws on error. If 'overwrite' is
+  /// Rename the file at 'path' to `newPath`. Throws on error. If 'overwrite' is
   /// true, then rename does overwrite if file at 'newPath' already exists.
   /// Throws a velox user exception on error.
   virtual void rename(
@@ -135,7 +135,7 @@ bool isPathSupportedByRegisteredFileSystems(const std::string_view& filePath);
 /// The registration function takes two parameters:
 /// a std::function<bool(std::string_view)> that says whether the registered
 /// FileSystem subclass should be used for that filename, and a lambda that
-/// generates the actual file system.
+/// generates the actual FileSystem object.
 void registerFileSystem(
     std::function<bool(std::string_view)> schemeMatcher,
     std::function<std::shared_ptr<FileSystem>(

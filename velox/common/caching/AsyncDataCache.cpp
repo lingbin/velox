@@ -15,6 +15,7 @@
  */
 
 #include "velox/common/caching/AsyncDataCache.h"
+#include <common/memory/Allocation.h>
 #include "velox/common/caching/FileIds.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/caching/SsdFile.h"
@@ -398,7 +399,7 @@ uint64_t CacheShard::evict(
 
       ++numEvictChecks_;
       ++clockHand_;
-      auto candidate = iter->get();
+      auto* candidate = iter->get();
       if (candidate == nullptr) {
         continue;
       }
@@ -493,7 +494,7 @@ void CacheShard::calibrateThreshold() {
   auto numSamples = std::min<int32_t>(10, entries_.size());
   auto now = accessTime();
   auto entryIndex = (clockHand_ % entries_.size());
-  auto step = entries_.size() / numSamples;
+  const auto step = entries_.size() / numSamples;
   auto iter = entries_.begin() + entryIndex;
   evictionThreshold_ = percentile<int32_t>(
       [&]() -> int32_t {
@@ -565,8 +566,8 @@ void CacheShard::appendSsdSaveable(bool saveAll, std::vector<CachePin>& pins) {
   for (auto& entry : entries_) {
     if (entry && (entry->ssdFile_ == nullptr) && !entry->isExclusive() &&
         entry->ssdSaveable()) {
-      CachePin pin;
       ++entry->numPins_;
+      CachePin pin;
       pin.setEntry(entry.get());
       pins.push_back(std::move(pin));
       if (pins.size() >= limit) {
@@ -668,8 +669,6 @@ AsyncDataCache::AsyncDataCache(
   }
 }
 
-AsyncDataCache::~AsyncDataCache() = default;
-
 // static
 std::shared_ptr<AsyncDataCache> AsyncDataCache::create(
     memory::MemoryAllocator* allocator,
@@ -747,10 +746,10 @@ bool AsyncDataCache::makeSpace(
   constexpr int32_t kMaxAttempts = kNumShards * 4;
   // Evict at least 1MB even for small allocations to avoid constantly hitting
   // the mutex protected evict loop.
-  constexpr int32_t kMinEvictPages = 256;
+  constexpr MachinePageCount kMinEvictPages = 256;
   // If requesting less than kSmallSizePages try up to 4x more if
   // first try failed.
-  constexpr int32_t kSmallSizePages = 2048; // 8MB
+  constexpr MachinePageCount kSmallSizePages = 2048; // 8MB
   float sizeMultiplier = 1.2;
   // True if this thread is counted in 'numThreadsInAllocate_'.
   bool isCounted = false;
@@ -810,7 +809,8 @@ bool AsyncDataCache::makeSpace(
     // with 'evictAllUnpinned' set to true.
     shards_[shardCounter_ & (kShardMask)]->evict(
         memory::AllocationTraits::pageBytes(
-            std::max<uint64_t>(kMinEvictPages, numPages) * sizeMultiplier),
+            std::max<MachinePageCount>(kMinEvictPages, numPages) *
+            sizeMultiplier),
         nthAttempt >= kNumShards,
         numPagesToAcquire,
         acquired);
@@ -828,9 +828,9 @@ uint64_t AsyncDataCache::shrink(uint64_t targetBytes) {
 
   RECORD_METRIC_VALUE(kMetricCacheShrinkCount);
   LOG(INFO) << "Try to shrink cache to free up "
-            << velox::succinctBytes(targetBytes) << "  memory";
+            << velox::succinctBytes(targetBytes) << " memory";
 
-  const uint64_t minBytesToEvict = 8UL << 20;
+  constexpr uint64_t minBytesToEvict = 8UL << 20; // 8MB
   uint64_t evictedBytes{0};
   uint64_t shrinkTimeUs{0};
   {
@@ -919,7 +919,7 @@ void AsyncDataCache::possibleSsdSave(uint64_t bytes) {
 
 void AsyncDataCache::saveToSsd(bool saveAll) {
   std::vector<CachePin> pins;
-  VELOX_CHECK(ssdCache_->writeInProgress());
+  VELOX_CHECK(ssdCache_->writeInProgress(), "Should invoke startWrite() first");
   ssdSaveable_ = 0;
   for (auto& shard : shards_) {
     shard->appendSsdSaveable(saveAll, pins);

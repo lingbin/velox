@@ -90,7 +90,7 @@ bool isHostExcludedFromProxy(
 /// first and, if set, returned, therefore taking precendence.
 /// Note, the envVar input is expected to be lower case.
 namespace {
-std::string readProxyEnvVar(std::string envVar) {
+std::string readProxyEnvVar(const std::string& envVar) {
   auto httpProxy = getenv(envVar.c_str());
   if (httpProxy) {
     return std::string(httpProxy);

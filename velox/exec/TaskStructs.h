@@ -44,7 +44,7 @@ struct BarrierState {
   std::vector<std::shared_ptr<Driver>> drivers;
   /// Promises given to non-last peer drivers that the last driver will collect
   /// all hashtables from the peers and assembles them into one (HashBuilder
-  /// operator does that). After the last drier done its work, the promises are
+  /// operator does that). After the last driver done its work, the promises are
   /// fulfilled and the non-last drivers can continue.
   std::vector<ContinuePromise> allPeersFinishedPromises;
 };
@@ -121,7 +121,7 @@ struct SplitGroupState {
   uint32_t numFinishedOutputDrivers{0};
 
   // True if the state contains structures used for connecting ungrouped
-  // execution pipeline with grouped excution pipeline. In that case we don't
+  // execution pipeline with grouped execution pipeline. In that case we don't
   // want to clean up some of these structures.
   bool mixedExecutionMode{false};
 

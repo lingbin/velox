@@ -44,7 +44,7 @@ bool isColumnNameRequiringEscaping(const std::string& name) {
 
 namespace facebook::velox {
 
-// Static variable intialization is not thread safe for non
+// Static variable initialization is not thread safe for non
 // constant-initialization, but scoped static initialization is thread safe.
 const std::unordered_map<std::string, TypeKind>& getTypeStringMap() {
   static const std::unordered_map<std::string, TypeKind> kTypeStringMap{
@@ -83,7 +83,7 @@ TypeKind mapNameToTypeKind(const std::string& name) {
   auto found = getTypeStringMap().find(name);
 
   if (found == getTypeStringMap().end()) {
-    VELOX_USER_FAIL("Specified element is not found : {}", name);
+    VELOX_USER_FAIL("Specified type name is not found : {}", name);
   }
 
   return found->second;
@@ -113,7 +113,7 @@ std::string mapTypeKindToName(const TypeKind& typeKind) {
   auto found = typeEnumMap.find(typeKind);
 
   if (found == typeEnumMap.end()) {
-    VELOX_USER_FAIL("Specified element is not found : {}", (int32_t)typeKind);
+    VELOX_USER_FAIL("Specified type kind is not found : {}", (int32_t)typeKind);
   }
 
   return found->second;
@@ -128,6 +128,11 @@ std::pair<uint8_t, uint8_t> getDecimalPrecisionScale(const Type& type) {
     return {decimalType.precision(), decimalType.scale()};
   }
   VELOX_FAIL("Type is not Decimal");
+}
+
+std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
+  os << mapTypeKindToName(kind);
+  return os;
 }
 
 namespace {
@@ -146,14 +151,7 @@ struct OpaqueSerdeRegistry {
     return instance;
   }
 };
-} // namespace
 
-std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
-  os << mapTypeKindToName(kind);
-  return os;
-}
-
-namespace {
 std::vector<TypePtr> deserializeChildTypes(const folly::dynamic& obj) {
   return velox::ISerializable::deserialize<std::vector<Type>>(obj["cTypes"]);
 }
@@ -317,7 +315,7 @@ std::vector<TypeParameter> createTypeParameters(
   std::vector<TypeParameter> parameters;
   parameters.reserve(children.size());
   for (const auto& child : children) {
-    parameters.push_back(TypeParameter(child));
+    parameters.emplace_back(child);
   }
   return parameters;
 }
@@ -979,7 +977,8 @@ void toTypeSql(const TypePtr& type, std::ostream& out) {
   }
 }
 
-std::string IntervalDayTimeType::valueToString(int64_t value) const {
+// static
+std::string IntervalDayTimeType::valueToString(int64_t value) {
   static const char* kIntervalFormat = "%s%lld %02d:%02d:%02d.%03d";
 
   int128_t remainMillis = value;
@@ -1011,7 +1010,8 @@ std::string IntervalDayTimeType::valueToString(int64_t value) const {
   return buf;
 }
 
-std::string IntervalYearMonthType::valueToString(int32_t value) const {
+// static
+std::string IntervalYearMonthType::valueToString(int32_t value) {
   std::ostringstream oss;
   auto sign = "";
   int64_t longValue = value;

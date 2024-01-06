@@ -39,8 +39,7 @@
 #include "velox/vector/VectorEncoding.h"
 #include "velox/vector/VectorUtil.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 template <typename T>
 class SimpleVector;
@@ -74,7 +73,7 @@ class BaseVector {
   static constexpr uint64_t kNullHash = 1;
 
   BaseVector(
-      velox::memory::MemoryPool* pool,
+      memory::MemoryPool* pool,
       TypePtr type,
       VectorEncoding::Simple encoding,
       BufferPtr nulls,
@@ -250,8 +249,8 @@ class BaseVector {
   }
 
   virtual void append(const BaseVector* other) {
-    auto totalSize = BaseVector::length_ + other->size();
-    auto previousSize = BaseVector::size();
+    auto totalSize = length_ + other->size();
+    auto previousSize = size();
     resize(totalSize);
     copy(other, previousSize, 0, other->size());
   }
@@ -431,18 +430,20 @@ class BaseVector {
 
   /// Returns whether or not the nulls buffer can be modified.
   /// This does not guarantee the existence of the nulls buffer, if using this
-  /// within BaseVector you still may need to call ensureNulls.
+  /// within BaseVector you still may need to call 'ensureNulls'.
   virtual bool isNullsWritable() const {
     return !nulls_ || (nulls_->isMutable());
   }
 
-  /// Sets null when 'nulls' has a null value for active rows in 'rows'.
-  /// Is a no-op 'nulls' is a nullptr or 'rows' has no selections. This API
+  /// Sets null when 'nullBits' has a null value for active rows in 'rows'. Is a
+  /// no-op if 'bits' is a nullptr or 'nullRows' has no selections. This API
   /// throws if the vector is a ConstantVector.
-  virtual void addNulls(const uint64_t* nulls, const SelectivityVector& rows);
+  virtual void addNulls(
+      const uint64_t* nullBits,
+      const SelectivityVector& nullRows);
 
-  /// Sets nulls for all active row in 'nullRows'. Is a no-op if nullRows has no
-  /// selections. This API throws if the vector is a ConstantVector.
+  /// Sets nulls for all active row in 'nullRows'. Is a no-op if 'nullRows' has
+  /// no selections. This API throws if the vector is a ConstantVector.
   virtual void addNulls(const SelectivityVector& nullRows);
 
   /// Clears nulls for all active rows in 'nonNullRows'
@@ -586,7 +587,7 @@ class BaseVector {
   /// Returns true if the following conditions hold:
   ///  * The vector is singly referenced.
   ///  * The vector has a Flat-like encoding (Flat, Array, Map, Row).
-  ///  * Any child Buffers are mutable  and singly referenced.
+  ///  * Any child Buffers are mutable and singly referenced.
   ///  * All of these conditions hold for child Vectors recursively.
   /// This function is templated rather than taking a
   /// std::shared_ptr<BaseVector> because if we were to do that the compiler
@@ -1006,8 +1007,7 @@ std::string printIndices(
     const BufferPtr& indices,
     vector_size_t maxIndicesToPrint = 10);
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox
 
 namespace folly {
 
