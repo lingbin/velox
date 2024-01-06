@@ -30,22 +30,23 @@
 
 namespace facebook::velox {
 
-// A selectivityVector is used to logically filter / select data in place.
-// The goal here is to be able to pass this vector between filter stages on
-// different vectors while only maintaining a single copy of state and more
-// importantly not ever having to re-layout the physical data. Further the
-// SelectivityVector can be used to optimize filtering by skipping elements
-// that where previously filtered by another filter / column
+/// A selectivityVector is used to logically filter / select data in place.
+/// The goal here is to be able to pass 'this' between filter stages on
+/// different vectors while only maintaining a single copy of state and more
+/// importantly not ever having to re-layout the physical data. Further the
+/// SelectivityVector can be used to optimize filtering by skipping elements
+/// that where previously filtered by another filter / column.
 class SelectivityVector {
  public:
-  SelectivityVector() {}
+  SelectivityVector() = default;
 
-  explicit SelectivityVector(vector_size_t length, bool allSelected = true) {
+  // TODO(lingbin): 使用“初始化列表”(member initializer list)，避免一次赋值。
+  explicit SelectivityVector(vector_size_t length, bool allSelected = true)
+      : size_(length),
+        begin_(0),
+        end_(allSelected ? size_ : 0),
+        allSelected_(allSelected) {
     bits_.resize(bits::nwords(length), allSelected ? ~0ULL : 0);
-    size_ = length;
-    begin_ = 0;
-    end_ = allSelected ? size_ : 0;
-    allSelected_ = allSelected;
   }
 
   // Returns a statically allocated reference to an empty selectivity vector
@@ -73,7 +74,7 @@ class SelectivityVector {
       }
     }
 
-    bits_.resize(numWords, value ? -1 : 0);
+    bits_.resize(numWords, value ? ~0ULL : 0);
     size_ = size;
 
     updateBounds();
@@ -90,24 +91,20 @@ class SelectivityVector {
     allSelected_ = value;
   }
 
-  /**
-   * Set whether given index is selected. updateBounds() need to be called
-   * explicitly after setValid() call, it can be called only once after multiple
-   * setValid() calls in a row.
-   */
+  /// Set whether given index is selected. updateBounds() need to be called
+  /// explicitly after setValid() call, it can be called only once after
+  /// multiple setValid() calls in a row.
   void setValid(vector_size_t idx, bool valid) {
     VELOX_DCHECK_LT(idx, bits_.size() * sizeof(bits_[0]) * 8);
     bits::setBit(bits_.data(), idx, valid);
     allSelected_.reset();
   }
 
-  /**
-   * If range is not empty, set a range of values to valid from [start, end).
-   * updateBounds() need to be called explicitly after setValidRange() call, it
-   * can be called only once after multiple setValidRange() calls in a row.
-   */
+  /// If range is not empty, set a range of values to valid from [start, end).
+  /// updateBounds() need to be called explicitly after setValidRange() call, it
+  /// can be called only once after multiple setValidRange() calls in a row.
   void setValidRange(vector_size_t begin, vector_size_t end, bool valid) {
-    VELOX_DCHECK_GE(end, begin);
+    VELOX_DCHECK_LE(begin, end);
     if (begin == end) {
       return;
     }
@@ -116,20 +113,18 @@ class SelectivityVector {
     allSelected_.reset();
   }
 
-  /**
-   * @return true if given index is selected, false if not
-   */
+  /// @return true if given index is selected, false if not.
   bool isValid(vector_size_t idx) const {
     return bits::isBitSet(bits_.data(), idx);
   }
 
-  const Range<bool> asRange() const {
+  // TODO(lingbin): Function returns by const value. Consider returning by
+  // non-const value instead.
+  Range<bool> asRange() const {
     return Range<bool>(bits_.data(), begin_, end_);
   }
 
-  /**
-   * updateBounds() need to be called explicitly if data is modified.
-   */
+  /// updateBounds() need to be called explicitly if data is modified.
   MutableRange<bool> asMutableRange() {
     return MutableRange<bool>(bits_.data(), begin_, end_);
   }
@@ -146,16 +141,12 @@ class SelectivityVector {
     return end_;
   }
 
-  /**
-   * @return true if the vector has anything selected, false otherwise
-   */
+  /// @return true if the vector has anything selected, false otherwise.
   bool hasSelections() const {
     return begin_ < end_;
   }
 
-  /**
-   * Sets the vector to all not selected.
-   */
+  /// Sets the vector to all not selected.
   void clearAll() {
     bits::fillBits(bits_.data(), 0, size_, false);
     begin_ = 0;
@@ -165,9 +156,7 @@ class SelectivityVector {
     VELOX_UNSUPPRESS_STRINGOP_OVERFLOW_WARNING
   }
 
-  /**
-   * Sets the vector to all selected.
-   */
+  /// Sets the vector to all selected.
   void setAll() {
     bits::fillBits(bits_.data(), 0, size_, true);
     begin_ = 0;
@@ -182,25 +171,23 @@ class SelectivityVector {
     }
     memcpy(bits_.data(), bits, numWords * 8);
     size_ = size;
-    end_ = size;
-    begin_ = 0;
+    // TODO(lingbin): Remove it. it will be updated in updateBounds().
+    // end_ = size;
+    // No need, updateBounds() will update 'begin_';
+    // begin_ = 0;
     updateBounds();
   }
 
-  /**
-   * Removes rows that are not present in the 'other' vector.
-   */
+  /// Removes rows that are not present in the 'other' vector.
   void intersect(const SelectivityVector& other) {
     bits::andBits(
         bits_.data(), other.bits_.data(), begin_, std::min(end_, other.size()));
     updateBounds();
   }
 
-  /**
-   * Merges the valid vector of another SelectivityVector by !AND'ing them
-   * together. This is used to support logical deletes where
-   * any keys passing should actually be inverted
-   */
+  /// Merges the valid vector of another SelectivityVector by !AND'ing them
+  /// together. This is used to support logical deletes where any keys passing
+  /// should actually be inverted.
   void deselect(const SelectivityVector& other) {
     bits::andWithNegatedBits(
         bits_.data(), other.bits_.data(), begin_, std::min(end_, other.size()));
@@ -210,7 +197,7 @@ class SelectivityVector {
   void deselect(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andWithNegatedBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -219,7 +206,7 @@ class SelectivityVector {
   void deselectNulls(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -228,7 +215,7 @@ class SelectivityVector {
   void deselectNonNulls(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andWithNegatedBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -236,13 +223,13 @@ class SelectivityVector {
 
   /// Clear null bits in 'nulls' for active rows.
   void clearNulls(BufferPtr& nulls) const {
-    if (nulls) {
+    if (nulls != nullptr) {
       bits::orBits(nulls->asMutable<uint64_t>(), bits_.data(), begin_, end_);
     }
   }
 
   void clearNulls(uint64_t* rawNulls) const {
-    if (rawNulls) {
+    if (rawNulls != nullptr) {
       bits::orBits(rawNulls, bits_.data(), begin_, end_);
     }
   }
@@ -283,11 +270,9 @@ class SelectivityVector {
     return false;
   }
 
-  /**
-   * Updates the begin_ and end_ values to match the
-   * current bounds of the minimum selected index and the maximum selected
-   * index (noting that the range in between may contain not selected indices).
-   */
+  /// Updates the 'begin_' and 'end_' values to match the current bounds of the
+  /// minimum selected index and the maximum selected index (noting that the
+  /// range in between may contain not selected indices).
   void updateBounds() {
     begin_ = bits::findFirstBit(bits_.data(), 0, size_);
     if (begin_ == -1) {
@@ -310,9 +295,8 @@ class SelectivityVector {
         bits::isAllSet(bits_.data(), 0, size_, true);
     return allSelected_.value();
   }
-  /**
-   * Iterate and count the number of selected values in this SelectivityVector
-   */
+
+  /// Iterate and count the number of selected values in this SelectivityVector.
   vector_size_t countSelected() const {
     if (allSelected_.has_value() && *allSelected_) {
       return size();
@@ -338,6 +322,7 @@ class SelectivityVector {
                  return bits_[index] == other.bits_[index];
                });
   }
+
   bool operator!=(const SelectivityVector& other) const {
     return !(*this == other);
   }
@@ -363,7 +348,7 @@ class SelectivityVector {
     bool firstValidEncountered = true;
 
     // Intentionally going from zero to avoid surprises debugging if begin() and
-    // end() not correct
+    // end() not correct.
     for (size_t i = 0; i < static_cast<size_t>(selectivityVector.size()); ++i) {
       if (selectivityVector.isValid(i)) {
         if (!firstValidEncountered) {

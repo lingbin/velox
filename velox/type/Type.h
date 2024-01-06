@@ -43,8 +43,6 @@
 
 namespace facebook::velox {
 
-using int128_t = __int128_t;
-
 using column_index_t = uint32_t;
 
 constexpr column_index_t kConstantChannel =
@@ -58,7 +56,7 @@ constexpr column_index_t kConstantChannel =
 /// These logical definitions each serve slightly different purposes.
 /// These type sets are:
 /// - TypeKind
-/// - Type (RowType, BigIntType, ect.)
+/// - Type (RowType, BigIntType, etc.)
 /// - Templated Types (Row<T...>, Map<K, V>, ...)
 ///     C++ templated classes. Never instantiated, used to pass limited type
 ///     information into template parameters.
@@ -107,6 +105,7 @@ inline std::string mapTypeKindToName(const TypeKind& typeKind) {
 
 std::ostream& operator<<(std::ostream& os, const TypeKind& kind);
 
+// Forward declaration.
 template <TypeKind KIND>
 class ScalarType;
 class ShortDecimalType;
@@ -267,7 +266,7 @@ struct TypeTraits<TypeKind::TIMESTAMP> {
   static constexpr uint32_t maxSubTypes = 0;
   static constexpr TypeKind typeKind = TypeKind::TIMESTAMP;
   // isPrimitiveType in the type traits indicate whether it is a leaf type.
-  // So only types which have other sub types, should be set to false.
+  // So only types which have other sub-types, should be set to false.
   // Timestamp does not contain other types, so it is set to true.
   static constexpr bool isPrimitiveType = true;
   static constexpr bool isFixedWidth = true;
@@ -332,7 +331,7 @@ struct TypeTraits<TypeKind::ROW> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::ROW;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -371,7 +370,7 @@ struct TypeTraits<TypeKind::FUNCTION> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::FUNCTION;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -391,6 +390,7 @@ struct TypeTraits<TypeKind::OPAQUE> {
   static constexpr const char* name = "OPAQUE";
 };
 
+// Forward declaration.
 template <TypeKind KIND>
 struct TypeFactory;
 
@@ -415,8 +415,8 @@ enum class TypeParameterKind {
 struct TypeParameter {
   const TypeParameterKind kind;
 
-  /// Must be not not null when kind is kType. All other properties should be
-  /// null or unset (other than rowFieldName).
+  /// Must be not null when kind is kType. All other properties should be null
+  /// or unset (other than rowFieldName).
   const TypePtr type;
 
   /// Must be set when kind is kLongLiteral. All other properties should be null
@@ -424,7 +424,7 @@ struct TypeParameter {
   const std::optional<int64_t> longLiteral;
 
   /// If this parameter is a child of another parent row type, it can optionally
-  /// have a name, e.g, "id" for `row(id bigint)`. Only set when kind is kType
+  /// have a name, e.g, "id" for `row(id bigint)`. Only set when kind is kType.
   const std::optional<std::string> rowFieldName;
 
   /// Creates kType parameter.
@@ -480,13 +480,13 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   /// Returns true if equality relationship is defined for the values of this
   /// type, i.e. a == b is defined and returns true, false or null. For example,
   /// scalar types are usually comparable and complex types are comparable if
-  /// their nested types are.
+  /// their nested types are comparable.
   virtual bool isComparable() const = 0;
 
   /// Returns true if less than relationship is defined for the values of this
   /// type, i.e. a <= b returns true or false. For example, scalar types are
   /// usually orderable, arrays and structs are orderable if their nested types
-  /// are, while map types are not orderable.
+  /// are orderable, while map types are not orderable.
   virtual bool isOrderable() const = 0;
 
   /// Returns true if values of this type implements custom comparison and hash
@@ -577,19 +577,18 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   VELOX_FLUENT_CAST(Array, ARRAY)
   VELOX_FLUENT_CAST(Map, MAP)
   VELOX_FLUENT_CAST(Row, ROW)
-  VELOX_FLUENT_CAST(Opaque, OPAQUE)
   VELOX_FLUENT_CAST(UnKnown, UNKNOWN)
   VELOX_FLUENT_CAST(Function, FUNCTION)
+  VELOX_FLUENT_CAST(Opaque, OPAQUE)
 
   const ShortDecimalType& asShortDecimal() const;
   const LongDecimalType& asLongDecimal() const;
   bool isShortDecimal() const;
   bool isLongDecimal() const;
   bool isDecimal() const;
+
   bool isIntervalYearMonth() const;
-
   bool isIntervalDayTime() const;
-
   bool isDate() const;
 
   bool containsUnknown() const;
@@ -1174,6 +1173,7 @@ class FunctionType : public TypeBase<TypeKind::FUNCTION> {
     children.push_back(returnType);
     return children;
   }
+
   // Argument types from left to right followed by return value type.
   const std::vector<TypePtr> children_;
   const std::vector<TypeParameter> parameters_;
@@ -1322,7 +1322,7 @@ class IntervalDayTimeType : public BigintType {
   /// HOURS:MINUTES:SECONDS.MILLIS. For example, 1 03:48:20.100.
   /// TODO Figure out how to make this API generic, i.e. available via Type.
   /// Perhaps, Type::valueToString(variant)?
-  std::string valueToString(int64_t value) const;
+  static std::string valueToString(int64_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1347,6 +1347,7 @@ FOLLY_ALWAYS_INLINE bool Type::isIntervalDayTime() const {
 }
 
 constexpr long kMonthInYear = 12;
+
 /// Time interval in months.
 class IntervalYearMonthType : public IntegerType {
  private:
@@ -1373,9 +1374,9 @@ class IntervalYearMonthType : public IntegerType {
   }
 
   /// Returns the interval 'value' (months) formatted as YEARS MONTHS.
-  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be
-  /// represented as 1-2; -14 months would be represents as -1-2.
-  std::string valueToString(int32_t value) const;
+  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be represented
+  /// as 1-2; -14 months would be represented as -1-2.
+  static std::string valueToString(int32_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1821,9 +1822,6 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
     }                                                                       \
   }()
 
-#define VELOX_SCALAR_ACCESSOR(KIND) \
-  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
-
 #define VELOX_STATIC_FIELD_DYNAMIC_DISPATCH(CLASS, FIELD, typeKind)           \
   [&]() {                                                                     \
     switch (typeKind) {                                                       \
@@ -1886,6 +1884,9 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
 
 // todo: union convenience creators
 
+#define VELOX_SCALAR_ACCESSOR(KIND) \
+  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
+
 VELOX_SCALAR_ACCESSOR(INTEGER);
 VELOX_SCALAR_ACCESSOR(BOOLEAN);
 VELOX_SCALAR_ACCESSOR(TINYINT);
@@ -1898,6 +1899,10 @@ VELOX_SCALAR_ACCESSOR(TIMESTAMP);
 VELOX_SCALAR_ACCESSOR(VARCHAR);
 VELOX_SCALAR_ACCESSOR(VARBINARY);
 
+#undef VELOX_SCALAR_ACCESSOR
+
+// TODO(lingbin):添加注释说明为什么不使用上面的 宏 来创建。因为 UnknownType
+// 没有继承自 ScalarType. 可以在 `ScalarType`的 模板参数中，在声明时显式禁止掉。
 TypePtr UNKNOWN();
 
 template <TypeKind KIND>
@@ -1940,8 +1945,6 @@ TypePtr createType<TypeKind::MAP>(std::vector<TypePtr>&& children);
 
 template <>
 TypePtr createType<TypeKind::OPAQUE>(std::vector<TypePtr>&& children);
-
-#undef VELOX_SCALAR_ACCESSOR
 
 template <typename T>
 struct SimpleTypeTrait {};
@@ -2177,9 +2180,7 @@ AbstractInputGeneratorPtr getCustomTypeInputGenerator(
 
 // Allows us to transparently use folly::toAppend(), folly::join(), etc.
 template <class TString>
-void toAppend(
-    const std::shared_ptr<const facebook::velox::Type>& type,
-    TString* result) {
+void toAppend(const std::shared_ptr<const Type>& type, TString* result) {
   result->append(type->toString());
 }
 

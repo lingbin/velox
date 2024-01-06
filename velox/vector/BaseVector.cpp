@@ -32,8 +32,8 @@
 namespace facebook::velox {
 
 BaseVector::BaseVector(
-    velox::memory::MemoryPool* pool,
-    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool,
+    TypePtr type,
     VectorEncoding::Simple encoding,
     BufferPtr nulls,
     size_t length,
@@ -47,7 +47,7 @@ BaseVector::BaseVector(
           type_ ? type_->providesCustomComparison() : false),
       encoding_(encoding),
       nulls_(std::move(nulls)),
-      rawNulls_(nulls_.get() ? nulls_->as<uint64_t>() : nullptr),
+      rawNulls_(nulls_ ? nulls_->as<uint64_t>() : nullptr),
       pool_(pool),
       length_(length),
       nullCount_(nullCount),
@@ -61,8 +61,8 @@ BaseVector::BaseVector(
       "Length must be smaller or equal to max(vector_size_t).");
 
   if (nulls_) {
-    int32_t bytes = byteSize<bool>(length_);
-    VELOX_CHECK_GE(nulls_->capacity(), bytes);
+    auto bytes = byteSize<bool>(length_);
+    VELOX_CHECK_LE(bytes, nulls_->capacity());
     if (nulls_->size() < bytes) {
       // Set the size so that values get preserved by resize. Do not
       // set if already large enough, so that it is safe to take a
@@ -83,7 +83,7 @@ void BaseVector::ensureNullsCapacity(
     if (nulls_->capacity() < bits::nbytes(size)) {
       AlignedBuffer::reallocate<bool>(&nulls_, size, fill);
     }
-    // ensure that the newly added positions have the right initial value for
+    // Ensure that the newly added positions have the right initial value for
     // the case where changes in size don't result in change in the size of
     // the underlying buffer.
     // TODO: move this inside reallocate.
@@ -122,6 +122,8 @@ void BaseVector::resize(vector_size_t size, bool setNotNull) {
   length_ = size;
 }
 
+namespace {
+
 template <TypeKind kind>
 static VectorPtr addDictionary(
     BufferPtr nulls,
@@ -133,6 +135,8 @@ static VectorPtr addDictionary(
       DictionaryVector<typename KindToFlatVector<kind>::WrapperType>>(
       pool, std::move(nulls), size, std::move(vector), std::move(indices));
 }
+
+} // namespace
 
 // static
 VectorPtr BaseVector::wrapInDictionary(
@@ -198,8 +202,10 @@ VectorPtr BaseVector::wrapInSequence(
   return wrapInDictionary(nullptr, indices, numIndices, vector);
 }
 
+namespace {
+
 template <TypeKind kind>
-static VectorPtr addConstant(
+VectorPtr addConstant(
     vector_size_t size,
     vector_size_t index,
     VectorPtr vector,
@@ -222,7 +228,7 @@ static VectorPtr addConstant(
 
   for (;;) {
     if (vector->isConstantEncoding()) {
-      auto constVector = vector->as<ConstantVector<T>>();
+      auto* constVector = vector->asUnchecked<ConstantVector<T>>();
       if constexpr (!std::is_same_v<T, ComplexType>) {
         if (!vector->valueVector()) {
           T value = constVector->valueAt(0);
@@ -253,6 +259,8 @@ static VectorPtr addConstant(
       pool, size, index, std::move(vector), SimpleVectorStats<T>{});
 }
 
+} // namespace
+
 // static
 VectorPtr BaseVector::wrapInConstant(
     vector_size_t length,
@@ -279,6 +287,8 @@ std::optional<bool> BaseVector::equalValueAt(
   return std::nullopt;
 }
 
+namespace {
+
 template <TypeKind kind>
 static VectorPtr createEmpty(
     vector_size_t size,
@@ -302,6 +312,8 @@ static VectorPtr createEmpty(
       std::move(values),
       std::vector<BufferPtr>());
 }
+
+} // namespace
 
 // static
 VectorPtr BaseVector::createInternal(
@@ -398,9 +410,9 @@ void BaseVector::addNulls(const uint64_t* bits, const SelectivityVector& rows) {
   VELOX_CHECK(isNullsWritable());
   VELOX_CHECK_GE(length_, rows.end());
   ensureNulls();
-  auto target = nulls_->asMutable<uint64_t>();
+  auto* target = nulls_->asMutable<uint64_t>();
   const uint64_t* selected = rows.asRange().bits();
-  // A 0 in bits with a 1 in rows makes a 0 in nulls.
+  // A 0 in 'bits' with a 1 in rows makes a 0 in 'nulls_'.
   bits::forEachWord(
       rows.begin(),
       rows.end(),
@@ -419,11 +431,10 @@ void BaseVector::addNulls(const SelectivityVector& nullRows) {
   VELOX_CHECK(isNullsWritable());
   VELOX_CHECK_GE(length_, nullRows.end());
   ensureNulls();
-  auto target = nulls_->asMutable<uint64_t>();
+  auto* target = nulls_->asMutable<uint64_t>();
   const uint64_t* selected = nullRows.asRange().bits();
-  // A 1 in rows makes a 0 in nulls.
+  // A 1 in rows makes a 0 in 'nulls_'.
   bits::andWithNegatedBits(target, selected, nullRows.begin(), nullRows.end());
-  return;
 }
 
 void BaseVector::clearNulls(const SelectivityVector& nonNullRows) {
@@ -439,7 +450,7 @@ void BaseVector::clearNulls(const SelectivityVector& nonNullRows) {
     return;
   }
 
-  auto rawNulls = nulls_->asMutable<uint64_t>();
+  auto* rawNulls = nulls_->asMutable<uint64_t>();
   bits::orBits(
       rawNulls,
       nonNullRows.asRange().bits(),
@@ -582,8 +593,8 @@ void BaseVector::ensureWritable(const SelectivityVector& rows) {
   auto newSize = std::max<vector_size_t>(rows.end(), length_);
   if (nulls_ && !nulls_->isMutable()) {
     BufferPtr newNulls = AlignedBuffer::allocate<bool>(newSize, pool_);
-    auto rawNewNulls = newNulls->asMutable<uint64_t>();
-    memcpy(rawNewNulls, rawNulls_, bits::nbytes(length_));
+    auto* newRawNulls = newNulls->asMutable<uint64_t>();
+    memcpy(newRawNulls, rawNulls_, bits::nbytes(length_));
 
     nulls_ = std::move(newNulls);
     rawNulls_ = nulls_->as<uint64_t>();
@@ -600,7 +611,7 @@ void BaseVector::ensureWritable(
     velox::memory::MemoryPool* pool,
     VectorPtr& result,
     VectorPool* vectorPool) {
-  if (!result) {
+  if (result == nullptr) {
     if (vectorPool) {
       result = vectorPool->get(type, rows.end());
     } else {
@@ -635,8 +646,7 @@ void BaseVector::ensureWritable(
 
   // Otherwise, allocate a new vector and copy the remaining values over.
 
-  // The copy-on-write size is the max of the writable row set and the
-  // vector.
+  // The copy-on-write size is the max of the writable row set and the vector.
   auto targetSize = std::max<vector_size_t>(rows.end(), result->size());
 
   VectorPtr copy;
@@ -656,6 +666,8 @@ void BaseVector::ensureWritable(
   result = std::move(copy);
 }
 
+namespace {
+
 template <TypeKind kind>
 VectorPtr newConstant(
     const TypePtr& type,
@@ -670,7 +682,7 @@ VectorPtr newConstant(
 
   T copy;
   if constexpr (std::is_same_v<T, StringView>) {
-    copy = StringView(value.value<kind>());
+    copy = StringView(value.value<StringView>());
   } else {
     copy = value.value<T>();
   }
@@ -691,6 +703,8 @@ VectorPtr newConstant<TypeKind::OPAQUE>(
       pool, size, value.isNull(), type, std::shared_ptr<void>(capsule.obj));
 }
 
+} // namespace
+
 // static
 VectorPtr BaseVector::createConstant(
     const TypePtr& type,
@@ -710,10 +724,10 @@ std::vector<BaseVector::CopyRange> BaseVector::toCopyRanges(
   }
 
   std::vector<BaseVector::CopyRange> ranges;
-  ranges.reserve(rows.end());
+  ranges.reserve(rows.end() - rows.begin());
 
   vector_size_t prevRow = rows.begin();
-  auto bits = rows.asRange().bits();
+  auto* bits = rows.asRange().bits();
   bits::forEachUnsetBit(bits, rows.begin(), rows.end(), [&](vector_size_t row) {
     if (row > prevRow) {
       ranges.push_back({prevRow, prevRow, row - prevRow});
@@ -762,6 +776,7 @@ VectorPtr newNullConstant(
 }
 } // namespace
 
+// static
 VectorPtr BaseVector::createNullConstant(
     const TypePtr& type,
     vector_size_t size,
@@ -838,7 +853,7 @@ uint64_t BaseVector::estimateFlatSize() const {
     return 0;
   }
 
-  auto leaf = wrappedVector();
+  auto* leaf = wrappedVector();
   // If underlying vector is empty we should return the leaf's single element
   // size times this vector's size plus any nulls of this vector.
   if (UNLIKELY(leaf->size() == 0)) {
@@ -863,7 +878,7 @@ bool isReusableEncoding(VectorEncoding::Simple encoding) {
 
 // static
 void BaseVector::flattenVector(VectorPtr& vector) {
-  if (!vector) {
+  if (vector == nullptr) {
     return;
   }
   switch (vector->encoding()) {
@@ -899,6 +914,7 @@ void BaseVector::flattenVector(VectorPtr& vector) {
   }
 }
 
+// static
 void BaseVector::prepareForReuse(VectorPtr& vector, vector_size_t size) {
   if (vector.use_count() != 1 || !isReusableEncoding(vector->encoding())) {
     vector = BaseVector::create(vector->type(), size, vector->pool());
@@ -943,7 +959,7 @@ void BaseVector::validate(const VectorValidateOptions& options) const {
 std::optional<vector_size_t> BaseVector::findDuplicateValue(
     vector_size_t start,
     vector_size_t size,
-    CompareFlags flags) {
+    CompareFlags flags) const {
   if (length_ == 0 || size == 0) {
     return std::nullopt;
   }

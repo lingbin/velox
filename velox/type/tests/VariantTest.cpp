@@ -344,6 +344,7 @@ TEST(VariantTest, mapWithNaNKey) {
         "[{\"key\":1.2,\"value\":2},{\"key\":12.4,\"value\":3},{\"key\":\"NaN\",\"value\":1}]",
         Variant::map(mapVariant).toJson(mapType));
   }
+
   {
     // NaN added in the middle of insertions.
     std::map<Variant, Variant> mapVariant;
@@ -446,11 +447,11 @@ TEST(VariantFloatingToJsonTest, normalTest) {
   EXPECT_EQ(
       Variant::create<float>(std::numeric_limits<float>::infinity())
           .toJson(REAL()),
-      "\"Infinity\"");
+      R"("Infinity")");
   EXPECT_EQ(
       Variant::create<double>(std::numeric_limits<double>::infinity())
           .toJson(DOUBLE()),
-      "\"Infinity\"");
+      R"("Infinity")");
 
   // NaN
   EXPECT_EQ(Variant::create<float>(0.0 / 0.0).toJson(REAL()), "\"NaN\"");
@@ -566,8 +567,8 @@ TEST(VariantTest, toJsonMap) {
 
   mapType = MAP(VARCHAR(), DECIMAL(20, 3));
   mapValue = {
-      {(std::string) "key1", static_cast<int128_t>(45464562323423)},
-      {(std::string) "key2", static_cast<int128_t>(12334581232456)}};
+      {"key1", static_cast<int128_t>(45464562323423)},
+      {"key2", static_cast<int128_t>(12334581232456)}};
   EXPECT_EQ(
       "[{\"key\":\"key1\",\"value\":45464562323.423},{\"key\":\"key2\",\"value\":12334581232.456}]",
       Variant::map(mapValue).toJson(mapType));
@@ -608,6 +609,9 @@ TEST(VariantTest, typeWithCustomComparison) {
 
   ASSERT_FALSE(null.equals(one));
   ASSERT_FALSE(null.equalsWithEpsilon(one));
+
+  ASSERT_FALSE(null.equals(null));
+  ASSERT_FALSE(null.equalsWithEpsilon(null));
 
   ASSERT_FALSE(zero < zeroEquivalent);
   ASSERT_FALSE(zero.lessThanWithEpsilon(zeroEquivalent));

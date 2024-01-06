@@ -227,8 +227,8 @@ std::string HiveWriterId::toString() const {
   return "unpart";
 }
 
-const std::string LocationHandle::tableTypeName(
-    LocationHandle::TableType type) {
+// static
+std::string LocationHandle::tableTypeName(LocationHandle::TableType type) {
   static const auto tableTypes = tableTypeNames();
   return tableTypes.at(type);
 }
@@ -273,6 +273,7 @@ std::string HiveSortingColumn::toString() const {
       "[COLUMN[{}] ORDER[{}]]", sortColumn_, sortOrder_.toString());
 }
 
+// static
 void HiveSortingColumn::registerSerDe() {
   auto& registry = DeserializationWithContextRegistryForSharedPtr();
   registry.Register("HiveSortingColumn", HiveSortingColumn::deserialize);
@@ -302,6 +303,7 @@ void HiveBucketProperty::validate() const {
       toString());
 }
 
+// static
 std::string HiveBucketProperty::kindString(Kind kind) {
   switch (kind) {
     case Kind::kHiveCompatible:
@@ -324,6 +326,7 @@ folly::dynamic HiveBucketProperty::serialize() const {
   return obj;
 }
 
+// static
 std::shared_ptr<HiveBucketProperty> HiveBucketProperty::deserialize(
     const folly::dynamic& obj,
     void* context) {
@@ -340,6 +343,7 @@ std::shared_ptr<HiveBucketProperty> HiveBucketProperty::deserialize(
       kind, bucketCount, buckectedBy, bucketedTypes, sortedBy);
 }
 
+// static
 void HiveBucketProperty::registerSerDe() {
   auto& registry = DeserializationWithContextRegistryForSharedPtr();
   registry.Register("HiveBucketProperty", HiveBucketProperty::deserialize);
@@ -362,6 +366,7 @@ std::string HiveBucketProperty::toString() const {
       out << "\t\t" << sortColum->toString() << "\n";
     }
   }
+
   out << "]\n";
   return out.str();
 }
@@ -1103,6 +1108,7 @@ folly::dynamic HiveInsertTableHandle::serialize() const {
   return obj;
 }
 
+// static
 HiveInsertTableHandlePtr HiveInsertTableHandle::create(
     const folly::dynamic& obj) {
   auto inputColumns = ISerializable::deserialize<std::vector<HiveColumnHandle>>(
@@ -1145,6 +1151,7 @@ HiveInsertTableHandlePtr HiveInsertTableHandle::create(
       fileNameGenerator);
 }
 
+// static
 void HiveInsertTableHandle::registerSerDe() {
   auto& registry = DeserializationRegistryForSharedPtr();
   registry.Register("HiveInsertTableHandle", HiveInsertTableHandle::create);
@@ -1189,6 +1196,7 @@ std::string LocationHandle::toString() const {
       targetFileName_);
 }
 
+// static
 void LocationHandle::registerSerDe() {
   auto& registry = DeserializationRegistryForSharedPtr();
   registry.Register("LocationHandle", LocationHandle::create);

@@ -49,7 +49,7 @@ BufferPtr Buffer::sliceBufferZeroCopy(
       buffer->size() / typeSize - offset);
   // Cannot use `Buffer::as<uint8_t>()` here because Buffer::podType_ is false
   // when type is OPAQUE.
-  auto data =
+  auto* data =
       reinterpret_cast<const uint8_t*>(buffer->as<void>()) + bytesOffset;
   return BufferView<BufferReleaser>::create(
       data, bytesLength, BufferReleaser(buffer), podType);

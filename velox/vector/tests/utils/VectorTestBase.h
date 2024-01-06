@@ -54,7 +54,7 @@ class VectorTestBase {
  protected:
   VectorTestBase() = default;
 
-  ~VectorTestBase();
+  virtual ~VectorTestBase();
 
   static std::shared_ptr<const RowType> makeRowType(
       std::vector<std::shared_ptr<const Type>>&& types) {
@@ -62,7 +62,7 @@ class VectorTestBase {
         std::forward<std::vector<std::shared_ptr<const Type>>&&>(types));
   }
 
-  void setNulls(
+  static void setNulls(
       const VectorPtr& vector,
       std::function<bool(vector_size_t /*row*/)> isNullAt) {
     for (vector_size_t i = 0; i < vector->size(); i++) {
@@ -75,7 +75,7 @@ class VectorTestBase {
   static std::function<bool(vector_size_t /*row*/)> nullEvery(
       int n,
       int startingFrom = 0) {
-    return velox::test::VectorMaker::nullEvery(n, startingFrom);
+    return VectorMaker::nullEvery(n, startingFrom);
   }
 
   // Helper function for comparing vector results
@@ -173,11 +173,11 @@ class VectorTestBase {
   /// Splits input vector into 'n' vectors evenly. Input vector must have at
   /// least 'n' rows.
   /// @return 'n' vectors
-  std::vector<RowVectorPtr> split(const RowVectorPtr& vector, int32_t n = 2);
+  static std::vector<RowVectorPtr> split(const RowVectorPtr& vector, int32_t n = 2);
 
   /// Returns a one element ArrayVector with 'elements' as elements of array at
   /// 0.
-  VectorPtr asArray(VectorPtr elements);
+  static VectorPtr asArray(VectorPtr elements);
 
   template <typename T>
   FlatVectorPtr<EvalType<T>> makeFlatVector(

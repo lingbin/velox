@@ -81,7 +81,7 @@ class ConfigBase {
       bool _mutable = false)
       : configs_(std::move(configs)), mutable_(_mutable) {}
 
-  virtual ~ConfigBase() {}
+  virtual ~ConfigBase() = default;
 
   template <typename T>
   ConfigBase& set(const Entry<T>& entry, const T& val) {

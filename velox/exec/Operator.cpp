@@ -39,7 +39,7 @@ OperatorCtx::OperatorCtx(
       pool_(driverCtx_->addOperatorPool(planNodeId, operatorType)) {}
 
 core::ExecCtx* OperatorCtx::execCtx() const {
-  if (!execCtx_) {
+  if (execCtx_ == nullptr) {
     execCtx_ = std::make_unique<core::ExecCtx>(
         pool_, driverCtx_->task->queryCtx().get());
   }
@@ -81,11 +81,12 @@ Operator::Operator(
     std::string planNodeId,
     std::string operatorType,
     std::optional<common::SpillConfig> spillConfig)
-    : operatorCtx_(std::make_unique<OperatorCtx>(
-          driverCtx,
-          planNodeId,
-          operatorId,
-          operatorType)),
+    : operatorCtx_(
+          std::make_unique<OperatorCtx>(
+              driverCtx,
+              planNodeId,
+              operatorId,
+              operatorType)),
       outputType_(std::move(outputType)),
       spillConfig_(std::move(spillConfig)),
       dryRun_(
@@ -113,7 +114,7 @@ void Operator::maybeSetTracer() {
     return;
   }
 
-  const auto nodeId = planNodeId();
+  const auto& nodeId = planNodeId();
   if (traceConfig->queryNodeId.empty() || traceConfig->queryNodeId != nodeId) {
     return;
   }
@@ -256,6 +257,7 @@ void Operator::unregisterAllOperators() {
   translators().clear();
 }
 
+// static
 std::optional<uint32_t> Operator::maxDrivers(
     const core::PlanNodePtr& planNode) {
   for (auto& translator : translators()) {
@@ -289,7 +291,8 @@ RowVectorPtr Operator::fillOutput(
     const std::vector<VectorPtr>& results) {
   bool wrapResults = true;
   if (size == input_->size() &&
-      (!mapping || isSequence(mapping->as<vector_size_t>(), 0, size))) {
+      (mapping == nullptr ||
+       isSequence(mapping->as<vector_size_t>(), 0, size))) {
     if (isIdentityProjection_) {
       return std::move(input_);
     }
@@ -372,12 +375,12 @@ void Operator::loadLazyReclaimable(RowVectorPtr& vector) {
   vector->loadedVector();
 }
 
-void Operator::recordBlockingTime(uint64_t start, BlockingReason reason) {
-  uint64_t now =
+void Operator::recordBlockingTime(uint64_t startMicros, BlockingReason reason) {
+  uint64_t nowMicros =
       std::chrono::duration_cast<std::chrono::microseconds>(
           std::chrono::high_resolution_clock::now().time_since_epoch())
           .count();
-  const auto wallNanos = (now - start) * 1000;
+  const auto wallNanos = (nowMicros - startMicros) * 1000;
   const auto blockReason = blockingReasonToString(reason).substr(1);
 
   auto lockedStats = stats_.wlock();
@@ -514,7 +517,7 @@ std::vector<column_index_t> toChannels(
 column_index_t exprToChannel(
     const core::ITypedExpr* expr,
     const TypePtr& type) {
-  if (auto field = dynamic_cast<const core::FieldAccessTypedExpr*>(expr)) {
+  if (auto* field = dynamic_cast<const core::FieldAccessTypedExpr*>(expr)) {
     return type->as<TypeKind::ROW>().getChildIdx(field->name());
   }
   if (dynamic_cast<const core::ConstantTypedExpr*>(expr)) {
@@ -601,6 +604,7 @@ void OperatorStats::add(const OperatorStats& other) {
   }
 
   numDrivers += other.numDrivers;
+
   spilledInputBytes += other.spilledInputBytes;
   spilledBytes += other.spilledBytes;
   spilledRows += other.spilledRows;
@@ -610,6 +614,9 @@ void OperatorStats::add(const OperatorStats& other) {
   numNullKeys += other.numNullKeys;
 
   dynamicFilterStats.add(other.dynamicFilterStats);
+
+  // No need to accumulate 'lastLazyXxx' members because they do not need to be
+  // reported externally.
 }
 
 void OperatorStats::clear() {
@@ -620,23 +627,22 @@ void OperatorStats::clear() {
   addInputTiming.clear();
   inputBytes = 0;
   inputPositions = 0;
+  inputVectors = 0;
 
   getOutputTiming.clear();
   outputBytes = 0;
   outputPositions = 0;
+  outputVectors = 0;
 
   physicalWrittenBytes = 0;
 
   blockedWallNanos = 0;
 
+  isBlockedTiming.clear();
   finishTiming.clear();
-
   backgroundTiming.clear();
 
   memoryStats.clear();
-
-  runtimeStats.clear();
-  expressionStats.clear();
 
   numDrivers = 0;
   spilledInputBytes = 0;
@@ -644,6 +650,15 @@ void OperatorStats::clear() {
   spilledRows = 0;
   spilledPartitions = 0;
   spilledFiles = 0;
+
+  lastLazyCpuNanos = 0;
+  lastLazyWallNanos = 0;
+  lastLazyInputBytes = 0;
+
+  numNullKeys = 0;
+
+  runtimeStats.clear();
+  expressionStats.clear();
 
   dynamicFilterStats.clear();
 }

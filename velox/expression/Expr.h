@@ -151,7 +151,7 @@ class Expr {
   ///
   /// @param parentExprSet pointer to the parent ExprSet which is calling
   /// evaluate on this expression. Should only be set for top level expressions
-  /// and not passed on to child expressions as it is ssed to setup exception
+  /// and not passed on to child expressions as it is used to setup exception
   /// context.
   void eval(
       const SelectivityVector& rows,
@@ -680,7 +680,7 @@ class Expr {
     VectorPtr sharedSubexprValues_ = nullptr;
   };
 
-  // Maps the inputs referenced by distinctFields_ captuered when
+  // Maps the inputs referenced by distinctFields_ captured when
   // evaluateSharedSubexpr() is called to the cached shared results.
   std::map<InputForSharedResults, SharedResults> sharedSubexprResults_;
 
@@ -737,7 +737,7 @@ using ExprPtr = std::shared_ptr<Expr>;
 class ExprSet {
  public:
   explicit ExprSet(
-      const std::vector<core::TypedExprPtr>& source,
+      const std::vector<core::TypedExprPtr>& sources,
       core::ExecCtx* execCtx,
       bool enableConstantFolding = true);
 
