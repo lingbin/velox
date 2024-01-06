@@ -110,9 +110,9 @@ TEST_F(StreamArenaTest, newRange) {
         testData.expectedContiguousAllocationSize +
             testData.expectedNonContiguousAllocationSize,
         arena->size());
-    const int allocateBytes =
+    const uint64_t allocateBytes =
         AllocationTraits::pageBytes(mmapAllocator_->numAllocated());
-    const int contiguousBytes =
+    const uint64_t contiguousBytes =
         AllocationTraits::pageBytes(mmapAllocator_->numExternalMapped());
     ASSERT_EQ(
         testData.expectedNonContiguousAllocationSize,
@@ -127,13 +127,13 @@ TEST_F(StreamArenaTest, randomRange) {
   ByteRange range;
   for (int i = 0; i < numRanges; ++i) {
     if (folly::Random::oneIn(3)) {
-      const int requestSize =
+      const uint64_t requestSize =
           AllocationTraits::pageBytes(pool_->largestSizeClass()) +
           (folly::Random::rand32() % (4 << 20));
       arena->newRange(requestSize, nullptr, &range);
       ASSERT_EQ(AllocationTraits::roundUpPageBytes(requestSize), range.size);
     } else {
-      const int requestSize =
+      const uint64_t requestSize =
           1 + folly::Random::rand32() % pool_->largestSizeClass();
       arena->newRange(requestSize, nullptr, &range);
       ASSERT_LE(range.size, AllocationTraits::roundUpPageBytes(requestSize));

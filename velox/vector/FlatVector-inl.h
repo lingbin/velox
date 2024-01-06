@@ -69,7 +69,7 @@ Range<T> FlatVector<T>::asRange() const {
 
 template <typename T>
 xsimd::batch<T> FlatVector<T>::loadSIMDValueBufferAt(size_t byteOffset) const {
-  auto mem = reinterpret_cast<uint8_t*>(rawValues_) + byteOffset;
+  auto* mem = reinterpret_cast<uint8_t*>(rawValues_) + byteOffset;
   if constexpr (std::is_same_v<T, bool>) {
     return xsimd::batch<T>(xsimd::load_unaligned(mem));
   } else {
@@ -81,7 +81,7 @@ template <typename T>
 std::unique_ptr<SimpleVector<uint64_t>> FlatVector<T>::hashAll() const {
   BufferPtr hashBuffer =
       AlignedBuffer::allocate<uint64_t>(BaseVector::length_, BaseVector::pool_);
-  auto hashData = hashBuffer->asMutable<uint64_t>();
+  auto* hashData = hashBuffer->asMutable<uint64_t>();
 
   if (rawValues_ != nullptr) { // non all-null case
     folly::hasher<T> hasher;
@@ -90,7 +90,7 @@ std::unique_ptr<SimpleVector<uint64_t>> FlatVector<T>::hashAll() const {
     }
   }
 
-  // overwrite the null hash values
+  // Overwrite the null hash values.
   if (BaseVector::rawNulls_ != nullptr) {
     for (size_t i = 0; i < BaseVector::length_; ++i) {
       if (bits::isBitNull(BaseVector::rawNulls_, i)) {

@@ -28,7 +28,7 @@ namespace facebook::velox::memory {
 
 class MmapArena {
  public:
-  /// Single MmapArena capacity is determined by mmap_arena_capacity_ratio ratio
+  /// Single MmapArena capacity is determined by 'mmapArenaCapacityRatio' ratio
   /// but the capacity should be at least kMinCapacityBytes if the calculated
   /// capacity from the ratio is too small to serve large allocations.
   static constexpr int64_t kMinCapacityBytes = 128 * 1024 * 1024; // 128M

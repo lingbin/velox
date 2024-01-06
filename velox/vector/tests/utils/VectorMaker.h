@@ -303,7 +303,7 @@ class VectorMaker {
   DictionaryVectorPtr<EvalType<T>> dictionaryVector(
       const std::vector<std::optional<T>>& data);
 
-  /// Convenience function that creates an vector based on input std::vector
+  /// Convenience function that creates a vector based on input std::vector
   /// data, encoded with given `vecType`.
   template <typename T>
   SimpleVectorPtr<EvalType<T>> encodedVector(

@@ -75,7 +75,7 @@ class Task : public std::enable_shared_from_this<Task> {
   /// multi task system, is used for memory arbitration to decide the order of
   /// reclaiming.
   static std::shared_ptr<Task> create(
-      const std::string& taskId,
+      std::string taskId,
       core::PlanFragment planFragment,
       int destination,
       std::shared_ptr<core::QueryCtx> queryCtx,
@@ -85,7 +85,7 @@ class Task : public std::enable_shared_from_this<Task> {
       std::function<void(std::exception_ptr)> onError = nullptr);
 
   static std::shared_ptr<Task> create(
-      const std::string& taskId,
+      std::string taskId,
       core::PlanFragment planFragment,
       int destination,
       std::shared_ptr<core::QueryCtx> queryCtx,
@@ -157,7 +157,8 @@ class Task : public std::enable_shared_from_this<Task> {
   }
 
   /// Returns MemoryPool used to allocate memory during execution. This instance
-  /// is a child of the MemoryPool passed in the constructor.
+  /// is a child of the MemoryPool of the Query it belongs to, see queryCtx_
+  // passed in the constructor.
   memory::MemoryPool* pool() const {
     return pool_.get();
   }
@@ -315,7 +316,7 @@ class Task : public std::enable_shared_from_this<Task> {
   /// occurred.
   std::string errorMessage() const;
 
-  /// Returns Task Stats by copy as other threads might be updating the
+  /// Returns TaskStats by copy as other threads might be updating the
   /// structure.
   TaskStats taskStats() const;
 
@@ -520,7 +521,7 @@ class Task : public std::enable_shared_from_this<Task> {
   /// to all Drivers except 'caller'. 'promises' corresponds pairwise to
   /// 'peers'. Realizing the promise will continue the peer. This effects a
   /// synchronization barrier between Drivers of a pipeline inside one worker.
-  /// This is used for example for multithreaded hash join build to ensure all
+  /// This is used for example for multi-threaded hash join build to ensure all
   /// build threads are completed before allowing the probe pipeline to proceed.
   /// Throws a cancelled error if 'this' is in an error state.
   ///
@@ -604,7 +605,7 @@ class Task : public std::enable_shared_from_this<Task> {
   StopReason enterForTerminateLocked(ThreadState& state);
 
   /// Marks that the Driver is not on thread. If no more Drivers in the
-  /// CancelPool are on thread, this realizes threadFinishFutures_. These allow
+  /// Task are on thread, this realizes threadFinishFutures_. These allow
   /// syncing with pause or termination. The Driver may go off thread because of
   /// hasBlockingFuture or pause requested or terminate requested. The
   /// return value indicates the reason. If kTerminate is returned, the
@@ -743,7 +744,7 @@ class Task : public std::enable_shared_from_this<Task> {
   FOLLY_EXPORT static folly::SharedMutex& taskListLock();
 
   Task(
-      const std::string& taskId,
+      std::string taskId,
       core::PlanFragment planFragment,
       int destination,
       std::shared_ptr<core::QueryCtx> queryCtx,
@@ -872,7 +873,7 @@ class Task : public std::enable_shared_from_this<Task> {
       VELOX_CHECK_NOT_NULL(task);
     }
 
-    // Gets the shared pointer to the driver to ensure its liveness during the
+    // Gets the shared pointer to the driver to ensure its liveliness during the
     // memory reclaim operation.
     //
     // NOTE: a task's memory pool might outlive the task itself.
@@ -1337,7 +1338,7 @@ class TaskListener {
 bool registerTaskListener(std::shared_ptr<TaskListener> listener);
 
 /// Unregister a listener registered earlier. Returns true if listener was
-/// unregistered successfuly, false if listener was not found.
+/// unregistered successfully, false if listener was not found.
 bool unregisterTaskListener(const std::shared_ptr<TaskListener>& listener);
 
 std::string executionModeString(Task::ExecutionMode mode);

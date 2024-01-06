@@ -72,7 +72,7 @@ bool MallocAllocator::allocateNonContiguousWithoutRetry(
     MachinePageCount numSizeClassPages =
         sizeMix.sizeCounts[i] * sizeClassSizes_[sizeMix.sizeIndices[i]];
     void* ptr = nullptr;
-    // Trigger allocation failure by skipping malloc
+    // Trigger allocation failure by skipping malloc.
     if (!testingHasInjectedFailure(InjectedFailure::kAllocate)) {
       stats_.recordAllocate(
           AllocationTraits::pageBytes(sizeClassSizes_[sizeMix.sizeIndices[i]]),
@@ -83,7 +83,7 @@ bool MallocAllocator::allocateNonContiguousWithoutRetry(
           });
     }
     if (ptr == nullptr) {
-      // Failed to allocate memory from memory.
+      // Failed to allocate memory from system.
       const auto errorMsg = fmt::format(
           "Malloc failed to allocate {} of memory while allocating for "
           "non-contiguous allocation of {} pages",

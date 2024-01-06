@@ -133,7 +133,7 @@ void FlatVector<StringView>::acquireSharedStringBuffers(
   switch (source->encoding()) {
     case VectorEncoding::Simple::FLAT: {
       auto* flat = source->asUnchecked<FlatVector<StringView>>();
-      for (auto& buffer : flat->stringBuffers_) {
+      for (const auto& buffer : flat->stringBuffers_) {
         addStringBuffer(buffer);
       }
       break;
@@ -254,7 +254,7 @@ void FlatVector<StringView>::copy(
     return;
   }
 
-  auto leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
+  auto* leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
 
   if (pool_ == leaf->pool()) {
     // We copy referencing the storage of 'source'.

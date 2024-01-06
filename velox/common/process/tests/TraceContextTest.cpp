@@ -100,7 +100,8 @@ TEST_F(TraceContextTest, transferBetweenThreads) {
   auto [promise, future] =
       folly::makePromiseContract<std::unique_ptr<TraceContext>>();
   folly::Baton<> batons[2];
-  std::chrono::steady_clock::time_point timeLow, timeHigh;
+  std::chrono::steady_clock::time_point timeLow;
+  std::chrono::steady_clock::time_point timeHigh;
   std::thread receiver([&, future = std::move(future)]() mutable {
     auto trace = std::move(future).get(std::chrono::seconds(1));
     {

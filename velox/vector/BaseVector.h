@@ -73,7 +73,7 @@ class BaseVector {
   static constexpr uint64_t kNullHash = 1;
 
   BaseVector(
-      velox::memory::MemoryPool* pool,
+      memory::MemoryPool* pool,
       TypePtr type,
       VectorEncoding::Simple encoding,
       BufferPtr nulls,
@@ -105,8 +105,8 @@ class BaseVector {
     return mayHaveNulls();
   }
 
-  inline bool isIndexInRange(vector_size_t index) const {
-    // This compiles better than index >= 0 && index < length_.
+  bool isIndexInRange(vector_size_t index) const {
+    // This compiles better than 'index >= 0 && index < length_'.
     return static_cast<uint32_t>(index) < length_;
   }
 
@@ -189,7 +189,7 @@ class BaseVector {
 
   /// Returns true if value at specified index is null or contains null.
   /// Primitive type values can be null, but cannot contain nulls. Arrays, maps
-  /// and structs can be null and can contains nulls. Non-null array may contain
+  /// and structs can be null and can contain nulls. Non-null array may contain
   /// one or more elements that are null or contain nulls themselves. Non-null
   /// maps may contain one more entry with key or value that's null or contains
   /// null. Non-null struct may contain a field that's null or contains null.
@@ -239,7 +239,7 @@ class BaseVector {
   }
 
   /// Returns a pointer to the raw null bitmap buffer of this vector. Notice
-  /// that users should not used this API to access nulls directly of a
+  /// that users should not use this API to access nulls directly of a
   /// ConstantVector or DictionaryVector. If the vector is a ConstantVector,
   /// rawNulls_ is only of size 1. If the vector is a DictionaryVector,
   /// rawNulls_ points to a raw buffer of only nulls in the top-level layer.
@@ -275,8 +275,8 @@ class BaseVector {
   }
 
   virtual void append(const BaseVector* other) {
-    auto totalSize = BaseVector::length_ + other->size();
-    auto previousSize = BaseVector::size();
+    auto totalSize = length_ + other->size();
+    auto previousSize = size();
     resize(totalSize);
     copy(other, previousSize, 0, other->size());
   }
@@ -336,7 +336,7 @@ class BaseVector {
   /// than 'other' at 'otherIndex', 0 if equal and > 0 otherwise.
   /// When CompareFlags is DESCENDING, returns < 0 if 'this' at 'index' is
   /// larger than 'other' at 'otherIndex', 0 if equal and < 0 otherwise. If
-  /// flags.nullHandlingMode is not NullAsValue, the function may returns
+  /// flags.nullHandlingMode is not NullAsValue, the function may return
   /// std::nullopt if null encountered.
   virtual std::optional<int32_t> compare(
       const BaseVector* other,
@@ -456,18 +456,20 @@ class BaseVector {
 
   /// Returns whether or not the nulls buffer can be modified.
   /// This does not guarantee the existence of the nulls buffer, if using this
-  /// within BaseVector you still may need to call ensureNulls.
+  /// within BaseVector you still may need to call 'ensureNulls'.
   virtual bool isNullsWritable() const {
     return !nulls_ || (nulls_->isMutable());
   }
 
-  /// Sets null when 'nulls' has a null value for active rows in 'rows'.
-  /// Is a no-op 'nulls' is a nullptr or 'rows' has no selections. This API
+  /// Sets null when 'nullBits' has a null value for active rows in 'rows'. Is a
+  /// no-op if 'nullBits' is a nullptr or 'rows' has no selections. This API
   /// throws if the vector is a ConstantVector.
-  virtual void addNulls(const uint64_t* nulls, const SelectivityVector& rows);
+  virtual void addNulls(
+      const uint64_t* nullBits,
+      const SelectivityVector& rows);
 
-  /// Sets nulls for all active row in 'nullRows'. Is a no-op if nullRows has no
-  /// selections. This API throws if the vector is a ConstantVector.
+  /// Sets nulls for all active row in 'nullRows'. Is a no-op if 'nullRows' has
+  /// no selections. This API throws if the vector is a ConstantVector.
   virtual void addNulls(const SelectivityVector& nullRows);
 
   /// Clears nulls for all active rows in 'nonNullRows'
@@ -655,7 +657,7 @@ class BaseVector {
   /// Returns true if the following conditions hold:
   ///  * The vector is singly referenced.
   ///  * The vector has a Flat-like encoding (Flat, Array, Map, Row).
-  ///  * Any child Buffers are mutable  and singly referenced.
+  ///  * Any child Buffers are mutable and singly referenced.
   ///  * All of these conditions hold for child Vectors recursively.
   /// This function is templated rather than taking a
   /// std::shared_ptr<BaseVector> because if we were to do that the compiler
@@ -757,7 +759,7 @@ class BaseVector {
   /// 'newSize' > 'currentSize'.
   ///
   /// If 'indices' is nullptr, read-only, not uniquely-referenced, or doesn't
-  /// have capacity for 'newSize' elements allocates new buffer and copies data
+  /// have capacity for 'newSize' elements, allocates new buffer and copies data
   /// to it. Updates '*rawIndices' to point to the start of 'indices' buffer.
   static void resizeIndices(
       vector_size_t currentSize,

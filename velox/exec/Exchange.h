@@ -60,10 +60,17 @@ class Exchange : public SourceOperator {
   virtual VectorSerde* getSerde();
 
  private:
+<<<<<<< HEAD
   // Invoked to create exchange client for remote tasks. The function shuffles
   // the source task ids first to randomize the source tasks we fetch data from.
   // This helps to avoid different tasks fetching from the same source task in a
   // distributed system.
+=======
+  // Invoked to create exchange sources for remote tasks.
+  // The function shuffles the source task ids first to randomize the source
+  // tasks we fetch data from. This helps to avoid different tasks fetching from
+  // the same source task in a distributed system.
+>>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106)
   void addRemoteTaskIds(std::vector<std::string>& remoteTaskIds);
 
   // Fetches splits from the task until there are no more splits or task returns

@@ -85,9 +85,8 @@ DictionaryVector<T>::DictionaryVector(
           isSorted,
           representedBytes,
           storageByteCount) {
-  VELOX_CHECK(dictionaryValues != nullptr, "dictionaryValues must not be null");
-  VELOX_CHECK(
-      dictionaryIndices != nullptr, "dictionaryIndices must not be null");
+  VELOX_CHECK_NOT_NULL(dictionaryValues);
+  VELOX_CHECK_NOT_NULL(dictionaryIndices);
   VELOX_CHECK_GE(
       dictionaryIndices->size(),
       length * sizeof(vector_size_t),

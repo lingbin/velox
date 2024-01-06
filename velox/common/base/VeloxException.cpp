@@ -19,8 +19,7 @@
 #include <folly/synchronization/AtomicStruct.h>
 #include <exception>
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 std::exception_ptr toVeloxException(const std::exception_ptr& exceptionPtr) {
   try {
@@ -161,11 +160,11 @@ bool isStackTraceEnabled(VeloxException::Type type) {
   }
 
   // VeloxException stacktraces are rate-limited and the rate-limit check
-  // passed
+  // passed.
   //
-  // the cas happens only here, so the rate-limit check in effect gates not
+  // the CAS happens only here, so the rate-limit check in effect gates not
   // only computation of the stacktrace but also contention on this atomic
-  // variable
+  // variable.
   return last->compare_exchange_strong(latest, now, std::memory_order_relaxed);
 }
 
@@ -282,5 +281,4 @@ const char* VeloxException::State::what() const noexcept {
   }
 }
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

@@ -82,7 +82,7 @@ struct StringView {
     return StringView{str};
   }
 
-  // Making StringView implicitly constructible/convertible from char* and
+  // Making StringView implicitly constructable/convertible from char* and
   // string literals, in order to allow for a more flexible API and optional
   // interoperability. E.g:
   //
@@ -167,7 +167,7 @@ struct StringView {
       // One ends within the prefix.
       return size_ - other.size_;
     }
-    if (size <= kInlineSize && isInline() && other.isInline()) {
+    if (isInline() && other.isInline()) {
       int32_t result = memcmp(value_.inlined, other.value_.inlined, size);
       return (result != 0) ? result : size_ - other.size_;
     }

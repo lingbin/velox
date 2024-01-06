@@ -125,7 +125,7 @@ SsdFile::SsdFile(const Config& config)
   const uint64_t size = writeFile_->size();
   numRegions_ = std::min<int32_t>(size / kRegionSize, maxRegions_);
   fileSize_ = numRegions_ * kRegionSize;
-  if ((size % kRegionSize > 0) || (size > numRegions_ * kRegionSize)) {
+  if ((size % kRegionSize > 0) || (size > fileSize_)) {
     writeFile_->truncate(fileSize_);
   }
   // The existing regions in the file are writable.
@@ -202,7 +202,7 @@ CoalesceIoStats SsdFile::load(
     if (FOLLY_UNLIKELY(runSize < entry->size())) {
       ++stats_.readSsdErrors;
       VELOX_FAIL(
-          "IOERR: SSD cache cache entry {} short than requested range {}",
+          "IOERR: SSD cache entry {} short than requested range {}",
           succinctBytes(runSize),
           succinctBytes(entry->size()));
     }
@@ -420,7 +420,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
         if (FLAGS_velox_ssd_verify_write) {
           verifyWrite(*entry, SsdRun(offset, size, checksum));
         }
-        offset += size;
+        // offset += size;
         ++stats_.entriesWritten;
         stats_.bytesWritten += size;
         bytesAfterCheckpoint_ += size;

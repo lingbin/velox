@@ -458,9 +458,9 @@ void addOperatorRuntimeStats(
 
 void aggregateOperatorRuntimeStats(
     std::unordered_map<std::string, RuntimeMetric>& stats) {
-  for (auto& runtimeMetric : stats) {
-    if (shouldAggregateRuntimeMetric(runtimeMetric.first)) {
-      runtimeMetric.second.aggregate();
+  for (auto& [name, runtimeMetric] : stats) {
+    if (shouldAggregateRuntimeMetric(name)) {
+      runtimeMetric.aggregate();
     }
   }
 }

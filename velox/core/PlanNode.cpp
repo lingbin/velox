@@ -2550,7 +2550,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::broadcast(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kBroadcast,
@@ -2569,7 +2569,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::arbitrary(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kArbitrary,
@@ -2588,7 +2588,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::single(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kPartitioned,

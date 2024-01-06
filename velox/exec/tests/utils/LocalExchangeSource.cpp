@@ -16,6 +16,7 @@
 #include "velox/exec/tests/utils/LocalExchangeSource.h"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <atomic>
+#include <utility>
 #include "velox/common/testutil/TestValue.h"
 #include "velox/exec/OutputBufferManager.h"
 
@@ -29,7 +30,7 @@ class LocalExchangeSource : public exec::ExchangeSource {
       int destination,
       std::shared_ptr<exec::ExchangeQueue> queue,
       memory::MemoryPool* pool)
-      : ExchangeSource(taskId, destination, queue, pool) {}
+      : ExchangeSource(taskId, destination, std::move(queue), pool) {}
 
   bool supportsMetrics() const override {
     return true;

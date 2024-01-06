@@ -35,7 +35,7 @@ DECLARE_bool(velox_time_allocations);
 namespace facebook::velox::memory {
 
 struct SizeClassStats {
-  //// Size of the tracked size class  in pages.
+  /// Size of the tracked size class in pages.
   int32_t size{0};
 
   /// Cumulative CPU clocks spent inside allocation.
@@ -59,8 +59,8 @@ struct SizeClassStats {
 
   void operator=(const SizeClassStats& other) {
     size = other.size;
-    allocateClocks = static_cast<int64_t>(other.allocateClocks);
-    freeClocks = static_cast<int64_t>(other.freeClocks);
+    allocateClocks = static_cast<uint64_t>(other.allocateClocks);
+    freeClocks = static_cast<uint64_t>(other.freeClocks);
     numAllocations = static_cast<int64_t>(other.numAllocations);
     totalBytes = static_cast<int64_t>(other.totalBytes);
   }
@@ -82,10 +82,11 @@ struct SizeClassStats {
 };
 
 struct Stats {
-  /// 20 size classes in powers of 2 are tracked, from 4K to 4G. The
-  /// allocation is recorded to the class corresponding to the closest
-  /// power of 2 >= the allocation size.
+  /// 20 size classes in powers of 2 are tracked, from 4K to 4G. The allocation
+  /// is recorded to the class corresponding to the closest power of 2 >= the
+  /// allocation size.
   static constexpr int32_t kNumSizes = 20;
+
   Stats() {
     for (auto i = 0; i < sizes.size(); ++i) {
       sizes[i].size = 1 << i;
@@ -98,7 +99,7 @@ struct Stats {
   void recordAllocate(int64_t bytes, int32_t count, Op op) {
     if (FLAGS_velox_time_allocations) {
       auto index = sizeIndex(bytes);
-      velox::ClockTimer timer(sizes[index].allocateClocks);
+      ClockTimer timer(sizes[index].allocateClocks);
       op();
       sizes[index].numAllocations += count;
       sizes[index].totalBytes += bytes * count;
@@ -183,11 +184,19 @@ std::string getAndClearCacheFailureMessage();
 /// multiple runs from different size classes. To get 11 pages, one could have a
 /// run of 8, one of 2 and one of 1 page. This is intended for all high volume
 /// allocations, like caches, IO buffers and hash tables for join/group by.
-/// Implementations may use malloc or mmap/madvise. Caches subclass this to
+/// Implementations may use malloc or mmap/madvise.
+///
+/// Cache已经不是子类了。
+/// Caches subclass this to
 /// provide allocation that is fungible with cached capacity, i.e. a cache can
-/// evict data to make space for non-cache memory users. The point is to have
+/// evict data to make space for non-cache memory users.
+///
+/// The point is to have
 /// all large allocation come from a single source to have dynamic balancing
-/// between different users. Proxy subclasses may provide context specific
+/// between different users.
+///
+/// 这个子类（Proxy）也已经不存在了？
+/// Proxy subclasses may provide context specific
 /// tracking while delegating the allocation to a root allocator.
 class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
  public:
@@ -211,8 +220,7 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   static constexpr uint16_t kMinAlignment = alignof(max_align_t);
   static constexpr uint16_t kMaxAlignment = 64;
 
-  /// Returns the kind of this memory allocator. For AsyncDataCache, it returns
-  /// the kind of the delegated memory allocator underneath.
+  /// Returns the kind of this memory allocator.
   virtual Kind kind() const = 0;
 
   /// Registers a 'Cache' that is used for freeing up space when this allocator
@@ -265,17 +273,18 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// together cover the new size of allocation. 'allocation' is newly mapped
   /// and hence zeroed. The contents of 'allocation' and 'collateral' are freed
   /// in all cases, also if the allocation fails. 'reservationCB' is used in the
-  /// same way as allocate does. It may throw and the end state will be
-  /// consistent, with no new allocation and 'allocation' and 'collateral'
-  /// cleared.
+  /// same way as 'allocateNonContiguous' does. It may throw and the end state
+  /// will be consistent, with no new allocation and 'allocation' and
+  /// 'collateral' cleared.
   ///
-  /// NOTE: - 'collateral' and passed in 'allocation' are guaranteed
-  /// to be freed. If 'maxPages' is non-0, 'maxPages' worth of address space is
-  /// mapped but the utilization in the allocator and pool is incremented by
-  /// 'numPages'. This allows reserving a large range of addresses for use with
-  /// huge pages without declaring the whole range as held by the query. The
-  /// reservation will be increased as and if addresses in the range are used.
-  /// See growContiguous().
+  /// NOTE:
+  /// - 'collateral' and passed in 'allocation' are guaranteed to be freed.
+  /// - If 'maxPages' is non-0, 'maxPages' worth of address space is mapped but
+  ///   the utilization in the allocator and pool is incremented by 'numPages'.
+  ///   This allows reserving a large range of addresses for use with huge pages
+  ///   without declaring the whole range as held by the query. The reservation
+  ///   will be increased as if addresses in the range are used. See
+  ///   growContiguous().
   bool allocateContiguous(
       MachinePageCount numPages,
       Allocation* collateral,
@@ -286,12 +295,12 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// Frees contiguous 'allocation'. 'allocation' is empty on return.
   virtual void freeContiguous(ContiguousAllocation& allocation) = 0;
 
-  /// Increments the reserved part of 'allocation' by
-  /// 'increment'. false if would exceed capacity, Throws if size
-  /// would exceed maxSize given in allocateContiguous(). Calls reservationCB
-  /// before increasing the utilization and returns false with no effect if this
-  /// fails. The function might retry allocation failure by making
-  /// space from 'cache()' if registered. But sufficient space is not guaranteed
+  /// Increments the reserved part of 'allocation' by 'increment'. Returns false
+  /// if would exceed capacity, Throws if size would exceed maxSize given in
+  /// allocateContiguous(). Calls reservationCB before increasing the
+  /// utilization and returns false with no effect if this fails. The function
+  /// might retry allocation failure by making space from 'cache()' if
+  /// registered. But sufficient space is not guaranteed.
   bool growContiguous(
       MachinePageCount increment,
       ContiguousAllocation& allocation,
@@ -311,8 +320,7 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// 'cache()' if registered. But sufficient space is not guaranteed.
   void* allocateZeroFilled(uint64_t bytes);
 
-  /// Frees contiguous memory allocated by allocateBytes, allocateZeroFilled,
-  /// reallocateBytes.
+  /// Frees contiguous memory allocated by allocateBytes, allocateZeroFilled.
   virtual void freeBytes(void* p, uint64_t size) noexcept = 0;
 
   /// Unmaps the unused memory space to return the backing physical pages back
@@ -334,7 +342,7 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
     return sizeClassSizes_;
   }
 
-  /// Returns the total number of used bytes by this allocator
+  /// Returns the total number of used bytes by this allocator.
   virtual size_t totalUsedBytes() const = 0;
 
   virtual MachinePageCount numAllocated() const = 0;
@@ -360,8 +368,8 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// Causes 'failure' to occur in memory allocation calls. This is a test-only
   /// function for validating error paths which are rare to trigger in unit
   /// test. If 'persistent' is false, then we only inject failure once in the
-  /// next call. Otherwise, we keep injecting failures until next
-  /// 'testingClearFailureInjection' call.
+  /// next 'testingHasInjectedFailure' call. Otherwise, we keep injecting
+  /// failures until next 'testingClearFailureInjection' call.
   enum class InjectedFailure {
     kNone,
     /// Mimic case of not finding anything to advise away.
@@ -412,13 +420,13 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   static std::vector<MachinePageCount> makeSizeClassSizes(
       MachinePageCount largest);
 
-  /// Represents a mix of blocks of different sizes for covering a single
-  /// allocation.
+  // Represents a mix of blocks of different sizes for covering a single
+  // non-contiguous allocation.
   struct SizeMix {
-    // Index into 'sizeClassSizes_'
+    // Index into 'sizeClassSizes_'.
     std::vector<int32_t> sizeIndices;
     // Number of items of the class of the corresponding element in
-    // '"sizeIndices'.
+    // 'sizeIndices'.
     std::vector<int32_t> sizeCounts;
     // Number of valid elements in 'sizeCounts' and 'sizeIndices'.
     int32_t numSizes{0};
@@ -480,8 +488,8 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
     return true;
   }
 
-  // If 'data' is sufficiently large, enables/disables adaptive  huge pages
-  // for the address range.
+  // If 'data' is sufficiently large, enables/disables adaptive huge pages for
+  // the address range.
   void useHugePages(const ContiguousAllocation& data, bool enable);
 
   // The machine page counts corresponding to different sizes in order
@@ -513,6 +521,7 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
 
 std::ostream& operator<<(std::ostream& out, const MemoryAllocator::Kind& kind);
 } // namespace facebook::velox::memory
+
 template <>
 struct fmt::formatter<facebook::velox::memory::MemoryAllocator::InjectedFailure>
     : fmt::formatter<int> {
