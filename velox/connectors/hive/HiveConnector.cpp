@@ -29,11 +29,13 @@ using namespace facebook::velox::exec;
 namespace facebook::velox::connector::hive {
 
 namespace {
+
 std::vector<std::unique_ptr<HiveConnectorMetadataFactory>>&
 hiveConnectorMetadataFactories() {
   static std::vector<std::unique_ptr<HiveConnectorMetadataFactory>> factories;
   return factories;
 }
+
 } // namespace
 
 HiveConnector::HiveConnector(

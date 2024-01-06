@@ -57,7 +57,7 @@ std::vector<int32_t> SsdFileTracker::findEvictionCandidates(
   const auto avg = scoreSum / numUnpinned;
   std::vector<int32_t> candidates;
   for (auto i = 0; i < regionScores_.size(); ++i) {
-    if ((regionPins[i] == 0) && (regionScores_[i] <= avg)) {
+    if (regionPins[i] == 0 && regionScores_[i] <= avg) {
       candidates.push_back(i);
     }
   }
@@ -67,6 +67,7 @@ std::vector<int32_t> SsdFileTracker::findEvictionCandidates(
         return regionScores_[left] < regionScores_[right];
       });
   candidates.resize(std::min<int32_t>(candidates.size(), numCandidates));
+  candidates.shrink_to_fit();
   return candidates;
 }
 

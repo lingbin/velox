@@ -188,6 +188,11 @@ std::string PlanNodeStats::toString(
     out << ", Splits: " << numSplits;
   }
 
+  if (backgroundTiming.cpuNanos > 0) {
+    out << ", Background cpu time: "
+        << succinctNanos(backgroundTiming.cpuNanos);
+  }
+
   if (spilledRows > 0) {
     out << ", Spilled: " << spilledRows << " rows ("
         << succinctBytes(spilledBytes) << ", " << spilledFiles << " files)";
@@ -280,6 +285,7 @@ folly::dynamic toPlanStatsJson(const facebook::velox::exec::TaskStats& stats) {
       stat["spilledInputBytes"] = operatorStat.second->spilledInputBytes;
       stat["spilledBytes"] = operatorStat.second->spilledBytes;
       stat["spilledRows"] = operatorStat.second->spilledRows;
+      stat["spilledPartitions"] = operatorStat.second->spilledPartitions;
       stat["spilledFiles"] = operatorStat.second->spilledFiles;
 
       folly::dynamic cs = folly::dynamic::object;

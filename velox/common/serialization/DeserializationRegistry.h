@@ -21,8 +21,7 @@
 #include "folly/dynamic.h"
 #include "folly/hash/Hash.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 class ISerializable;
 
 using DeserializationRegistryType = Registry<
@@ -66,5 +65,4 @@ void registerDeserializer() {
   }
 }
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

@@ -50,8 +50,8 @@ class ThreadLocalRegistry {
     T value;
   };
 
-  std::list<std::unique_ptr<Entry>> entries_;
   std::mutex entriesMutex_;
+  std::list<std::unique_ptr<Entry>> entries_;
 };
 
 /// Reference to one thread local value.  Should be stored in thread local

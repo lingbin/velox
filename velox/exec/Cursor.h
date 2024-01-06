@@ -134,9 +134,11 @@ class TaskQueue {
   uint64_t maxBytes_;
   std::mutex mutex_;
   std::vector<ContinuePromise> producerUnblockPromises_;
+
   bool consumerBlocked_ = false;
   ContinuePromise consumerPromise_;
   ContinueFuture consumerFuture_;
+
   bool closed_ = false;
 };
 

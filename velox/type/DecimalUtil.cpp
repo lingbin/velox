@@ -126,7 +126,7 @@ void DecimalUtil::computeAverage(
 }
 
 int32_t DecimalUtil::maxStringViewSize(int precision, int scale) {
-  int32_t rowSize = precision + 1; // Number and symbol.
+  int32_t rowSize = precision + 1; // Number and sign symbol.
   if (scale > 0) {
     ++rowSize; // A dot.
   }

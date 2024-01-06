@@ -161,7 +161,7 @@ class SplitReader {
       const std::vector<BaseVector::CopyRange>& ranges);
 
  private:
-  /// Different table formats may have different meatadata columns.
+  /// Different table formats may have different metadata columns.
   /// This function will be used to update the scanSpec for these columns.
   std::vector<TypePtr> adaptColumns(
       const RowTypePtr& fileType,

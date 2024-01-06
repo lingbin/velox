@@ -128,10 +128,8 @@ RowTypePtr getAggregationOutputType(
   std::vector<TypePtr> types;
 
   for (auto& key : groupingKeys) {
-    auto field = TypedExprs::asFieldAccess(key);
-    VELOX_CHECK(field, "Grouping key must be a field reference");
-    names.push_back(field->name());
-    types.push_back(field->type());
+    names.push_back(key->name());
+    types.push_back(key->type());
   }
 
   for (int32_t i = 0; i < aggregateNames.size(); i++) {
@@ -200,9 +198,9 @@ AggregationNode::AggregationNode(
   }
 
   if (groupId_.has_value()) {
-    VELOX_USER_CHECK_GT(
+    VELOX_USER_CHECK_EQ(
         groupingKeyNames.count(groupId_.value()->name()),
-        0,
+        1,
         "GroupId key {} must be one of the grouping keys",
         groupId_.value()->name());
 
@@ -443,9 +441,9 @@ AggregationNode::Aggregate AggregationNode::Aggregate::deserialize(
   auto sortingOrders = deserializeSortingOrders(obj["sortingOrders"]);
   bool distinct = obj["distinct"].asBool();
   return {
-      call,
-      rawInputTypes,
-      mask,
+      std::move(call),
+      std::move(rawInputTypes),
+      std::move(mask),
       std::move(sortingKeys),
       std::move(sortingOrders),
       distinct};
@@ -2816,7 +2814,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::broadcast(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kBroadcast,
@@ -2835,7 +2833,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::arbitrary(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kArbitrary,
@@ -2854,7 +2852,7 @@ std::shared_ptr<PartitionedOutputNode> PartitionedOutputNode::single(
     RowTypePtr outputType,
     VectorSerde::Kind serdeKind,
     PlanNodePtr source) {
-  std::vector<TypedExprPtr> noKeys;
+  static const std::vector<TypedExprPtr> noKeys;
   return std::make_shared<PartitionedOutputNode>(
       id,
       Kind::kPartitioned,
@@ -3218,7 +3216,7 @@ void PlanNode::toString(
     stream << " -> ";
     outputType()->printChildren(stream, ", ");
   }
-  stream << std::endl;
+  stream << "\n";
 
   if (addContext) {
     auto contextIndentation = indentation + "   ";

@@ -21,7 +21,7 @@
 namespace facebook {
 namespace velox {
 
-// An abstract class  that can be passed to the UDFs as output string parameter.
+// An abstract class that can be passed to the UDFs as output string parameter.
 // Public functions have std::string semantics, except that resize does not
 // reset the underlying string values on size extension.
 class UDFOutputString {
@@ -41,13 +41,12 @@ class UDFOutputString {
   }
 
   /// Has the semantics as std::string, except that it does not fill the
-  /// space[size(), newSize] with 0 but rather leaves it as is
+  /// space[size(), newSize] with 0 but rather leaves it as is.
   void resize(size_t newSize) {
     if (newSize > capacity_) {
       reserve(newSize);
     }
     size_ = newSize;
-    return;
   }
 
   /// Reserve a sequential space for the string with at least size bytes.
@@ -76,13 +75,13 @@ class UDFOutputString {
   }
 
  private:
-  /// Address to the start of the string
+  /// Address to the start of the string.
   char* data_ = nullptr;
 
-  /// Size of the string in bytes
+  /// Size of the string in bytes.
   size_t size_ = 0;
 
-  /// The capacity of the string in bytes
+  /// The capacity of the string in bytes.
   size_t capacity_ = 0;
 };
 

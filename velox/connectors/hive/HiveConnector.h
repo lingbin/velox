@@ -99,7 +99,7 @@ class HiveConnectorFactory : public ConnectorFactory {
       std::shared_ptr<const config::ConfigBase> config,
       folly::Executor* ioExecutor = nullptr,
       folly::Executor* cpuExecutor = nullptr) override {
-    return std::make_shared<HiveConnector>(id, config, ioExecutor);
+    return std::make_shared<HiveConnector>(id, std::move(config), ioExecutor);
   }
 };
 

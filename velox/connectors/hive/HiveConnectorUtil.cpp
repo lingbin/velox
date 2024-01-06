@@ -270,8 +270,8 @@ void checkColumnNameLowerCase(const TypePtr& type) {
     case TypeKind::MAP: {
       checkColumnNameLowerCase(type->asMap().keyType());
       checkColumnNameLowerCase(type->asMap().valueType());
-
-    } break;
+      break;
+    }
     case TypeKind::ROW: {
       for (const auto& outputName : type->asRow().names()) {
         VELOX_CHECK(
@@ -280,7 +280,8 @@ void checkColumnNameLowerCase(const TypePtr& type) {
       for (auto& childType : type->asRow().children()) {
         checkColumnNameLowerCase(childType);
       }
-    } break;
+      break;
+    }
     default:
       VLOG(1) << "No need to check type lowercase mode" << type->toString();
   }

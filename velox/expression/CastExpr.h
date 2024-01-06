@@ -90,7 +90,7 @@ class CastExpr : public SpecialForm {
       : SpecialForm(
             SpecialFormKind::kCast,
             type,
-            std::vector<ExprPtr>({expr}),
+            std::vector<ExprPtr>({std::move(expr)}),
             isTryCast ? expression::kTryCast : expression::kCast,
             false /* supportsFlatNoNullsFastPath */,
             trackCpuUsage),

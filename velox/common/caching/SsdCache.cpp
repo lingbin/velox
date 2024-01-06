@@ -15,12 +15,10 @@
  */
 #include "velox/common/caching/SsdCache.h"
 #include <folly/Executor.h>
-#include <folly/portability/SysUio.h>
 #include "velox/common/base/Exceptions.h"
 #include "velox/common/caching/FileIds.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/testutil/TestValue.h"
-#include "velox/common/time/Timer.h"
 
 #include <filesystem>
 
@@ -46,7 +44,7 @@ SsdCache::SsdCache(const Config& config)
   auto checksumReadVerificationEnabled = config.checksumReadVerificationEnabled;
   if (config.checksumReadVerificationEnabled && !config.checksumEnabled) {
     VELOX_SSD_CACHE_LOG(WARNING)
-        << "Checksum read has been disabled as checksum is not enabled.";
+        << "Checksum read verification has been disabled as checksum is not enabled.";
     checksumReadVerificationEnabled = false;
   }
   filesystems::getFileSystem(filePrefix_, nullptr)
@@ -72,11 +70,6 @@ SsdCache::SsdCache(const Config& config)
   }
 }
 
-SsdFile& SsdCache::file(uint64_t fileId) {
-  const auto index = fileId % numShards_;
-  return *files_[index];
-}
-
 bool SsdCache::startWrite() {
   std::lock_guard<std::mutex> l(mutex_);
   checkNotShutdownLocked();
@@ -90,7 +83,8 @@ bool SsdCache::startWrite() {
 }
 
 void SsdCache::write(std::vector<CachePin> pins) {
-  VELOX_CHECK_EQ(numShards_, writesInProgress_);
+  VELOX_CHECK_EQ(
+      numShards_, writesInProgress_, "startWrite() have not been called");
 
   TestValue::adjust("facebook::velox::cache::SsdCache::write", this);
 
@@ -98,7 +92,7 @@ void SsdCache::write(std::vector<CachePin> pins) {
 
   uint64_t bytes = 0;
   std::vector<std::vector<CachePin>> shards(numShards_);
-  for (auto& pin : pins) {
+  for (const auto& pin : pins) {
     bytes += pin.checkedEntry()->size();
     const auto& target = file(pin.checkedEntry()->key().fileNum.id());
     shards[target.shardId()].push_back(std::move(pin));

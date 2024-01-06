@@ -58,8 +58,8 @@ Exchange::Exchange(
 
 void Exchange::addRemoteTaskIds(std::vector<std::string>& remoteTaskIds) {
   std::shuffle(std::begin(remoteTaskIds), std::end(remoteTaskIds), rng_);
-  for (const std::string& taskId : remoteTaskIds) {
-    exchangeClient_->addRemoteTaskId(taskId);
+  for (const std::string& remoteTaskId : remoteTaskIds) {
+    exchangeClient_->addRemoteTaskId(remoteTaskId);
   }
   stats_.wlock()->numSplits += remoteTaskIds.size();
 }
@@ -301,13 +301,12 @@ void Exchange::recordExchangeClientStats() {
     lockedStats->runtimeStats.insert({name, value});
   }
 
-  auto backgroundCpuTimeMs =
-      exchangeClientStats.find(ExchangeClient::kBackgroundCpuTimeMs);
-  if (backgroundCpuTimeMs != exchangeClientStats.end()) {
+  auto iter = exchangeClientStats.find(ExchangeClient::kBackgroundCpuTimeMs);
+  if (iter != exchangeClientStats.end()) {
     const CpuWallTiming backgroundTiming{
-        static_cast<uint64_t>(backgroundCpuTimeMs->second.count),
+        static_cast<uint64_t>(iter->second.count),
         0,
-        static_cast<uint64_t>(backgroundCpuTimeMs->second.sum) *
+        static_cast<uint64_t>(iter->second.sum) *
             Timestamp::kNanosecondsInMillisecond};
     lockedStats->backgroundTiming.clear();
     lockedStats->backgroundTiming.add(backgroundTiming);

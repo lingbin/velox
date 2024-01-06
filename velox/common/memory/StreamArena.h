@@ -67,9 +67,9 @@ class StreamArena {
   }
 
  private:
-  memory::MemoryPool* const pool_;
+  static constexpr memory::MachinePageCount kAllocationQuantum_{2};
 
-  const memory::MachinePageCount allocationQuantum_{2};
+  memory::MemoryPool* const pool_;
 
   // All non-contiguous allocations.
   std::vector<std::unique_ptr<memory::Allocation>> allocations_;

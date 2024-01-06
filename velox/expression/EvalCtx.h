@@ -92,9 +92,7 @@ class EvalErrors {
     rows.testSelected([&](vector_size_t row) {
       if (row < size_) {
         throwIfErrorAt(row);
-        return true;
       }
-      return false;
     });
   }
 
@@ -205,7 +203,7 @@ class EvalErrors {
  private:
   using TError = std::shared_ptr<std::exception_ptr>;
 
-  memory::MemoryPool* pool_;
+  memory::MemoryPool* const pool_;
   vector_size_t size_;
   BufferPtr errorFlags_;
   uint64_t* rawErrorFlags_;
@@ -507,7 +505,7 @@ class EvalCtx {
 
   // Return true if the vector was moved to the pool.
   bool releaseVector(VectorPtr& vector) {
-    if (!vector) {
+    if (vector == nullptr) {
       return false;
     }
     return execCtx_->releaseVector(vector);
@@ -601,7 +599,7 @@ class EvalCtx {
   // True if the current set of rows will not grow, e.g. not under and IF or OR.
   bool isFinalSelection_{true};
 
-  // If isFinalSelection_ is false, the set of rows for the upper-most IF or
+  // If isFinalSelection_ is false, the set of rows for the uppermost IF or
   // OR. Used to determine the set of rows for loading lazy vectors.
   const SelectivityVector* finalSelection_;
 
@@ -613,7 +611,7 @@ class EvalCtx {
 
 /// Utility wrapper struct that is used to temporarily reset the value of the
 /// EvalCtx. EvalCtx::saveAndReset() is used to achieve that. Use
-/// withContextSaver to ensure the original context is restored on a scucessful
+/// withContextSaver to ensure the original context is restored on a successful
 /// run or call EvalContext::restore to do it manually.
 struct ContextSaver {
   // The context to restore. nullptr if nothing to restore.
@@ -731,7 +729,7 @@ class LocalSelectivityVector {
   }
 
   SelectivityVector* get(vector_size_t size) {
-    if (!vector_) {
+    if (vector_ == nullptr) {
       vector_ = context_.getSelectivityVector(size);
     }
     return vector_.get();
@@ -739,7 +737,7 @@ class LocalSelectivityVector {
 
   // Returns a recycled SelectivityVector with 'size' bits set to 'value'.
   SelectivityVector* get(vector_size_t size, bool value) {
-    if (!vector_) {
+    if (vector_ == nullptr) {
       vector_ = context_.getSelectivityVector();
     }
     vector_->resizeFill(size, value);
@@ -748,7 +746,7 @@ class LocalSelectivityVector {
 
   // Returns a recycled SelectivityVector initialized from 'other'.
   SelectivityVector* get(const SelectivityVector& other) {
-    if (!vector_) {
+    if (vector_ == nullptr) {
       vector_ = context_.getSelectivityVector();
     }
     *vector_ = other;
@@ -843,7 +841,7 @@ class LocalDecodedVector {
 
  private:
   std::reference_wrapper<core::ExecCtx> context_;
-  std::unique_ptr<DecodedVector> vector_;
+  std::unique_ptr<DecodedVector> vector_{nullptr};
 };
 
 /// Utility class used to activate final selection (setting isFinalSelection to
