@@ -32,8 +32,8 @@
 namespace facebook::velox {
 
 BaseVector::BaseVector(
-    velox::memory::MemoryPool* pool,
-    std::shared_ptr<const Type> type,
+    memory::MemoryPool* pool,
+    TypePtr type,
     VectorEncoding::Simple encoding,
     BufferPtr nulls,
     size_t length,
@@ -55,7 +55,7 @@ BaseVector::BaseVector(
   VELOX_CHECK_NOT_NULL(type_, "Vector creation requires a non-null type.");
 
   if (nulls_) {
-    int32_t bytes = byteSize<bool>(length_);
+    auto bytes = byteSize<bool>(length_);
     VELOX_CHECK_GE(nulls_->capacity(), bytes);
     if (nulls_->size() < bytes) {
       // Set the size so that values get preserved by resize. Do not
@@ -77,7 +77,7 @@ void BaseVector::ensureNullsCapacity(
     if (nulls_->capacity() < bits::nbytes(size)) {
       AlignedBuffer::reallocate<bool>(&nulls_, size, fill);
     }
-    // ensure that the newly added positions have the right initial value for
+    // Ensure that the newly added positions have the right initial value for
     // the case where changes in size don't result in change in the size of
     // the underlying buffer.
     // TODO: move this inside reallocate.
@@ -209,7 +209,7 @@ static VectorPtr addConstant(
 
   for (;;) {
     if (vector->isConstantEncoding()) {
-      auto constVector = vector->as<ConstantVector<T>>();
+      auto constVector = vector->asUnchecked<ConstantVector<T>>();
       if constexpr (!std::is_same_v<T, ComplexType>) {
         if (!vector->valueVector()) {
           T value = constVector->valueAt(0);
@@ -580,6 +580,7 @@ void BaseVector::ensureWritable(const SelectivityVector& rows) {
   this->resetDataDependentFlags(&rows);
 }
 
+// static
 void BaseVector::ensureWritable(
     const SelectivityVector& rows,
     const TypePtr& type,
@@ -875,6 +876,7 @@ void BaseVector::flattenVector(VectorPtr& vector) {
   }
 }
 
+// static
 void BaseVector::prepareForReuse(VectorPtr& vector, vector_size_t size) {
   if (!vector.unique() || !isReusableEncoding(vector->encoding())) {
     vector = BaseVector::create(vector->type(), size, vector->pool());

@@ -84,7 +84,7 @@ RowVectorPtr TableScan::getOutput() {
   for (;;) {
     if (needNewSplit_) {
       // Check if our Task needs us to yield or we've been running for too long
-      // w/o producing a result. In this case we return with the Yield blocking
+      // w/o producing a result. In this case we return with the kYield blocking
       // reason and an already fulfilled future.
       curStatus_ = "getOutput: task->shouldStop";
       const StopReason taskStopReason = driverCtx_->task->shouldStop();
@@ -115,6 +115,7 @@ RowVectorPtr TableScan::getOutput() {
       }
 
       if (!split.hasConnectorSplit()) {
+        // All splits have been consumed.
         noMoreSplits_ = true;
         dynamicFilters_.clear();
         if (dataSource_) {
@@ -211,7 +212,7 @@ RowVectorPtr TableScan::getOutput() {
           : outputBatchRows(estimatedRowSize);
     }
 
-    // Check for  cancellation since scans that filter everything out will not
+    // Check for cancellation since scans that filter everything out will not
     // hit the check in Driver.
     curStatus_ = "getOutput: task->isCancelled";
     if (operatorCtx_->task()->isCancelled()) {

@@ -45,7 +45,7 @@ Merge::Merge(
     VELOX_CHECK_NE(
         channel,
         kConstantChannel,
-        "Merge doesn't allow constant grouping keys");
+        "Merge doesn't allow constant sorting keys");
     sortingKeys_.emplace_back(
         channel,
         CompareFlags{

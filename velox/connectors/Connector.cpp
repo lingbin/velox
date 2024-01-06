@@ -20,12 +20,14 @@ namespace facebook::velox::connector {
 namespace {
 std::unordered_map<std::string, std::shared_ptr<ConnectorFactory>>&
 connectorFactories() {
+  // connectorName => ConnectorFactory.
   static std::unordered_map<std::string, std::shared_ptr<ConnectorFactory>>
       factories;
   return factories;
 }
 
 std::unordered_map<std::string, std::shared_ptr<Connector>>& connectors() {
+  // connectorId => Connector
   static std::unordered_map<std::string, std::shared_ptr<Connector>> connectors;
   return connectors;
 }
@@ -110,6 +112,7 @@ void Connector::unregisterTracker(cache::ScanTracker* tracker) {
   trackers_.withWLock([&](auto& trackers) { trackers.erase(tracker->id()); });
 }
 
+// static
 std::shared_ptr<cache::ScanTracker> Connector::getTracker(
     const std::string& scanId,
     int32_t loadQuantum) {
@@ -153,6 +156,7 @@ CommitStrategy stringToCommitStrategy(const std::string& strategy) {
   }
 }
 
+// static
 folly::dynamic ColumnHandle::serializeBase(std::string_view name) {
   folly::dynamic obj = folly::dynamic::object;
   obj["name"] = name;

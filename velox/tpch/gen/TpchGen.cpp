@@ -179,7 +179,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_SUPPLIER: {
       static RowTypePtr type = ROW(
           {
@@ -202,7 +201,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_PARTSUPP: {
       static RowTypePtr type = ROW(
           {
@@ -221,7 +219,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_CUSTOMER: {
       static RowTypePtr type = ROW(
           {
@@ -246,7 +243,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_ORDERS: {
       static RowTypePtr type = ROW(
           {
@@ -273,7 +269,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_LINEITEM: {
       static RowTypePtr type = ROW(
           {
@@ -314,7 +309,6 @@ RowTypePtr getTableSchema(Table table) {
           });
       return type;
     }
-
     case Table::TBL_NATION: {
       static RowTypePtr type = ROW(
           {

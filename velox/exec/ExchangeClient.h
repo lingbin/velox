@@ -20,8 +20,8 @@
 
 namespace facebook::velox::exec {
 
-// Handle for a set of producers. This may be shared by multiple Exchanges, one
-// per consumer thread.
+/// Handle for a set of producers. This may be shared by multiple Exchanges, one
+/// per consumer thread.
 class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
  public:
   static constexpr int32_t kDefaultMaxQueuedBytes = 32 << 20; // 32 MB.
@@ -66,7 +66,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   // upstream task. If 'close' has been called already, creates an exchange
   // source and immediately closes it to notify the upstream task that data is
   // no longer needed. Repeated calls with the same 'taskId' are ignored.
-  void addRemoteTaskId(const std::string& taskId);
+  void addRemoteTaskId(const std::string& remoteTaskId);
 
   void noMoreRemoteTasks();
 

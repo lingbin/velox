@@ -58,6 +58,7 @@ class Destination {
   }
 
   // Serializes row from 'output' till either 'maxBytes' have been serialized or
+  // Blocked.
   BlockingReason advance(
       uint64_t maxBytes,
       const std::vector<vector_size_t>& sizes,

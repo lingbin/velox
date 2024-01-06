@@ -113,7 +113,7 @@ constexpr inline uint64_t nwords(int32_t bits) {
 
 inline int32_t getAndClearLastSetBit(uint16_t& bits) {
   int32_t trailingZeros = __builtin_ctz(bits);
-  // erase last non-zero bit
+  // Erase last non-zero bit.
   bits &= bits - 1;
   return trailingZeros;
 }
@@ -791,7 +791,7 @@ uint64_t hashBytes(uint64_t seed, const char* data, size_t size);
 namespace detail {
 // Returns at least 'numBits' bits of data starting at bit 'bitOffset'
 // from 'source'. T must be at least 'numBits' wide. If 'numBits' bits
-// from 'bitIffset' do not in T, loads the next byte to get the extra
+// from 'bitOffset' do not in T, loads the next byte to get the extra
 // bits.
 template <typename T>
 inline T loadBits(const uint64_t* source, uint64_t bitOffset, uint8_t numBits) {

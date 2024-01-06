@@ -37,7 +37,7 @@ std::string ByteInputStream::toString() const {
 }
 
 bool ByteInputStream::atEnd() const {
-  if (!current_) {
+  if (current_ == nullptr) {
     return false;
   }
   if (current_->position < current_->size) {
@@ -73,7 +73,7 @@ std::streampos ByteInputStream::tellp() const {
   if (ranges_.empty()) {
     return 0;
   }
-  assert(current_);
+  VELOX_DCHECK_NOT_NULL(current_);
   int64_t size = 0;
   for (auto& range : ranges_) {
     if (&range == current_) {
@@ -105,9 +105,9 @@ void ByteInputStream::seekp(std::streampos position) {
 
 void ByteInputStream::next(bool throwIfPastEnd) {
   VELOX_CHECK(current_ >= &ranges_[0]);
-  size_t position = current_ - &ranges_[0];
-  VELOX_CHECK_LT(position, ranges_.size());
-  if (position == ranges_.size() - 1) {
+  size_t rangeIdx = current_ - &ranges_[0];
+  VELOX_CHECK_LT(rangeIdx, ranges_.size());
+  if (rangeIdx == ranges_.size() - 1) {
     if (throwIfPastEnd) {
       VELOX_FAIL("Reading past end of ByteInputStream");
     }
@@ -136,7 +136,7 @@ void ByteInputStream::readBytes(uint8_t* bytes, int32_t size) {
     offset += numUsed;
     size -= numUsed;
     current_->position += numUsed;
-    if (!size) {
+    if (size == 0) {
       return;
     }
     next();
@@ -151,7 +151,7 @@ std::string_view ByteInputStream::nextView(int32_t size) {
     }
     next();
   }
-  VELOX_CHECK(current_->size);
+  VELOX_CHECK_GE(current_->size, 0);
   auto position = current_->position;
   auto viewSize = std::min(current_->size - current_->position, size);
   current_->position += viewSize;
@@ -166,7 +166,7 @@ void ByteInputStream::skip(int32_t size) {
     int32_t numUsed = std::min(available, size);
     size -= numUsed;
     current_->position += numUsed;
-    if (!size) {
+    if (size == 0) {
       return;
     }
     next();
@@ -328,7 +328,7 @@ void ByteOutputStream::extend(int32_t bytes) {
 
   // Check if rewriting existing content. If so, move to next range and start at
   // 0.
-  if ((current_ != nullptr) && (current_ != &ranges_.back())) {
+  if (current_ != nullptr && current_ != &ranges_.back()) {
     ++current_;
     current_->position = 0;
     return;

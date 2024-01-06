@@ -46,7 +46,7 @@ function update_brew {
       DEFAULT_BREW_PATH=$(which brew) ;
   fi
   BREW_PATH=${BREW_PATH:-$DEFAULT_BREW_PATH}
-  $BREW_PATH update --auto-update --verbose
+  # $BREW_PATH update --auto-update --verbose
   $BREW_PATH developer off
 }
 

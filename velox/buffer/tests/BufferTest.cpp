@@ -27,8 +27,7 @@
 
 DECLARE_bool(velox_enable_memory_usage_track_in_default_memory_pool);
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 static_assert(Buffer::is_pod_like_v<int64_t>, "");
 static_assert(Buffer::is_pod_like_v<StringView>, "");
@@ -154,7 +153,6 @@ TEST_F(BufferTest, testReallocate) {
   int32_t numInPlace = 0;
   int32_t numMoved = 0;
   for (int32_t i = 0; i < buffers.size(); ++i) {
-    size_t oldSize = buffers[i]->size();
     auto ptr = buffers[i].get();
     if (i % 10 == 0) {
       AlignedBuffer::reallocate<char>(&buffers[i], i + 10000);
@@ -453,5 +451,4 @@ TEST_F(BufferTest, testAllocateSizeOverflow) {
       AlignedBuffer::reallocate<int64_t>(&buf, 1ull << 62), VeloxException);
 }
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

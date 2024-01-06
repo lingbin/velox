@@ -37,9 +37,12 @@ Subfield::Subfield(
   path_ = std::move(pathElements);
 }
 
-Subfield::Subfield(std::vector<std::unique_ptr<Subfield::PathElement>>&& path)
+Subfield::Subfield(std::vector<std::unique_ptr<PathElement>>&& path)
     : path_(std::move(path)) {
   VELOX_CHECK_GE(path_.size(), 1);
+  VELOX_CHECK(
+      path_.front()->kind() == kNestedField,
+      "Subfield path must start with a name");
 }
 
 Subfield Subfield::clone() const {

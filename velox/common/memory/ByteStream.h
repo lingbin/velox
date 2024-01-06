@@ -112,7 +112,9 @@ class ByteInputStream {
 
   /// Enable move constructor.
   ByteInputStream(ByteInputStream&& other) noexcept
-      : ranges_{std::move(other.ranges_)}, current_{other.current_} {}
+      : ranges_{std::move(other.ranges_)}, current_{other.current_} {
+    other.current_ = nullptr;
+  }
 
   /// Enable move assignment operator.
   ByteInputStream& operator=(ByteInputStream&& other) noexcept {
@@ -182,14 +184,14 @@ class ByteInputStream {
   void skip(int32_t size);
 
  protected:
-  /// Sets 'current_' to point to the next range of input.  // The
-  /// input is consecutive ByteRanges in 'ranges_' for the base class
+  /// Sets 'current_' to point to the next range of input.
+  /// The input is consecutive ByteRanges in 'ranges_' for the base class
   /// but any view over external buffers can be made by specialization.
   ///
   /// TODO: Remove 'virtual' after refactoring SpillInput.
   virtual void next(bool throwIfPastEnd = true);
 
-  // TODO: Remove  after refactoring SpillInput.
+  // TODO: Remove after refactoring SpillInput.
   const std::vector<ByteRange>& ranges() const {
     return ranges_;
   }
@@ -231,9 +233,8 @@ class ByteOutputStream {
   // from a function.
   ByteOutputStream(ByteOutputStream&&) = default;
 
-  /// Sets 'this' to range over 'range'. If this is for purposes of writing,
-  /// lastWrittenPosition specifies the end of any pre-existing content in
-  /// 'range'.
+  /// Sets 'this' to range over 'range'. lastWrittenPosition specifies the end
+  /// of any pre-existing content in 'range'.
   void setRange(ByteRange range, int32_t lastWrittenPosition) {
     ranges_.resize(1);
     ranges_[0] = range;
@@ -408,9 +409,9 @@ class ByteOutputStream {
   ByteRange* current_{nullptr};
 
   // Number of bits/bytes that have been written in the last element
-  // of 'ranges_'. In a write situation, all non-last ranges are full
+  // of 'ranges_'. In write situation, all non-last ranges are full
   // and the last may be partly full. The position in the last range
-  // is not necessarily the the end if there has been a seek.
+  // is not necessarily the end if there has been a seek.
   mutable int32_t lastRangeEnd_{0};
 
   template <typename T>
@@ -435,7 +436,7 @@ class AppendWindow {
       } catch (const std::exception& e) {
         // This is impossible because construction ensures there is space for
         // the bytes in the stream.
-        LOG(FATAL) << "throw from AppendWindo append: " << e.what();
+        LOG(FATAL) << "throw from AppendWindow append: " << e.what();
       }
     }
   }

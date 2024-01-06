@@ -35,7 +35,7 @@ namespace {
 constexpr std::string_view kSep{"/"};
 // AWS S3 EMRFS, Hadoop block storage filesystem on-top of Amazon S3 buckets.
 constexpr std::string_view kS3Scheme{"s3://"};
-// This should not be mixed with s3 nor the s3a.
+// This should not be mixed with s3 nor the s3n.
 // S3A Hadoop 3.x (previous connectors "s3" and "s3n" are deprecated).
 constexpr std::string_view kS3aScheme{"s3a://"};
 // DEPRECATED: s3n are deprecated in Hadoop 3.x but we are supporting s3n for
@@ -46,7 +46,7 @@ constexpr std::string_view kOssScheme{"oss://"};
 // Tencent COS support S3 format.
 constexpr std::string_view kCosScheme{"cos://"};
 constexpr std::string_view kCosNScheme{"cosn://"};
-// From AWS documentation
+// From AWS documentation.
 constexpr int kS3MaxKeySize{1024};
 } // namespace
 

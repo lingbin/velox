@@ -93,7 +93,8 @@ struct MemoryUsageComp {
 using MemoryUsageHeap =
     std::priority_queue<MemoryUsage, std::vector<MemoryUsage>, MemoryUsageComp>;
 
-static constexpr size_t kCapMessageIndentSize = 4;
+// Redundant 'static' specifier on an anonymous namespace member
+constexpr size_t kCapMessageIndentSize = 4;
 
 std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
   std::vector<MemoryUsage> usages;
@@ -389,6 +390,7 @@ std::exception_ptr MemoryPool::abortError() const {
   return abortError_;
 }
 
+// static
 size_t MemoryPool::preferredSize(size_t size) {
   if (size < 8) {
     return 8;
@@ -416,7 +418,7 @@ MemoryPoolImpl::MemoryPoolImpl(
     GrowCapacityCallback growCapacityCb,
     DestructionCallback destructionCb,
     const Options& options)
-    : MemoryPool{name, kind, parent, options},
+    : MemoryPool{name, kind, std::move(parent), options},
       manager_{memoryManager},
       allocator_{manager_->allocator()},
       growCapacityCb_(std::move(growCapacityCb)),
@@ -730,7 +732,7 @@ std::shared_ptr<MemoryPool> MemoryPoolImpl::genChild(
       manager_,
       name,
       kind,
-      parent,
+      std::move(parent),
       std::move(reclaimer),
       nullptr,
       nullptr,
@@ -772,6 +774,7 @@ void MemoryPoolImpl::reserve(uint64_t size, bool reserveOnly) {
       reserveNonThreadSafe(size, reserveOnly);
     }
   }
+  // 这个if后没有任何内容，而且这个if什么都不做，所以它是多余的，删除掉。
   if (reserveOnly) {
     return;
   }
@@ -1126,7 +1129,8 @@ void MemoryPoolImpl::checkIfAborted() const {
 
 void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetCapacity(bytes);
+    toImpl(parent_)->testingSetCapacity(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   capacity_ = bytes;
@@ -1134,7 +1138,8 @@ void MemoryPoolImpl::testingSetCapacity(int64_t bytes) {
 
 void MemoryPoolImpl::testingSetReservation(int64_t bytes) {
   if (parent_ != nullptr) {
-    return toImpl(parent_)->testingSetReservation(bytes);
+    toImpl(parent_)->testingSetReservation(bytes);
+    return;
   }
   std::lock_guard<std::mutex> l(mutex_);
   reservationBytes_ = bytes;
@@ -1186,7 +1191,7 @@ void MemoryPoolImpl::recordFreeDbg(const void* addr, uint64_t size) {
   if (allocResult == debugAllocRecords_.end()) {
     VELOX_FAIL("Freeing of un-allocated memory. Free address {}.", addrUint64);
   }
-  const auto allocRecord = allocResult->second;
+  const auto& allocRecord = allocResult->second;
   if (allocRecord.size != size) {
     const auto freeStackTrace = process::StackTrace().toString();
     VELOX_FAIL(fmt::format(
@@ -1255,12 +1260,12 @@ void MemoryPoolImpl::handleAllocationFailure(
     const std::string& failureMessage) {
   if (coreOnAllocationFailureEnabled_) {
     VELOX_MEM_LOG(ERROR) << failureMessage;
-    // SIGBUS is one of the standard signals in Linux that triggers a core dump
+    // SIGBUS is one of the standard signals in Linux that triggers a core dump.
     // Normally it is raised by the operating system when a misaligned memory
     // access occurs. On x86 and aarch64 misaligned access is allowed by default
     // hence this signal should never occur naturally. Raising a signal other
     // than SIGABRT makes it easier to distinguish an allocation failure from
-    // any other crash
+    // any other crash.
     raise(SIGBUS);
   }
 

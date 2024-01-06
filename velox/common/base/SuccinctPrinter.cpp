@@ -73,6 +73,7 @@ std::string succinctSeconds(uint64_t seconds) {
   out << seconds << "s";
   return out.str();
 }
+
 /// Match the input 'value' to the most appropriate unit and return
 /// a string value. The units are specified in the 'units' array.
 /// unitOffset is used to skip the starting units.

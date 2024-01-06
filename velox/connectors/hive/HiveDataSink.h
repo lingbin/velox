@@ -72,7 +72,7 @@ class LocationHandle : public ISerializable {
 
   static LocationHandlePtr create(const folly::dynamic& obj);
 
-  static const std::string tableTypeName(LocationHandle::TableType type);
+  static std::string tableTypeName(LocationHandle::TableType type);
 
   static LocationHandle::TableType tableTypeFromName(const std::string& name);
 

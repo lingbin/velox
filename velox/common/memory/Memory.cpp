@@ -180,7 +180,7 @@ MemoryManager::~MemoryManager() {
     if (checkUsageLeak_) {
       VELOX_FAIL(errMsg);
     } else {
-      LOG(ERROR) << errMsg;
+      VELOX_MEM_LOG(ERROR) << errMsg;
     }
   }
 }
@@ -231,14 +231,6 @@ MemoryManager& MemoryManager::testingSetInstance(
   auto* instance = new MemoryManager(options);
   delete state.instance.exchange(instance, std::memory_order_acq_rel);
   return *instance;
-}
-
-int64_t MemoryManager::capacity() const {
-  return allocator_->capacity();
-}
-
-uint16_t MemoryManager::alignment() const {
-  return alignment_;
 }
 
 std::shared_ptr<MemoryPool> MemoryManager::addRootPool(

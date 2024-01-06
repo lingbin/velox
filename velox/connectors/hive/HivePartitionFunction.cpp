@@ -15,6 +15,8 @@
  */
 #include "velox/connectors/hive/HivePartitionFunction.h"
 
+#include <utility>
+
 namespace facebook::velox::connector::hive {
 
 namespace {
@@ -461,7 +463,7 @@ HivePartitionFunction::HivePartitionFunction(
     std::vector<column_index_t> keyChannels,
     const std::vector<VectorPtr>& constValues)
     : numBuckets_{numBuckets},
-      bucketToPartition_{bucketToPartition},
+      bucketToPartition_{std::move(bucketToPartition)},
       keyChannels_{std::move(keyChannels)} {
   precomputedHashes_.resize(keyChannels_.size());
   size_t constChannel{0};

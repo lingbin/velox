@@ -24,14 +24,14 @@
 
 namespace facebook::velox::exec {
 namespace {
-static constexpr int32_t kNextRowVectorSize = sizeof(NextRowVector);
+constexpr int32_t kNextRowVectorSize = sizeof(NextRowVector);
 
 template <TypeKind Kind>
-static int32_t kindSize() {
+int32_t kindSize() {
   return sizeof(typename KindToFlatVector<Kind>::HashRowType);
 }
 
-static int32_t typeKindSize(TypeKind kind) {
+int32_t typeKindSize(TypeKind kind) {
   if (kind == TypeKind::UNKNOWN) {
     return sizeof(UnknownValue);
   }
@@ -164,10 +164,10 @@ RowContainer::RowContainer(
   // an extra bit to track if the row has been selected by a hash join probe.
   // This is followed by a free bit which is set if the row is in a free list.
   // The accumulators come next, with size given by
-  // Aggregate::accumulatorFixedWidthSize(). Dependent fields follow. These are
+  // Aggregate::fixedWidthSize(). Dependent fields follow. These are
   // non-key columns for hash join or order by. If there are variable length
   // columns or accumulators, i.e. ones that allocate extra space, this space is
-  // tracked by a uint32_t after the dependent columns. If this is a hash join
+  // tracked by an uint32_t after the dependent columns. If this is a hash join
   // build side, the pointer to the next row with the same key is after the
   // optional row size.
   //
@@ -182,20 +182,19 @@ RowContainer::RowContainer(
   int32_t nullOffset = 0;
   bool isVariableWidth = false;
   for (auto& type : keyTypes_) {
-    typeKinds_.push_back(type->kind());
     types_.push_back(type);
+    typeKinds_.push_back(type->kind());
     offsets_.push_back(offset);
     offset += typeKindSize(type->kind());
     nullOffsets_.push_back(nullOffset);
     isVariableWidth |= !type->isFixedWidth();
-    if (nullableKeys_) {
-      ++nullOffset;
-    }
+    // Increase the 'nullOffset' only if 'nullableKeys' is true;
+    nullOffset += !!nullableKeys;
   }
-  // Make offset at least sizeof pointer so that there is space for a
+  // Make 'offset' at least sizeof(pointer) so that there is space for a
   // free list next pointer below the bit at 'freeFlagOffset_'.
   offset = std::max<int32_t>(offset, sizeof(void*));
-  const int32_t firstAggregateOffset = offset;
+  const int32_t keysEndOffset = offset;
   if (!accumulators.empty()) {
     // This moves nullOffset to the start of the next byte.
     // This is to guarantee the null and initialized bits for an aggregate
@@ -203,12 +202,10 @@ RowContainer::RowContainer(
     nullOffset = (nullOffset + 7) & -8;
   }
   for (const auto& accumulator : accumulators) {
-    // Initialized bit.  Set when the accumulator is initialized.
-    nullOffsets_.push_back(nullOffset);
-    ++nullOffset;
+    // Initialized bit. Set when the accumulator is initialized.
+    nullOffsets_.push_back(nullOffset++);
     // Null bit.
-    nullOffsets_.push_back(nullOffset);
-    ++nullOffset;
+    nullOffsets_.push_back(nullOffset++);
     isVariableWidth |= !accumulator.isFixedSize();
     usesExternalMemory_ |= accumulator.usesExternalMemory();
     alignment_ = combineAlignments(accumulator.alignment(), alignment_);
@@ -216,24 +213,21 @@ RowContainer::RowContainer(
   for (auto& type : dependentTypes) {
     types_.push_back(type);
     typeKinds_.push_back(type->kind());
-    nullOffsets_.push_back(nullOffset);
-    ++nullOffset;
+    nullOffsets_.push_back(nullOffset++);
     isVariableWidth |= !type->isFixedWidth();
   }
   if (hasProbedFlag) {
-    nullOffsets_.push_back(nullOffset);
-    probedFlagOffset_ = nullOffset + firstAggregateOffset * 8;
-    ++nullOffset;
+    probedFlagOffset_ = nullOffset + keysEndOffset * 8;
+    nullOffsets_.push_back(nullOffset++);
   }
   // Free flag.
-  nullOffsets_.push_back(nullOffset);
-  freeFlagOffset_ = nullOffset + firstAggregateOffset * 8;
-  ++nullOffset;
+  freeFlagOffset_ = nullOffset + keysEndOffset * 8;
+  nullOffsets_.push_back(nullOffset++);
   // Add 1 to the last null offset to get the number of bits.
   flagBytes_ = bits::nbytes(nullOffsets_.back() + 1);
   // Fixup 'nullOffsets_' to be the bit number from the start of the row.
   for (int32_t i = 0; i < nullOffsets_.size(); ++i) {
-    nullOffsets_[i] += firstAggregateOffset * 8;
+    nullOffsets_[i] += keysEndOffset * 8;
   }
   offset += flagBytes_;
   for (const auto& accumulator : accumulators) {
@@ -316,7 +310,7 @@ char* RowContainer::initializeRow(char* row, bool reuse) {
     freeAggregates(rows);
     VELOX_CHECK_EQ(nextOffset_, 0);
   } else if (rowSizeOffset_ != 0) {
-    // zero out string views so that clear() will not hit uninited data. The
+    // Zero out string views so that clear() will not hit uninited data. The
     // fastest way is to set the whole row to 0.
     ::memset(row, 0, fixedRowSize_);
   }
@@ -357,7 +351,7 @@ int32_t RowContainer::findRows(folly::Range<char**> rows, char** result) {
       ranges.begin(), ranges.end(), [](const auto& left, const auto& right) {
         return left.data() < right.data();
       });
-  raw_vector<uint64_t> starts;
+  raw_vector<uintptr_t> starts;
   raw_vector<uint64_t> sizes;
   starts.reserve(ranges.size());
   sizes.reserve(ranges.size());
@@ -509,24 +503,24 @@ void RowContainer::store(
     const DecodedVector& decoded,
     vector_size_t index,
     char* row,
-    int32_t column) {
+    int32_t columnIndex) {
   auto numKeys = keyTypes_.size();
-  bool isKey = column < numKeys;
+  bool isKey = columnIndex < numKeys;
   if (isKey && !nullableKeys_) {
     VELOX_DYNAMIC_TYPE_DISPATCH(
         storeNoNulls,
-        typeKinds_[column],
+        typeKinds_[columnIndex],
         decoded,
         index,
         isKey,
         row,
-        offsets_[column]);
+        offsets_[columnIndex]);
   } else {
     VELOX_DCHECK(isKey || accumulators_.empty());
-    auto rowColumn = rowColumns_[column];
+    auto rowColumn = rowColumns_[columnIndex];
     VELOX_DYNAMIC_TYPE_DISPATCH_ALL(
         storeWithNulls,
-        typeKinds_[column],
+        typeKinds_[columnIndex],
         decoded,
         index,
         isKey,
@@ -868,11 +862,11 @@ void RowContainer::hashTyped(
 }
 
 void RowContainer::hash(
-    int32_t column,
+    int32_t columnIndex,
     folly::Range<char**> rows,
     bool mix,
     uint64_t* result) {
-  if (typeKinds_[column] == TypeKind::UNKNOWN) {
+  if (typeKinds_[columnIndex] == TypeKind::UNKNOWN) {
     for (auto i = 0; i < rows.size(); ++i) {
       result[i] = mix ? bits::hashMix(result[i], BaseVector::kNullHash)
                       : BaseVector::kNullHash;
@@ -880,12 +874,12 @@ void RowContainer::hash(
     return;
   }
 
-  bool nullable = column >= keyTypes_.size() || nullableKeys_;
+  bool nullable = columnIndex >= keyTypes_.size() || nullableKeys_;
   VELOX_DYNAMIC_TYPE_DISPATCH(
       hashTyped,
-      typeKinds_[column],
-      types_[column].get(),
-      columnAt(column),
+      typeKinds_[columnIndex],
+      types_[columnIndex].get(),
+      columnAt(columnIndex),
       nullable,
       rows,
       mix,
@@ -893,8 +887,8 @@ void RowContainer::hash(
 }
 
 void RowContainer::clear() {
-  const bool sharedStringAllocator = !stringAllocator_.unique();
-  if (checkFree_ || sharedStringAllocator || usesExternalMemory_ ||
+  const bool isStringAllocatorShared = !stringAllocator_.unique();
+  if (checkFree_ || isStringAllocatorShared || usesExternalMemory_ ||
       hasDuplicateRows_) {
     constexpr int32_t kBatch = 1000;
     std::vector<char*> rows(kBatch);
@@ -904,7 +898,7 @@ void RowContainer::clear() {
     }
   }
   rows_.clear();
-  if (!sharedStringAllocator) {
+  if (!isStringAllocatorShared) {
     if (checkFree_) {
       stringAllocator_->checkEmpty();
     }
@@ -1188,7 +1182,7 @@ void RowPartitions::appendPartitions(folly::Range<const uint8_t*> partitions) {
     size_ += copySize;
     index += copySize;
     toAdd -= copySize;
-    // Zero out to the next multiple of SIMD width for asan/valgring.
+    // Zero out to the next multiple of SIMD width for asan/valgrind.
     if (!toAdd) {
       bits::padToAlignment(
           allocation_.runAt(run).data<uint8_t>(),

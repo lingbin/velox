@@ -26,8 +26,7 @@
 #include "velox/common/base/SimdUtil.h"
 #include "velox/common/memory/Memory.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 class AlignedBuffer;
 
@@ -194,7 +193,7 @@ class Buffer {
   // Checks the magic number at capacity() to detect overrun. No-op
   // for a BufferView. An overrun is qualitatively a
   // process-terminating memory corruption. We do not kill the process
-  // here though but rather throw an error so that the the message and
+  // here though but rather throw an error so that the message and
   // stack propagate to the library user. This may also happen in a
   // ~AlignedBuffer, which will leak the memory but since the process
   // is anyway already compromized this is not an issue.
@@ -220,7 +219,7 @@ class Buffer {
 
   virtual void releaseResources() {
     // Overridden in descendants for freeing the data with non-trivial
-    // destructors Note that Buffer's destructor may not be called in case of
+    // destructors. Note that Buffer's destructor may not be called in case of
     // pools, so we have to have a separate method.
   }
 
@@ -318,11 +317,11 @@ class AlignedBuffer : public Buffer {
         pool->preferredSize(checkedPlus<size_t>(size, kPaddedSize));
     void* memory = pool->allocate(preferredSize);
     auto* buffer = new (memory) ImplClass<T>(pool, preferredSize - kPaddedSize);
-    // set size explicitly instead of setSize because `fillNewMemory` already
-    // called the constructors
+    buffer->template fillNewMemory<T>(0, size, initValue);
+    // Set size explicitly instead of `setSize` because `fillNewMemory` already
+    // called the constructors.
     buffer->size_ = size;
     BufferPtr result(buffer);
-    buffer->template fillNewMemory<T>(0, size, initValue);
     return result;
   }
 
@@ -348,8 +347,8 @@ class AlignedBuffer : public Buffer {
       VELOX_CHECK(!old->isView());
       reinterpret_cast<ImplClass<T>*>(old)->template fillNewMemory<T>(
           oldSize, size, initValue);
-      // set size explicitly instead of setSize because `fillNewMemory` already
-      // called the constructors
+      // Set size explicitly instead of `setSize` because `fillNewMemory`
+      // already called the constructors.
       old->size_ = size;
       return;
     }
@@ -363,8 +362,8 @@ class AlignedBuffer : public Buffer {
       // it for the future.
       auto newBuffer = allocate<T>(numElements, pool, initValue);
       newBuffer->copyFrom(old, std::min(size, old->size()));
-      // set size explicitly instead of setSize because `allocate` already
-      // called the constructors
+      // Set size explicitly instead of `setSize` because `allocate` already
+      // called the constructors.
       newBuffer->size_ = size;
       *buffer = std::move(newBuffer);
       return;
@@ -393,14 +392,14 @@ class AlignedBuffer : public Buffer {
         new (newPtr) AlignedBuffer(pool, preferredSize - kPaddedSize);
     newBuffer->setSize(size);
     newBuffer->fillNewMemory<T>(oldSize, size, initValue);
-
+    // Will add reference count.
     *buffer = newBuffer;
   }
 
   // Appends bytes starting at 'items' for a length of 'sizeof(T) *
   // numItems'. The data is written into '*buffer' starting at offset
   // size(), after which size() is incremented with the number of
-  // bytes copied. The buffer may grow and b copied to a new
+  // bytes copied. The buffer may grow and be copied to a new
   // address. Returns the address of the first copied byte in the
   // buffer.
   template <typename T>
@@ -431,7 +430,7 @@ class AlignedBuffer : public Buffer {
     VELOX_CHECK(
         bufferPtr->podType_, "Support for non POD types not implemented yet");
 
-    // The reason we use uint8_t is because mutableNulls()->size() will return
+    // The reason we use uint8_t is because Buffer::size() will return
     // in byte count. We also don't bother initializing since copyFrom will be
     // overwriting anyway.
     auto newBuffer = AlignedBuffer::allocate<uint8_t>(bufferPtr->size(), pool);
@@ -558,8 +557,8 @@ class NonPODAlignedBuffer : public Buffer {
   void releaseResources() override {
     VELOX_CHECK_EQ(size_ % sizeof(T), 0);
     size_t numValues = size_ / sizeof(T);
-    // we can't use asMutable because it checks isMutable and we wan't to
-    // destroy regardless
+    // we can't use asMutable because it checks "isMutable" but we want to
+    // destroy regardless.
     T* ptr = reinterpret_cast<T*>(data_);
     for (int i = 0; i < numValues; ++i) {
       ptr[i].~T();
@@ -656,5 +655,4 @@ class BufferView : public Buffer {
   Releaser const releaser_;
 };
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

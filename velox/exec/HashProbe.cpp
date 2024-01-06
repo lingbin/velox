@@ -158,7 +158,7 @@ void HashProbe::initialize() {
 
   size_t numIdentityProjections = 0;
   for (auto i = 0; i < probeType_->size(); ++i) {
-    auto name = probeType_->nameOf(i);
+    auto& name = probeType_->nameOf(i);
     auto outIndex = outputType_->getChildIdxIfExists(name);
     if (outIndex.has_value()) {
       projectedInputColumns_.insert(i);

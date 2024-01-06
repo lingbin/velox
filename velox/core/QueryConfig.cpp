@@ -44,7 +44,7 @@ CapacityUnit valueOfCapacityUnit(const std::string& unitStr) {
     return CapacityUnit::BYTE;
   }
   // To be backward compatible this is lowercase.
-  if (unitStr == "kB") {
+  if (unitStr == "kB" || unitStr == "KB") {
     return CapacityUnit::KILOBYTE;
   }
   if (unitStr == "MB") {

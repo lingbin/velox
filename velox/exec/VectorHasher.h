@@ -41,7 +41,7 @@ class UniqueValue {
     if (size <= sizeof(data_)) {
       memcpy(&data_, value, size);
     } else {
-      data_ = reinterpret_cast<int64_t>(value);
+      data_ = reinterpret_cast<uintptr_t>(value);
     }
   }
 
@@ -68,7 +68,7 @@ class UniqueValue {
  private:
   uint64_t data_;
   uint32_t size_;
-  uint32_t id_;
+  uint32_t id_{};
 };
 
 struct UniqueValueHasher {
@@ -130,6 +130,8 @@ class VectorHasher {
   // reservePct to enableValueIds().
   static constexpr int32_t kNoLimit = -1;
 
+  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
+
   VectorHasher(TypePtr type, column_index_t channel)
       : channel_(channel), type_(std::move(type)), typeKind_(type_->kind()) {
     if (typeKind_ == TypeKind::BOOLEAN) {
@@ -158,8 +160,6 @@ class VectorHasher {
   TypeKind typeKind() const {
     return typeKind_;
   }
-
-  static constexpr uint64_t kNullHash = BaseVector::kNullHash;
 
   // Decodes the 'vector' in preparation for calling hash() or
   // computeValueIds(). The decoded vector can be accessed via decodedVector()
@@ -199,7 +199,7 @@ class VectorHasher {
   // decode() call and stores this in 'result'. If this is not the first hasher
   // with normalized keys, updates the partially computed normalized key in
   // 'result'. Returns true if all the values could be mapped to the
-  // normalized key range. If some values could not be mapped
+  // normalized key range. If some values could not be mapped,
   // the statistics are updated to reflect the new values. This
   // behavior corresponds to group by, where we must rehash if all the
   // new keys could not be represented.
@@ -328,7 +328,7 @@ class VectorHasher {
   }
 
   template <typename T>
-  inline int64_t toInt64(T value) const {
+  static inline int64_t toInt64(T value) {
     return value;
   }
 

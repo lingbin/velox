@@ -234,7 +234,7 @@ class ExecCtx {
     return queryCtx_;
   }
 
-  /// Returns an uninitialized  SelectivityVector from a pool. Allocates new one
+  /// Returns an uninitialized SelectivityVector from a pool. Allocates new one
   /// if none is available. Make sure to call 'releaseSelectivityVector' when
   /// done using the vector to allow for reuse.
   ///
@@ -251,9 +251,8 @@ class ExecCtx {
     return vector;
   }
 
-  // Returns an arbitrary SelectivityVector with undefined
-  // content. The caller is responsible for setting the size and
-  // assigning the contents.
+  // Returns an arbitrary SelectivityVector with undefined content. The caller
+  // is responsible for setting the size and assigning the contents.
   std::unique_ptr<SelectivityVector> getSelectivityVector() {
     VELOX_CHECK(exprEvalCacheEnabled_ || selectivityVectorPool_.empty());
     if (selectivityVectorPool_.empty()) {
@@ -334,10 +333,11 @@ class ExecCtx {
   QueryCtx* const queryCtx_;
 
   const bool exprEvalCacheEnabled_;
-  // A pool of preallocated DecodedVectors for use by expressions and operators.
+  // A pool of pre-allocated DecodedVectors for use by expressions and
+  // operators.
   std::vector<std::unique_ptr<DecodedVector>> decodedVectorPool_;
-  // A pool of preallocated SelectivityVectors for use by expressions
-  // and operators.
+  // A pool of pre-allocated SelectivityVectors for use by expressions and
+  // operators.
   std::vector<std::unique_ptr<SelectivityVector>> selectivityVectorPool_;
   std::unique_ptr<VectorPool> vectorPool_;
 };

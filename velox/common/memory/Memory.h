@@ -78,7 +78,7 @@ struct MemoryManagerOptions {
   /// testing purpose.
   bool debugEnabled{FLAGS_velox_memory_pool_debug_enabled};
 
-  /// Terminates the process and generates a core file on an allocation failure
+  /// Terminates the process and generates a core file on an allocation failure.
   bool coreOnAllocationFailureEnabled{false};
 
   /// ================== 'MemoryAllocator' settings ==================
@@ -157,7 +157,7 @@ struct MemoryManagerOptions {
   /// The string kind of memory arbitrator used in the memory manager.
   ///
   /// NOTE: the arbitrator will only be created if its kind is set explicitly.
-  /// Otherwise MemoryArbitrator::create returns a nullptr.
+  /// Otherwise MemoryArbitrator::create returns a NoopArbitrator.
   std::string arbitratorKind{};
 
   /// The initial memory capacity to reserve for a newly created query memory
@@ -227,10 +227,14 @@ class MemoryManager {
 
   /// Returns the memory capacity of this memory manager which puts a hard cap
   /// on memory usage, and any allocation that exceeds this capacity throws.
-  int64_t capacity() const;
+  int64_t capacity() const {
+    return allocator_->capacity();
+  }
 
   /// Returns the memory allocation alignment of this memory manager.
-  uint16_t alignment() const;
+  uint16_t alignment() const {
+    return alignment_;
+  }
 
   /// Creates a root memory pool with specified 'name' and 'maxCapacity'. If
   /// 'name' is missing, the memory manager generates a default name internally
@@ -244,7 +248,7 @@ class MemoryManager {
   /// 'name'. If 'name' is missing, the memory manager generates a default name
   /// internally to ensure uniqueness. The leaf memory pool is created as the
   /// child of the memory manager's default root memory pool. If 'threadSafe' is
-  /// true, then we track its memory usage in a non-thread-safe mode to reduce
+  /// false, then we track its memory usage in a non-thread-safe mode to reduce
   /// its cpu cost.
   std::shared_ptr<MemoryPool> addLeafPool(
       const std::string& name = "",
@@ -262,7 +266,7 @@ class MemoryManager {
       bool allowSpill = true,
       bool allowAbort = false);
 
-  /// Default unmanaged leaf pool with no threadsafe stats support. Libraries
+  /// Default unmanaged leaf pool with no thread-safe stats support. Libraries
   /// using this method can get a pool that is shared with other threads. The
   /// goal is to minimize lock contention while supporting such use cases.
   ///
@@ -333,10 +337,10 @@ class MemoryManager {
 
   const std::shared_ptr<MemoryPool> sysRoot_;
   const std::shared_ptr<MemoryPool> spillPool_;
-  const std::vector<std::shared_ptr<MemoryPool>> sharedLeafPools_;
-
+  // To protect 'pools_' and 'sharedLeafPools_'.
   mutable folly::SharedMutex mutex_;
   // All user root pools allocated from 'this'.
+  const std::vector<std::shared_ptr<MemoryPool>> sharedLeafPools_;
   std::unordered_map<std::string, std::weak_ptr<MemoryPool>> pools_;
 };
 
@@ -349,8 +353,8 @@ void initializeMemoryManager(const MemoryManagerOptions& options);
 
 /// Returns the process-wide memory manager.
 ///
-/// NOTE: user should have already initialized memory manager by calling.
-/// Otherwise, the function throws.
+/// NOTE: user should have already initialized memory manager by calling
+/// 'initializeMemoryManager'. Otherwise, the function throws.
 MemoryManager* memoryManager();
 
 /// Deprecated. Do not use.
@@ -367,7 +371,6 @@ std::shared_ptr<MemoryPool> deprecatedAddDefaultLeafMemoryPool(
 /// Default unmanaged leaf pool with no threadsafe stats support. Libraries
 /// using this method can get a pool that is shared with other threads. The goal
 /// is to minimize lock contention while supporting such use cases.
-///
 ///
 /// TODO: deprecate this API after all the use cases are able to manage the
 /// lifecycle of the allocated memory pools properly.

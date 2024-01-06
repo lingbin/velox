@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <core/QueryConfig.h>
 #include <gtest/gtest.h>
 
 #include "velox/common/base/tests/GTestUtils.h"
@@ -193,7 +194,7 @@ TEST_F(QueryConfigTest, capacityConversion) {
 
   std::unordered_map<CapacityUnit, std::string> unitStrLookup{
       {CapacityUnit::BYTE, "B"},
-      {CapacityUnit::KILOBYTE, "kB"},
+      {CapacityUnit::KILOBYTE, "KB"},
       {CapacityUnit::MEGABYTE, "MB"},
       {CapacityUnit::GIGABYTE, "GB"},
       {CapacityUnit::TERABYTE, "TB"},
@@ -222,6 +223,11 @@ TEST_F(QueryConfigTest, capacityConversion) {
           (uint64_t)(testNumber * (units[i].second / units[j].second)));
     }
   }
+}
+
+TEST_F(QueryConfigTest, toCapacity) {
+  ASSERT_EQ(toCapacity("1KB", CapacityUnit::BYTE), 1024);
+  ASSERT_EQ(toCapacity("1kB", CapacityUnit::BYTE), 1024);
 }
 
 TEST_F(QueryConfigTest, durationConversion) {

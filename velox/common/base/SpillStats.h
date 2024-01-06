@@ -25,7 +25,7 @@ namespace facebook::velox::common {
 struct SpillStats {
   /// The number of times that spilling runs on an operator.
   uint64_t spillRuns{0};
-  /// The number of bytes in memory to spill
+  /// The number of bytes in memory to spill.
   uint64_t spilledInputBytes{0};
   /// The number of bytes spilled to disks.
   ///
@@ -117,10 +117,10 @@ FOLLY_ALWAYS_INLINE std::ostream& operator<<(
 void updateGlobalSpillRunStats(uint64_t numRuns);
 
 /// Updates the stats of new append spilled rows including the number of spilled
-/// rows and the serializaion time.
+/// rows and the serialization time.
 void updateGlobalSpillAppendStats(
     uint64_t numRows,
-    uint64_t serializaionTimeUs);
+    uint64_t serializationTimeUs);
 
 /// Increments the number of spilled partitions.
 void incrementGlobalSpilledPartitionStats();

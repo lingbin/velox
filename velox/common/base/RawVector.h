@@ -42,7 +42,7 @@ class raw_vector {
     }
   }
 
-  // Constructs  a copy of 'other'. See operator=. 'data_' must be copied.
+  // Constructs a copy of 'other'. See operator=. 'data_' must be copied.
   raw_vector(const raw_vector<T>& other) {
     *this = other;
   }
@@ -51,8 +51,6 @@ class raw_vector {
     *this = std::move(other);
   }
 
-  // Moves 'other' to this, leaves 'other' empty, as after default
-  // construction.
   void operator=(const raw_vector<T>& other) {
     resize(other.size());
     if (other.data_) {
@@ -63,6 +61,7 @@ class raw_vector {
     }
   }
 
+  // Moves 'other' to this, leaves 'other' empty, as after default construction.
   void operator=(raw_vector<T>&& other) noexcept {
     data_ = other.data_;
     size_ = other.size_;

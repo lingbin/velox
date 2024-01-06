@@ -36,13 +36,13 @@ class SsdRun {
   SsdRun() : fileBits_(0) {}
 
   SsdRun(uint64_t offset, uint32_t size, uint32_t checksum)
-      : fileBits_((offset << kSizeBits) | ((size - 1))), checksum_(checksum) {
+      : fileBits_((offset << kSizeBits) | (size - 1)), checksum_(checksum) {
     VELOX_CHECK_LT(offset, 1L << (64 - kSizeBits));
     VELOX_CHECK_NE(size, 0);
     VELOX_CHECK_LE(size, 1 << kSizeBits);
   }
 
-  SsdRun(uint64_t fileBits, uint32_t checksum)
+  explicit SsdRun(uint64_t fileBits, uint32_t checksum)
       : fileBits_(fileBits), checksum_(checksum) {}
 
   SsdRun(const SsdRun& other) = default;
@@ -95,7 +95,7 @@ class SsdPin {
 
   SsdPin(const SsdPin& other) = delete;
 
-  void operator=(const SsdPin& OTHER) = delete;
+  void operator=(const SsdPin& other) = delete;
 
   SsdPin(SsdPin&& other) noexcept {
     run_ = other.run_;
@@ -113,6 +113,7 @@ class SsdPin {
   bool empty() const {
     return file_ == nullptr;
   }
+
   SsdFile* file() const {
     return file_;
   }
@@ -233,7 +234,7 @@ struct SsdCacheStats {
 /// A shard of SsdCache. Corresponds to one file on SSD. The data backed by each
 /// SsdFile is selected on a hash of the storage file number of the cached data.
 /// Each file consists of an integer number of 64MB regions. Each region has a
-/// pin count and an read count. Cache replacement takes place region by region,
+/// pin count and a read count. Cache replacement takes place region by region,
 /// preferring regions with a smaller read count. Entries do not span regions.
 /// Otherwise entries are consecutive byte ranges inside their region.
 class SsdFile {
@@ -436,10 +437,10 @@ class SsdFile {
       int32_t begin);
 
   // Removes all 'entries_' that reference data in regions described by
-  // 'regionIndices'.
+  // 'regions'.
   void clearRegionEntriesLocked(const std::vector<int32_t>& regions);
 
-  // Clears one or more  regions for accommodating new entries. The regions are
+  // Clears one or more regions for accommodating new entries. The regions are
   // added to 'writableRegions_'. Returns true if regions could be cleared.
   bool growOrEvictLocked();
 

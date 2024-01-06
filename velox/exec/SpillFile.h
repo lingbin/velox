@@ -100,10 +100,10 @@ class SpillWriter {
  public:
   /// 'type' is a RowType describing the content. 'numSortKeys' is the number
   /// of leading columns on which the data is sorted. 'path' is a file path
-  /// prefix. ' 'targetFileSize' is the target byte size of a single file.
+  /// prefix. 'targetFileSize' is the target byte size of a single file.
   /// 'writeBufferSize' specifies the size limit of the buffered data before
-  /// write to file. 'fileOptions' specifies the file layout on remote storage
-  /// which is storage system specific. 'pool' is used for buffering and
+  /// write to file. 'fileCreateConfig' specifies the file layout on remote
+  /// storage which is storage system specific. 'pool' is used for buffering and
   /// constructing the result data read from 'this'. 'stats' is used to collect
   /// the spill write stats.
   ///
@@ -223,7 +223,7 @@ class SpillInputStream : public ByteInputStream {
  private:
   void updateSpillStats(uint64_t readBytes, uint64_t readTimeUs) const;
 
-  void next(bool throwIfPastEnd) override;
+  void next(bool /*throwIfPastEnd*/) override;
 
   // Issues readahead if underlying fs supports async mode read.
   //

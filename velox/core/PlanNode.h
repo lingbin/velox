@@ -17,6 +17,8 @@
 
 #include <fmt/format.h>
 
+#include <utility>
+
 #include "velox/connectors/Connector.h"
 #include "velox/core/Expressions.h"
 #include "velox/core/QueryConfig.h"
@@ -107,9 +109,9 @@ extern const SortOrder kDescNullsLast;
 
 class PlanNode : public ISerializable {
  public:
-  explicit PlanNode(const PlanNodeId& id) : id_{id} {}
+  explicit PlanNode(PlanNodeId id) : id_{std::move(id)} {}
 
-  virtual ~PlanNode() {}
+  virtual ~PlanNode() = default;
 
   const PlanNodeId& id() const {
     return id_;
@@ -168,7 +170,7 @@ class PlanNode : public ISerializable {
           const std::string& indentation,
           std::stringstream& stream)>& addContext = nullptr) const {
     std::stringstream stream;
-    toString(stream, detailed, recursive, 0, addContext);
+    toString(stream, detailed, recursive, 0, std::move(addContext));
     return stream.str();
   }
 
@@ -1235,7 +1237,7 @@ class PartitionedOutputNode : public PlanNode {
       int numPartitions,
       RowTypePtr outputType,
       PlanNodePtr source) {
-    std::vector<TypedExprPtr> noKeys;
+    static const std::vector<TypedExprPtr> noKeys;
     return std::make_shared<PartitionedOutputNode>(
         id,
         Kind::kBroadcast,
@@ -1249,7 +1251,7 @@ class PartitionedOutputNode : public PlanNode {
 
   static std::shared_ptr<PartitionedOutputNode>
   arbitrary(const PlanNodeId& id, RowTypePtr outputType, PlanNodePtr source) {
-    std::vector<TypedExprPtr> noKeys;
+    static const std::vector<TypedExprPtr> noKeys;
     return std::make_shared<PartitionedOutputNode>(
         id,
         Kind::kArbitrary,
@@ -1263,7 +1265,7 @@ class PartitionedOutputNode : public PlanNode {
 
   static std::shared_ptr<PartitionedOutputNode>
   single(const PlanNodeId& id, RowTypePtr outputType, PlanNodePtr source) {
-    std::vector<TypedExprPtr> noKeys;
+    static const std::vector<TypedExprPtr> noKeys;
     return std::make_shared<PartitionedOutputNode>(
         id,
         Kind::kPartitioned,

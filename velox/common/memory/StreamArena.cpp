@@ -43,11 +43,12 @@ void StreamArena::newRange(
   const int32_t numRuns = allocation_.numRuns();
   if (currentRun_ >= numRuns) {
     if (numRuns > 0) {
+      // An empty Allocation is no need to push into the 'allocations_'.
       allocations_.push_back(
           std::make_unique<memory::Allocation>(std::move(allocation_)));
     }
     pool_->allocateNonContiguous(
-        std::max(allocationQuantum_, numPages), allocation_);
+        std::max(kAllocationQuantum_, numPages), allocation_);
     currentRun_ = 0;
     currentOffset_ = 0;
     size_ += allocation_.byteSize();
@@ -76,6 +77,7 @@ void StreamArena::newTinyRange(
   range->buffer = reinterpret_cast<uint8_t*>(tinyRanges_.back().data());
   range->size = bytes;
 }
+
 void StreamArena::clear() {
   allocations_.clear();
   pool_->freeNonContiguous(allocation_);

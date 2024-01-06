@@ -28,18 +28,17 @@
 #include "velox/common/base/Range.h"
 #include "velox/vector/TypeAliases.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 // A selectivityVector is used to logically filter / select data in place.
 // The goal here is to be able to pass this vector between filter stages on
 // different vectors while only maintaining a single copy of state and more
 // importantly not ever having to re-layout the physical data. Further the
 // SelectivityVector can be used to optimize filtering by skipping elements
-// that where previously filtered by another filter / column
+// that where previously filtered by another filter / column.
 class SelectivityVector {
  public:
-  SelectivityVector() {}
+  SelectivityVector() = default;
 
   explicit SelectivityVector(vector_size_t length, bool allSelected = true) {
     bits_.resize(bits::nwords(length), allSelected ? ~0ULL : 0);
@@ -74,7 +73,7 @@ class SelectivityVector {
       }
     }
 
-    bits_.resize(numWords, value ? -1 : 0);
+    bits_.resize(numWords, value ? ~0ULL : 0);
     size_ = size;
 
     updateBounds();
@@ -211,7 +210,7 @@ class SelectivityVector {
   void deselect(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andWithNegatedBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -220,7 +219,7 @@ class SelectivityVector {
   void deselectNulls(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -229,7 +228,7 @@ class SelectivityVector {
   void deselectNonNulls(const uint64_t* bits, int32_t begin, int32_t end) {
     bits::andWithNegatedBits(
         bits_.data(),
-        reinterpret_cast<const uint64_t*>(bits),
+        bits,
         std::max<int32_t>(begin_, begin),
         std::min<int32_t>(end_, end));
     updateBounds();
@@ -312,7 +311,7 @@ class SelectivityVector {
     return allSelected_.value();
   }
   /**
-   * Iterate and count the number of selected values in this SelectivityVector
+   * Iterate and count the number of selected values in this SelectivityVector.
    */
   vector_size_t countSelected() const {
     if (allSelected_.has_value() && *allSelected_) {
@@ -469,5 +468,4 @@ void translateToInnerRows(
     const vector_size_t* indices,
     const uint64_t* nulls,
     SelectivityVector& innerRows);
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

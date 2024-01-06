@@ -369,6 +369,10 @@ TEST(TimestampTest, increaseOperator) {
   ++ts;
   EXPECT_EQ("1970-01-01T00:00:01.000000002", ts.toString());
 
+  auto maxWithZeroNano = Timestamp(Timestamp::kMaxSeconds, 0);
+  ++maxWithZeroNano;
+  EXPECT_EQ(maxWithZeroNano, Timestamp(Timestamp::kMaxSeconds, 1));
+
   auto kMax = Timestamp(Timestamp::kMaxSeconds, Timestamp::kMaxNanos);
   VELOX_ASSERT_THROW(++kMax, "Timestamp nanos out of range");
 }

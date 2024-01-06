@@ -47,7 +47,7 @@ struct TableInsertPartitionInfo {
     return index >= start && index < end;
   }
 
-  /// Adds 'row' falls outside of this partititon range into 'overflows'.
+  /// Adds 'row' falls outside of this partition range into 'overflows'.
   void addOverflow(char* row) {
     overflows.push_back(row);
   }
@@ -560,7 +560,7 @@ class HashTable : public BaseHashTable {
   /// for use in hash join probe. A hash join build side is prepared as
   /// follows: 1. Each build side thread gets a random selection of the
   /// build stream. Each accumulates rows into its own
-  /// HashTable'sRowContainer and updates the VectorHashers of the
+  /// HashTable's RowContainer and updates the VectorHashers of the
   /// table to reflect the data as long as the data shows promise for
   /// kArray or kNormalizedKey representation. After all the build
   /// tables are filled, they are combined into one top level table
@@ -908,8 +908,8 @@ class HashTable : public BaseHashTable {
     return hash & bucketOffsetMask_;
   }
 
-  // Returns the byte offset of the next bucket from 'offset'. Wraps around at
-  // the end of the table.
+  // Returns the byte offset of the next bucket from 'bucketOffset'. Wraps
+  // around at the end of the table.
   int64_t nextBucketOffset(int64_t bucketOffset) const {
     VELOX_DCHECK_EQ(0, bucketOffset & (kBucketSize - 1));
     VELOX_DCHECK_LT(bucketOffset, sizeMask_);

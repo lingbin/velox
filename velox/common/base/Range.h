@@ -20,8 +20,7 @@
 #include <cstdint>
 #include "velox/common/base/BitUtil.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 template <typename T>
 class Range {
@@ -147,5 +146,4 @@ inline WritablePosition<bool> MutableRange<bool>::operator[](int32_t idx) {
       reinterpret_cast<uint64_t*>(data_) + (bit / 64), bit & 63);
 }
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

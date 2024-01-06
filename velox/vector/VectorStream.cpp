@@ -175,6 +175,7 @@ void VectorStreamGroup::append(const RowVectorPtr& vector) {
 
 void VectorStreamGroup::flush(OutputStream* out) {
   serializer_->flush(out);
+
 }
 
 // static

@@ -49,9 +49,9 @@ TEST(StringView, basic) {
 
 TEST(StringView, comparison) {
   // Differ in prefix.
-  EXPECT_LT(StringView(" ab"), StringView("ab"));
+  EXPECT_LT(StringView("ab"), StringView("abc"));
   // Differ in inlined part.
-  EXPECT_GT(StringView("In hoc signo"), StringView("In hoc signO"));
+  EXPECT_GT(StringView("In hoc sign2"), StringView("In hoc sign1"));
   // Inlined and out of line differ.
   EXPECT_LT(
       StringView("In hoc signo"),

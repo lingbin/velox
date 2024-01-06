@@ -1093,7 +1093,10 @@ int32_t DateTimeFormatter::format(
   const auto timePoint = t.toTimePointMs(allowOverflow);
   const auto daysTimePoint = date::floor<date::days>(timePoint);
 
-  const auto durationInTheDay = date::make_time(timePoint - daysTimePoint);
+  const auto diff = timePoint - daysTimePoint;
+  const auto durationInTheDay = date::make_time(diff);
+  // const auto durationInTheDay = date::make_time(timePoint - daysTimePoint);
+
   const date::year_month_day calDate(daysTimePoint);
   const date::weekday weekday(daysTimePoint);
 
