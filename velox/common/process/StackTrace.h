@@ -23,8 +23,6 @@
 
 namespace facebook::velox::process {
 
-///////////////////////////////////////////////////////////////////////////////
-
 /// TODO: Deprecate in favor of folly::symbolizer.
 class StackTrace {
  public:
@@ -69,5 +67,4 @@ class StackTrace {
   mutable std::string bt_;
 };
 
-///////////////////////////////////////////////////////////////////////////////
 } // namespace facebook::velox::process

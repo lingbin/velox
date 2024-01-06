@@ -306,7 +306,7 @@ void ByteOutputStream::flush(OutputStream* out) {
   }
 }
 
-char* ByteOutputStream::writePosition() {
+char* ByteOutputStream::writePosition() const {
   if (ranges_.empty()) {
     return nullptr;
   }

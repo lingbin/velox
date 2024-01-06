@@ -78,7 +78,7 @@ class Exchange : public SourceOperator {
   // much.
   static constexpr uint64_t kInitialOutputRows = 64;
 
-  // Invoked to create exchange client for remote tasks. The function shuffles
+  // Invoked to create exchange sources for remote tasks. The function shuffles
   // the source task ids first to randomize the source tasks we fetch data from.
   // This helps to avoid different tasks fetching from the same source task in a
   // distributed system.
@@ -106,7 +106,8 @@ class Exchange : public SourceOperator {
   const std::unique_ptr<VectorSerde::Options> serdeOptions_;
 
   // True if this operator is responsible for fetching splits from the Task
-  // and passing these to exchangeClient_.
+  // and passing these to exchangeClient_. Only the first driver in each
+  // pipeline will take the responsibility.
   const bool processSplits_;
 
   const int driverId_;
@@ -115,8 +116,9 @@ class Exchange : public SourceOperator {
 
   std::shared_ptr<InMemoryExchangeClient> exchangeClient_;
 
-  // A future received from Task::getSplitOrFuture(). It will be complete when
-  // there are more splits available or no-more-splits signal has arrived.
+  // A future received from Task::getSplitOrFuture() when the operator blocks
+  // waiting for splits. It will be complete when there are more splits become
+  // available or 'no-more-splits' signal arrives.
   ContinueFuture splitFuture_{ContinueFuture::makeEmpty()};
 
   // Reusable result vector.

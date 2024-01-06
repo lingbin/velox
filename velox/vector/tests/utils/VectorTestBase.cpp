@@ -110,6 +110,7 @@ BufferPtr VectorTestBase::makeNulls(const std::vector<bool>& values) {
   return nulls;
 }
 
+// static
 std::vector<RowVectorPtr> VectorTestBase::split(
     const RowVectorPtr& vector,
     int32_t n) {
@@ -133,6 +134,7 @@ std::vector<RowVectorPtr> VectorTestBase::split(
   return vectors;
 }
 
+// static
 VectorPtr VectorTestBase::asArray(VectorPtr elements) {
   auto* pool = elements->pool();
   auto arrayType = ARRAY(elements->type());

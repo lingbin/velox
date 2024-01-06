@@ -171,7 +171,8 @@ class Task : public std::enable_shared_from_this<Task> {
   }
 
   /// Returns MemoryPool used to allocate memory during execution. This instance
-  /// is a child of the MemoryPool passed in the constructor.
+  /// is a child of the MemoryPool of the Query it belongs to, see queryCtx_
+  // passed in the constructor.
   memory::MemoryPool* pool() const {
     return pool_.get();
   }
@@ -205,9 +206,13 @@ class Task : public std::enable_shared_from_this<Task> {
     return mode_;
   }
 
-  bool isGroupedExecution() const;
+  bool isGroupedExecution() const {
+    return planFragment_.isGroupedExecution();
+  }
 
-  bool isUngroupedExecution() const;
+  bool isUngroupedExecution() const {
+    return !isGroupedExecution();
+  }
 
   /// Returns true if the provided 'joinNode' has probe side as grouped
   /// execution mode and build side as ungrouped execution mode.
@@ -235,7 +240,7 @@ class Task : public std::enable_shared_from_this<Task> {
   void start(uint32_t maxDrivers, uint32_t concurrentSplitGroups = 1);
 
   /// If this returns true, this Task supports the serial execution API
-  /// next().
+  /// 'next()'.
   bool supportSerialExecutionMode() const;
 
   /// Single-threaded execution API. Runs the query and returns results one
@@ -314,13 +319,13 @@ class Task : public std::enable_shared_from_this<Task> {
 
   /// Updates the total number of output buffers to broadcast or arbitrarily
   /// distribute the results of the execution to. Used when plan tree ends with
-  /// a PartitionedOutputNode with broadcast of arbitrary output type.
+  /// a PartitionedOutputNode with broadcast or arbitrary output type.
   /// @param numBuffers Number of output buffers. Must not decrease on
   /// subsequent calls.
   /// @param noMoreBuffers A flag indicating that numBuffers is the final number
-  /// of buffers. No more calls are expected after the call with noMoreBuffers
-  /// == true, but occasionally the caller might resend it, so calls
-  /// received after a call with noMoreBuffers == true are ignored.
+  /// of buffers. No more calls are expected after the call with 'noMoreBuffers
+  /// == true', but occasionally the caller might resend it, so calls received
+  /// after a call with 'noMoreBuffers == true' are ignored.
   /// @return true if update was successful.
   ///         false if noMoreBuffers was previously set to true.
   ///         false if buffer was not found for a given task.
@@ -366,7 +371,7 @@ class Task : public std::enable_shared_from_this<Task> {
   /// occurred.
   std::string errorMessage() const;
 
-  /// Returns Task Stats by copy as other threads might be updating the
+  /// Returns TaskStats by copy as other threads might be updating the
   /// structure.
   TaskStats taskStats() const;
 
@@ -604,7 +609,7 @@ class Task : public std::enable_shared_from_this<Task> {
   /// to all Drivers except 'caller'. 'promises' corresponds pairwise to
   /// 'peers'. Realizing the promise will continue the peer. This effects a
   /// synchronization barrier between Drivers of a pipeline inside one worker.
-  /// This is used for example for multithreaded hash join build to ensure all
+  /// This is used for example for multi-threaded hash join build to ensure all
   /// build threads are completed before allowing the probe pipeline to proceed.
   /// Throws a cancelled error if 'this' is in an error state.
   ///
@@ -718,7 +723,7 @@ class Task : public std::enable_shared_from_this<Task> {
   StopReason enterForTerminateLocked(ThreadState& state);
 
   /// Marks that the Driver is not on thread. If no more Drivers in the
-  /// Task are on thread, this realizes threadFinishFutures_.
+  /// Task are on thread, this realizes threadFinishFutures_. These allow
   /// syncing with pause or termination. The Driver may go off thread because of
   /// hasBlockingFuture or pause requested or terminate requested. The
   /// return value indicates the reason. If kTerminate is returned, the
@@ -834,9 +839,9 @@ class Task : public std::enable_shared_from_this<Task> {
   }
 
   /// Returns the spill directory path. Ensures that the spill directory is
-  /// created before returning. Is thread safe. Returns an empty string if
-  /// either the spill directory is not specified during task creation or the
-  /// folder could not be created.
+  /// created before returning. Is thread safe. Throw an exception if either the
+  /// spill directory is not specified during task creation or the folder could
+  /// not be created.
   const std::string& getOrCreateSpillDirectory();
 
   /// True if this task has a partitioned-output pipeline.
@@ -938,7 +943,7 @@ class Task : public std::enable_shared_from_this<Task> {
 
   // Consistency check of the task execution to make sure the execution mode
   // stays the same.
-  void checkExecutionMode(ExecutionMode mode);
+  void checkExecutionMode(ExecutionMode mode) const;
 
   // Creates driver factories.
   void createDriverFactoriesLocked(uint32_t maxDrivers);
@@ -961,7 +966,7 @@ class Task : public std::enable_shared_from_this<Task> {
   SplitsState& getPlanNodeSplitsStateLocked(const core::PlanNodeId& planNodeId);
 
   // Validate that the supplied grouped execution leaf nodes make sense.
-  void validateGroupedExecutionLeafNodes();
+  void validateGroupedExecutionLeafNodes() const;
 
   // Returns true if all nodes expecting splits have received 'no more splits'
   // message.
@@ -1289,7 +1294,7 @@ class Task : public std::enable_shared_from_this<Task> {
 
   inline static std::atomic_uint64_t numCreatedTasks_;
 
-  // Hook in the system wide task list.
+  // Hook in the process-wide task list.
   TaskListEntry taskListEntry_;
 
   // Root MemoryPool for this Task. All member variables that hold references
@@ -1335,10 +1340,10 @@ class Task : public std::enable_shared_from_this<Task> {
   std::exception_ptr exception_ = nullptr;
   mutable std::timed_mutex mutex_;
 
-  // Exchange clients. One per pipeline / source. Null for pipelines, which
-  // don't need it.
+  // Exchange clients. One per pipeline / source. Null for pipelines which don't
+  // need it.
   //
-  // NOTE: there can be only one exchange client for a given pipeline ID, and
+  // NOTE: There can be only one exchange client for a given pipeline ID, and
   // the exchange clients are also referenced by 'exchangeClientByPlanNode_'.
   // Hence, exchange clients can be indexed either by pipeline ID or by plan
   // node ID.
@@ -1448,7 +1453,7 @@ class Task : public std::enable_shared_from_this<Task> {
   // Reflects number of drivers required to run ungrouped execution in the
   // fragment. Zero for a completely grouped execution.
   uint32_t numDriversUngrouped_{0};
-  // Number of drivers running in the pipeline hosting the Partitioned Output
+  // Number of drivers running in the pipeline hosting the PartitionedOutput
   // (in a single split group). We use it to recalculate the number of producing
   // drivers at the end during the Grouped Execution mode.
   uint32_t numDriversInPartitionedOutput_{0};
@@ -1577,7 +1582,7 @@ class Task : public std::enable_shared_from_this<Task> {
   std::string spillDirectory_;
   // Spill directory callback for this task. This callback will be used to
   // create the spill directory for this task. This callback returns
-  // a path that will be into spillDirectory_
+  // a path that will be into spillDirectory_.
   std::function<std::string()> spillDirectoryCallback_;
 
   // Serializes spill directory creation and removal.
@@ -1631,7 +1636,7 @@ class TaskListener {
 bool registerTaskListener(std::shared_ptr<TaskListener> listener);
 
 /// Unregister a listener registered earlier. Returns true if listener was
-/// unregistered successfuly, false if listener was not found.
+/// unregistered successfully, false if listener was not found.
 bool unregisterTaskListener(const std::shared_ptr<TaskListener>& listener);
 
 /// Listener invoked when splits are added to Task.

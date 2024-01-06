@@ -39,7 +39,7 @@ class MemoryReclaimer : public memory::MemoryReclaimer {
 };
 
 /// Provides the parallel memory reclaimer implementation for velox task
-/// execution. It parallelize the memory reclamation from all its child memory
+/// execution. It parallelizes the memory reclamation from all its child memory
 /// pools.
 class ParallelMemoryReclaimer : public memory::MemoryReclaimer {
  public:

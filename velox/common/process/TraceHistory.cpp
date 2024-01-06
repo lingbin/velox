@@ -34,6 +34,7 @@ thread_local ThreadLocalRegistry<TraceHistory>::Reference traceHistory(
 TraceHistory::TraceHistory()
     : threadId_(std::this_thread::get_id()), osTid_(folly::getOSThreadID()) {}
 
+// static
 std::vector<TraceHistory::EntriesWithThreadInfo> TraceHistory::listAll() {
   std::vector<EntriesWithThreadInfo> results;
   registry->forAllValues([&](auto& history) {

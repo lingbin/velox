@@ -124,7 +124,7 @@ void FlatVector<StringView>::set(vector_size_t idx, StringView value) {
 template <>
 void FlatVector<StringView>::acquireSharedStringBuffers(
     const BaseVector* source) {
-  if (!source) {
+  if (source == nullptr) {
     return;
   }
   if (source->typeKind() != TypeKind::VARBINARY &&
@@ -135,7 +135,7 @@ void FlatVector<StringView>::acquireSharedStringBuffers(
   switch (source->encoding()) {
     case VectorEncoding::Simple::FLAT: {
       auto* flat = source->asUnchecked<FlatVector<StringView>>();
-      for (auto& buffer : flat->stringBuffers_) {
+      for (const auto& buffer : flat->stringBuffers_) {
         addStringBuffer(buffer);
       }
       break;
@@ -161,7 +161,7 @@ void FlatVector<StringView>::acquireSharedStringBuffers(
 template <>
 void FlatVector<StringView>::acquireSharedStringBuffersRecursive(
     const BaseVector* source) {
-  if (!source) {
+  if (source == nullptr) {
     return;
   }
   source = source->wrappedVector();
@@ -174,7 +174,7 @@ void FlatVector<StringView>::acquireSharedStringBuffersRecursive(
         return;
       }
       auto* flat = source->asUnchecked<FlatVector<StringView>>();
-      for (auto& buffer : flat->stringBuffers_) {
+      for (const auto& buffer : flat->stringBuffers_) {
         addStringBuffer(buffer);
       }
       return;
@@ -265,7 +265,7 @@ void FlatVector<StringView>::copy(
     return;
   }
 
-  auto leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
+  auto* leaf = source->wrappedVector()->asUnchecked<SimpleVector<StringView>>();
 
   if (pool_ == leaf->pool()) {
     // We copy referencing the storage of 'source'.
@@ -312,13 +312,13 @@ void FlatVector<StringView>::copy(
     }
   }
 
-  if (auto stringVector = source->as<SimpleVector<StringView>>()) {
+  if (const auto* stringVector = source->as<SimpleVector<StringView>>()) {
     if (auto ascii = stringVector->isAscii(rows, toSourceRow)) {
       setIsAscii(ascii.value(), rows);
     } else {
       // ASCII-ness for the 'rows' is not known.
       ensureIsAsciiCapacity();
-      // If we arent All ascii, then invalidate
+      // If we are not All ascii, then invalidate
       // because the remaining selected rows might be ascii
       if (!asciiInfo.isAllAscii()) {
         invalidateIsAscii();

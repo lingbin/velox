@@ -64,8 +64,8 @@ TEST(TimestampTest, fromDaysAndNanos) {
 }
 
 TEST(TimestampTest, fromMillisAndMicros) {
-  int64_t positiveSecond = 10'000;
-  int64_t negativeSecond = -10'000;
+  const int64_t positiveSecond = 10'000;
+  const int64_t negativeSecond = -10'000;
   uint64_t nano = 123 * 1'000'000;
 
   Timestamp ts1(positiveSecond, nano);
@@ -92,9 +92,9 @@ TEST(TimestampTest, fromMillisAndMicros) {
 }
 
 TEST(TimestampTest, fromNanos) {
-  int64_t positiveSecond = 10'000;
-  int64_t negativeSecond = -10'000;
-  uint64_t nano = 123'456'789;
+  const int64_t positiveSecond = 10'000;
+  const int64_t negativeSecond = -10'000;
+  const uint64_t nano = 123'456'789;
 
   Timestamp ts1(positiveSecond, nano);
   int64_t positiveNanos = positiveSecond * 1'000'000'000 + nano;
@@ -112,9 +112,9 @@ TEST(TimestampTest, fromNanos) {
 }
 
 TEST(TimestampTest, arithmeticOverflow) {
-  int64_t positiveSecond = Timestamp::kMaxSeconds;
-  int64_t negativeSecond = Timestamp::kMinSeconds;
-  uint64_t nano = Timestamp::kMaxNanos;
+  const int64_t positiveSecond = Timestamp::kMaxSeconds;
+  const int64_t negativeSecond = Timestamp::kMinSeconds;
+  const uint64_t nano = Timestamp::kMaxNanos;
 
   Timestamp ts1(positiveSecond, nano);
   VELOX_ASSERT_THROW(
@@ -364,6 +364,10 @@ TEST(TimestampTest, increaseOperator) {
   EXPECT_EQ("1970-01-01T00:00:01.000000001", ts.toString());
   ++ts;
   EXPECT_EQ("1970-01-01T00:00:01.000000002", ts.toString());
+
+  auto maxWithZeroNano = Timestamp(Timestamp::kMaxSeconds, 0);
+  ++maxWithZeroNano;
+  EXPECT_EQ(maxWithZeroNano, Timestamp(Timestamp::kMaxSeconds, 1));
 
   auto kMax = Timestamp(Timestamp::kMaxSeconds, Timestamp::kMaxNanos);
   VELOX_ASSERT_THROW(++kMax, "Timestamp nanos out of range");

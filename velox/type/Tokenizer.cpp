@@ -44,7 +44,7 @@ std::unique_ptr<Subfield::PathElement> Tokenizer::next() {
   return std::move(next_);
 }
 
-bool Tokenizer::hasNextCharacter() {
+bool Tokenizer::hasNextCharacter() const {
   return index_ < path_.length();
 }
 
@@ -105,7 +105,7 @@ void Tokenizer::nextCharacter() {
   index_++;
 }
 
-char Tokenizer::peekCharacter() {
+char Tokenizer::peekCharacter() const {
   return path_[index_];
 }
 

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <folly/hash/Checksum.h>
+
 namespace facebook::velox::bits {
 
 // A boost compatible CRC32 calculator.

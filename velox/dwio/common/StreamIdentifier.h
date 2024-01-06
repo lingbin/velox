@@ -27,6 +27,8 @@ constexpr uint32_t MAX_UINT32 = std::numeric_limits<uint32_t>::max();
 
 class StreamIdentifier {
  public:
+  // TODO(lingbin): id_是 int32_t类型，但这里却使用 MAX_UINT32 来赋值，是
+  // implementation-defined，应该修改下；
   StreamIdentifier() : id_(MAX_UINT32) {}
 
   explicit StreamIdentifier(int32_t id) : id_(id) {}

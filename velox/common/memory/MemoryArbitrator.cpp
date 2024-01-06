@@ -68,11 +68,10 @@ FactoryRegistry& arbitratorFactories() {
   return registry;
 }
 
-// Used to enforce the fixed query memory isolation across running queries.
-// When a memory pool exceeds the fixed capacity limit, the query just
-// fails with memory capacity exceeded error without arbitration. This is
-// used to match the current memory isolation behavior adopted by
-// Prestissimo.
+// Used to enforce the fixed query memory isolation across running queries. When
+// a memory pool exceeds the fixed capacity limit, the query just fails with
+// memory capacity exceeded error without arbitration. This is used to match the
+// current memory isolation behavior adopted by Prestissimo.
 //
 // TODO: deprecate this legacy policy with kShared policy for Prestissimo
 // later.
@@ -115,7 +114,8 @@ class NoopArbitrator : public MemoryArbitrator {
 
   // Noop arbitrator has no memory capacity limit so no operation needed for
   // memory pool capacity release.
-  uint64_t shrinkCapacity(MemoryPool* pool, uint64_t /*unused*/) override {
+  uint64_t shrinkCapacity(MemoryPool* /* pool */, uint64_t /* targetBytes */)
+      override {
     // No-op
     return 0;
   }
@@ -123,9 +123,9 @@ class NoopArbitrator : public MemoryArbitrator {
   // Noop arbitrator has no memory capacity limit so no operation needed for
   // memory pool capacity shrink.
   uint64_t shrinkCapacity(
-      uint64_t /* unused */,
-      bool /* unused */,
-      bool /* unused */) override {
+      uint64_t /* targetBytes */,
+      bool /* allowSpill */,
+      bool /* allowAbort */) override {
     return 0;
   }
 
@@ -137,7 +137,7 @@ class NoopArbitrator : public MemoryArbitrator {
 
   std::string toString() const override {
     return fmt::format(
-        "ARBIRTATOR[{} CAPACITY[{}]]",
+        "ARBITRATOR[{} CAPACITY[{}]]",
         kind(),
         config_.capacity == kMaxMemory ? "UNLIMITED"
                                        : succinctBytes(config_.capacity));
@@ -147,39 +147,43 @@ class NoopArbitrator : public MemoryArbitrator {
 thread_local MemoryArbitrationContext* arbitrationCtx{nullptr};
 } // namespace
 
+// static
 std::unique_ptr<MemoryArbitrator> MemoryArbitrator::create(
     const Config& config) {
   if (config.kind.empty()) {
-    // if kind is not set, return noop arbitrator.
+    // If kind is not set, return noop arbitrator.
     return std::make_unique<NoopArbitrator>(config);
   }
   auto& factory = arbitratorFactories().getFactory(config.kind);
   return factory(config);
 }
 
+// static
 bool MemoryArbitrator::registerFactory(
     const std::string& kind,
     MemoryArbitrator::Factory factory) {
   return arbitratorFactories().registerFactory(kind, std::move(factory));
 }
 
+// static
 void MemoryArbitrator::unregisterFactory(const std::string& kind) {
   arbitratorFactories().unregisterFactory(kind);
 }
 
-/*static*/ bool MemoryArbitrator::growPool(
+// static
+bool MemoryArbitrator::growPool(
     MemoryPool* pool,
     uint64_t growBytes,
     uint64_t reservationBytes) {
   return pool->grow(growBytes, reservationBytes);
 }
 
-/*static*/ uint64_t MemoryArbitrator::shrinkPool(
-    MemoryPool* pool,
-    uint64_t targetBytes) {
+// static
+uint64_t MemoryArbitrator::shrinkPool(MemoryPool* pool, uint64_t targetBytes) {
   return pool->shrink(targetBytes);
 }
 
+// static
 std::unique_ptr<MemoryReclaimer> MemoryReclaimer::create(int32_t priority) {
   return std::unique_ptr<MemoryReclaimer>(new MemoryReclaimer(priority));
 }
@@ -198,10 +202,12 @@ uint64_t MemoryReclaimer::run(
   VELOX_CHECK_GE(reclaimedBytes, 0);
   stats.reclaimExecTimeUs += execTimeUs;
   stats.reclaimedBytes += reclaimedBytes;
+
   RECORD_HISTOGRAM_METRIC_VALUE(
       kMetricOpMemoryReclaimTimeMs, execTimeUs / 1'000);
   RECORD_HISTOGRAM_METRIC_VALUE(kMetricOpMemoryReclaimedBytes, reclaimedBytes);
   RECORD_METRIC_VALUE(kMetricOpMemoryReclaimCount);
+
   addThreadLocalRuntimeStat(
       "memoryReclaimWallNanos",
       RuntimeCounter(execTimeUs * 1'000, RuntimeCounter::Unit::kNanos));
@@ -385,6 +391,10 @@ MemoryArbitrator::Stats MemoryArbitrator::Stats::operator-(
   result.numFailures = numFailures - other.numFailures;
   result.reclaimedFreeBytes = reclaimedFreeBytes - other.reclaimedFreeBytes;
   result.reclaimedUsedBytes = reclaimedUsedBytes - other.reclaimedUsedBytes;
+  // The capacity fields are instantaneous gauges, not cumulative counters, so
+  // subtracting two snapshots is meaningless. Carry over the current values
+  // instead. numRunning is likewise a gauge, but is deliberately left at its
+  // default since no consumer reads it from a delta.
   result.maxCapacityBytes = maxCapacityBytes;
   result.freeCapacityBytes = freeCapacityBytes;
   result.freeReservedCapacityBytes = freeReservedCapacityBytes;
@@ -440,7 +450,7 @@ std::strong_ordering MemoryArbitrator::Stats::operator<=>(
   UPDATE_COUNTER(numNonReclaimableAttempts);
 #undef UPDATE_COUNTER
   VELOX_CHECK(
-      !((gtCount > 0) && (ltCount > 0)),
+      !(gtCount > 0 && ltCount > 0),
       "gtCount {} ltCount {}",
       gtCount,
       ltCount);
@@ -477,16 +487,12 @@ ScopedMemoryArbitrationContext::ScopedMemoryArbitrationContext(
 }
 
 ScopedMemoryArbitrationContext::ScopedMemoryArbitrationContext()
-    : savedArbitrationCtx_(arbitrationCtx), currentArbitrationCtx_() {
+    : savedArbitrationCtx_(arbitrationCtx) {
   arbitrationCtx = &currentArbitrationCtx_;
 }
 
 ScopedMemoryArbitrationContext::~ScopedMemoryArbitrationContext() {
   arbitrationCtx = savedArbitrationCtx_;
-}
-
-const MemoryArbitrationContext* memoryArbitrationContext() {
-  return arbitrationCtx;
 }
 
 MemoryPoolArbitrationSection::MemoryPoolArbitrationSection(MemoryPool* pool)
@@ -497,6 +503,10 @@ MemoryPoolArbitrationSection::MemoryPoolArbitrationSection(MemoryPool* pool)
 
 MemoryPoolArbitrationSection::~MemoryPoolArbitrationSection() {
   pool_->leaveArbitration();
+}
+
+const MemoryArbitrationContext* memoryArbitrationContext() {
+  return arbitrationCtx;
 }
 
 bool underMemoryArbitration() {

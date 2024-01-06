@@ -17,14 +17,14 @@
 
 namespace facebook::velox::exec {
 
+// static
 std::shared_ptr<ExchangeSource> ExchangeSource::create(
     const std::string& remoteTaskId,
     int destination,
     std::shared_ptr<ExchangeQueue> queue,
     memory::MemoryPool* pool) {
   for (auto& factory : factories()) {
-    auto result = factory(remoteTaskId, destination, queue, pool);
-    if (result) {
+    if (auto result = factory(remoteTaskId, destination, queue, pool)) {
       return result;
     }
   }

@@ -102,6 +102,7 @@ struct NonPOD {
   static int alive;
 
   int x;
+
   NonPOD(int x = 123) : x(x) {
     ++alive;
   }
@@ -124,8 +125,7 @@ class VectorTest : public testing::Test, public velox::test::VectorTestBase {
 
   void SetUp() override {
     if (!isRegisteredVectorSerde()) {
-      facebook::velox::serializer::presto::PrestoVectorSerde::
-          registerVectorSerde();
+      serializer::presto::PrestoVectorSerde::registerVectorSerde();
     }
   }
 
@@ -256,8 +256,7 @@ class VectorTest : public testing::Test, public velox::test::VectorTestBase {
   template <TypeKind KIND>
   void testFlat(TypePtr type, vector_size_t size, bool withNulls) {
     using T = typename TypeTraits<KIND>::NativeType;
-    VectorPtr base = BaseVector::create(type, size, pool());
-    auto flat = std::dynamic_pointer_cast<FlatVector<T>>(base);
+    FlatVectorPtr<T> flat = BaseVector::create<FlatVector<T>>(type, size, pool());
     ASSERT_NE(flat.get(), nullptr);
     EXPECT_EQ(flat->size(), size);
     EXPECT_GE(flat->values()->size(), BaseVector::byteSize<T>(size));

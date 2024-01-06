@@ -40,7 +40,7 @@ PrestoSerializedPage::PrestoSerializedPage(
 
 PrestoSerializedPage::~PrestoSerializedPage() {
   if (onDestructionCb_) {
-    onDestructionCb_(*iobuf_.get());
+    onDestructionCb_(*iobuf_);
   }
 }
 

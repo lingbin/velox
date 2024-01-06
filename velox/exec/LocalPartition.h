@@ -71,11 +71,11 @@ class LocalExchangeVectorPool {
   folly::Synchronized<std::queue<std::pair<RowVectorPtr, int64_t>>> pool_;
 };
 
-/// Buffers data for a single partition produced by local exchange. Allows
+/// Buffers data for a single partition produced by LocalPartition. Allows
 /// multiple producers to enqueue data and multiple consumers fetch data. Each
 /// producer must be registered with a call to 'addProducer'. 'noMoreProducers'
 /// must be called after all producers have been registered. A producer calls
-/// 'enqueue' multiple time to put the data and calls 'noMoreData' when done.
+/// 'enqueue' multiple times to put the data and calls 'noMoreData' when done.
 /// Consumers call 'next' repeatedly to fetch the data.
 class LocalExchangeQueue {
  public:
@@ -164,7 +164,7 @@ class LocalExchangeQueue {
   bool closed_{false};
 };
 
-/// Fetches data for a single partition produced by local exchange from
+/// Fetches data for a single partition produced by LocalPartition from
 /// LocalExchangeQueue.
 class LocalExchange : public SourceOperator {
  public:

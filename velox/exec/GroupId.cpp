@@ -31,6 +31,7 @@ GroupId::GroupId(
           OperatorType::kGroupId) {
   const auto& inputType = groupIdNode->sources()[0]->outputType();
 
+  // output-column-idx => input-column-idx
   std::unordered_map<column_index_t, column_index_t>
       outputToInputGroupingKeyMapping;
   for (const auto& groupingKeyInfo : groupIdNode->groupingKeyInfos()) {

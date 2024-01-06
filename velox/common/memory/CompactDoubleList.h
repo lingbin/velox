@@ -88,12 +88,13 @@ class CompactDoubleList {
     storePointer(previous, previousLow_, previousHigh_);
   }
 
-  CompactDoubleList* loadPointer(uint32_t low, uint16_t high) const {
+  static CompactDoubleList* loadPointer(uint32_t low, uint16_t high) {
     return reinterpret_cast<CompactDoubleList*>(
         low | (static_cast<uint64_t>(high) << 32));
   }
 
-  void storePointer(CompactDoubleList* pointer, uint32_t& low, uint16_t& high) {
+  static void
+  storePointer(CompactDoubleList* pointer, uint32_t& low, uint16_t& high) {
     VELOX_DCHECK_EQ(
         reinterpret_cast<uint64_t>(pointer) &
             ~bits::lowMask(kPointerSignificantBits),

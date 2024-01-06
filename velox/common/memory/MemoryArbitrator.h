@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include "velox/common/base/AsyncSource.h"
@@ -75,7 +76,7 @@ class MemoryArbitrator {
     ///
     /// NOTE: If kind is not set, a noop arbitrator is created which grants the
     /// maximum capacity to each newly created memory pool.
-    std::string kind{};
+    std::string kind;
 
     /// The total memory capacity in bytes of all the running queries.
     ///
@@ -90,7 +91,7 @@ class MemoryArbitrator {
     MemoryArbitrationStateCheckCB arbitrationStateCheckCb{nullptr};
 
     /// Additional configs that are arbitrator implementation specific.
-    std::unordered_map<std::string, std::string> extraConfigs{};
+    std::unordered_map<std::string, std::string> extraConfigs;
 
     std::string toString() const {
       std::stringstream ss;
@@ -106,11 +107,13 @@ class MemoryArbitrator {
     }
   };
 
+  virtual ~MemoryArbitrator() = default;
+
   using Factory = std::function<std::unique_ptr<MemoryArbitrator>(
       const MemoryArbitrator::Config& config)>;
 
   /// Registers factory for a specific 'kind' of memory arbitrator
-  /// MemoryArbitrator::Create looks up the registry to find the factory to
+  /// MemoryArbitrator::create looks up the registry to find the factory to
   /// create arbitrator instance based on the kind specified in arbitrator
   /// config.
   ///
@@ -118,7 +121,7 @@ class MemoryArbitrator {
   /// once. The function returns false if 'kind' is already registered.
   static bool registerFactory(const std::string& kind, Factory factory);
 
-  /// Unregisters the registered factory for a specifc kind.
+  /// Unregisters the registered factory for a specific kind.
   ///
   /// NOTE: the function throws if the specified arbitrator 'kind' is not
   /// registered.
@@ -142,8 +145,6 @@ class MemoryArbitrator {
   const Config& config() const {
     return config_;
   }
-
-  virtual ~MemoryArbitrator() = default;
 
   /// Invoked by the memory manager to shutdown the memory arbitrator to stop
   /// serving new memory arbitration requests.
@@ -267,7 +268,8 @@ class MemoryArbitrator {
 };
 
 /// Formatter for fmt.
-FOLLY_ALWAYS_INLINE std::string format_as(MemoryArbitrator::Stats stats) {
+FOLLY_ALWAYS_INLINE std::string format_as(
+    const MemoryArbitrator::Stats& stats) {
   return stats.toString();
 }
 
@@ -283,17 +285,17 @@ FOLLY_ALWAYS_INLINE std::ostream& operator<<(
 /// implementation that always reclaim memory from the child memory pool with
 /// most reclaimable memory. This is used by the query and plan node memory
 /// pools which don't need customized operations. A task memory pool needs to
-/// to pause a task execution before reclaiming memory from its child pools.
-/// This avoids any potential race condition between concurrent memory
-/// reclamation operation and the task activities. An operator memory pool needs
-/// to put the associated task driver thread into suspension state before
-/// entering into an arbitration process. It is because the memory arbitrator
-/// needs to pause a task execution before reclaim memory from the task. It is
-/// possible that the memory arbitration tries to reclaim memory from the task
-/// which initiates the memory arbitration request. If we don't put the driver
-/// thread into suspension state, then the memory arbitration process might
-/// run into deadlock as the task will never be paused. The operator memory pool
-/// also needs to reclaim the actually used memory from the associated operator
+/// pause a task execution before reclaiming memory from its child pools. This
+/// avoids any potential race condition between concurrent memory reclamation
+/// operation and the task activities. An operator memory pool needs to put the
+/// associated task driver thread into suspension state before entering into an
+/// arbitration process. It is because the memory arbitrator needs to pause a
+/// task execution before reclaim memory from the task. It is possible that the
+/// memory arbitration tries to reclaim memory from the task which initiates the
+/// memory arbitration request. If we don't put the driver thread into
+/// suspension state, then the memory arbitration process might run into
+/// deadlock as the task will never be paused. The operator memory pool also
+/// needs to reclaim the actually used memory from the associated operator
 /// through techniques such as disks spilling.
 class MemoryReclaimer {
  public:
@@ -335,7 +337,7 @@ class MemoryReclaimer {
 
   /// Invoked by the memory arbitrator after finishes the memory arbitration
   /// processing and is used in pair with 'enterArbitration'. For example, an
-  /// operator memory pool needs to moves the associated driver execution out of
+  /// operator memory pool needs to move the associated driver execution out of
   /// the suspension state.
   ///
   /// NOTE: it is guaranteed to be called also on failure path if
@@ -389,7 +391,7 @@ class MemoryReclaimer {
   /// Invoked by the memory arbitrator to abort memory 'pool' and the associated
   /// query execution when encounters non-recoverable memory reclaim error or
   /// fails to reclaim enough free capacity. The abort is a synchronous
-  /// operation and we expect most of used memory to be freed after the abort
+  /// operation, and we expect most of used memory to be freed after the abort
   /// completes. 'error' should be passed in as the direct cause of the
   /// abortion. It will be propagated all the way to task level for accurate
   /// error exposure.

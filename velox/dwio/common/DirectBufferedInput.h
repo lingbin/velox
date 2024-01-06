@@ -67,7 +67,7 @@ struct LoadRequest {
   velox::common::Region region;
   cache::TrackingId trackingId;
 
-  const SeekableInputStream* stream;
+  const SeekableInputStream* stream{nullptr};
 
   /// Loaded bytes for this request; see LoadedBuffer.
   LoadedBuffer buffer;

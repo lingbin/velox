@@ -17,6 +17,7 @@
 #pragma once
 
 #include <folly/Singleton.h>
+#include <string>
 
 /// StatsReporter designed to assist in reporting various metrics of the
 /// application that uses velox library. The library itself does not implement
@@ -43,7 +44,7 @@
 /// After that, every call to RECORD_METRIC_VALUE increases the metric by the
 /// given value:
 ///
-///   By default the following will add 1 to the metric if not provided value
+/// By default the following will add 1 to the metric if not provided value.
 ///   RECORD_METRIC_VALUE("my_stat1");
 ///   RECORD_METRIC_VALUE("my_stat2", 10);
 ///   RECORD_METRIC_VALUE("my_stat1", numOfFailures);

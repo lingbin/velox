@@ -55,7 +55,7 @@ class GroupId : public Operator {
   std::vector<std::vector<column_index_t>> groupingKeyMappings_;
 
   /// A list of input column indices corresponding to aggregation inputs. The
-  /// position in the list identifies the column in the output.
+  /// position in the list identifies the column in the output.（这里有点问题，聚合函数的列，是在 聚合列 的后面的）
   std::vector<column_index_t> aggregationInputs_;
 
   /// 'getOutput()' returns 'input_' for one grouping set at a time.

@@ -532,20 +532,20 @@ TEST_F(HashStringAllocatorTest, alignedStlAllocatorWithF14Map) {
 }
 
 TEST_F(HashStringAllocatorTest, alignedStlAllocatorLargeAllocation) {
-  const auto allocateSize = 1ULL << 10;
+  constexpr auto kAllocateSize = 1ULL << 10;
 
   // Test large allocation + aligned pool.
   AlignedStlAllocator<int64_t, 16> alignedAlloc16(allocator_.get());
-  int64_t* ptr = alignedAlloc16.allocate(allocateSize);
-  alignedAlloc16.deallocate(ptr, allocateSize);
+  int64_t* ptr = alignedAlloc16.allocate(kAllocateSize);
+  alignedAlloc16.deallocate(ptr, kAllocateSize);
   auto allocatedBytes = allocator_->checkConsistency();
   ASSERT_EQ(allocatedBytes, allocator_->currentBytes());
 
   // Test large allocation + un-aligned pool.
   ASSERT_LT(allocator_->pool()->alignment(), 128);
   AlignedStlAllocator<int64_t, 128> alignedAlloc128(allocator_.get());
-  ptr = alignedAlloc128.allocate(allocateSize);
-  alignedAlloc128.deallocate(ptr, allocateSize);
+  ptr = alignedAlloc128.allocate(kAllocateSize);
+  alignedAlloc128.deallocate(ptr, kAllocateSize);
   allocatedBytes = allocator_->checkConsistency();
   ASSERT_EQ(allocatedBytes, allocator_->currentBytes());
 }
@@ -558,7 +558,7 @@ TEST_F(HashStringAllocatorTest, stlAllocatorOverflow) {
 }
 
 TEST_F(HashStringAllocatorTest, externalLeak) {
-  constexpr int32_t kSize = HashStringAllocator ::kMaxAlloc * 10;
+  constexpr int32_t kSize = HashStringAllocator::kMaxAlloc * 10;
   auto root = memory::memoryManager()->addRootPool("HSALeakTestRoot");
   auto pool = root->addLeafChild("HSALeakLeaf");
   auto initialBytes = pool->usedBytes();

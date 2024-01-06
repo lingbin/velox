@@ -53,7 +53,7 @@ class FileInputStream : public ByteInputStream {
 
   uint8_t readByte() override;
 
-  void readBytes(uint8_t* bytes, int32_t size) override;
+  void readBytes(uint8_t* dest, int32_t size) override;
 
   std::string_view nextView(int64_t size) override;
 

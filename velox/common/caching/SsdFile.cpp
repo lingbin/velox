@@ -84,7 +84,7 @@ void SsdPin::clear() {
   file_ = nullptr;
 }
 
-void SsdPin::operator=(SsdPin&& other) {
+void SsdPin::operator=(SsdPin&& other) noexcept {
   if (file_ != nullptr) {
     file_->unpinRegion(run_.offset());
   }
@@ -977,7 +977,7 @@ void SsdFile::initializeCheckpoint() {
   }
 }
 
-uint32_t SsdFile::checksumEntry(const AsyncDataCacheEntry& entry) const {
+uint32_t SsdFile::checksumEntry(const AsyncDataCacheEntry& entry) {
   bits::Crc32 crc;
   if (entry.hasContiguousData()) {
     crc.process_bytes(entry.contiguousData(), entry.size());

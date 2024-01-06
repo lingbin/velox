@@ -207,8 +207,7 @@ std::vector<column_index_t> computeNonPartitionChannels(
 
 } // namespace
 
-const std::string LocationHandle::tableTypeName(
-    LocationHandle::TableType type) {
+std::string LocationHandle::tableTypeName(LocationHandle::TableType type) {
   static const auto tableTypes = tableTypeNames();
   return tableTypes.at(type);
 }

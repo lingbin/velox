@@ -158,7 +158,7 @@ uint8_t FileInputStream::readByte() {
   return readByte();
 }
 
-void FileInputStream::readBytes(uint8_t* bytes, int32_t size) {
+void FileInputStream::readBytes(uint8_t* dest, int32_t size) {
   VELOX_CHECK_GE(size, 0, "Attempting to read negative number of bytes");
   if (size == 0) {
     return;
@@ -172,7 +172,7 @@ void FileInputStream::readBytes(uint8_t* bytes, int32_t size) {
     const int32_t readBytes =
         std::min<int64_t>(current_->availableBytes(), size);
     simd::memcpy(
-        bytes + offset, current_->buffer + current_->position, readBytes);
+        dest + offset, current_->buffer + current_->position, readBytes);
     offset += readBytes;
     size -= readBytes;
     current_->position += readBytes;

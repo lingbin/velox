@@ -89,7 +89,7 @@ std::vector<AggregateInfo> toAggregateInfo(
     // Setup aggregation mask: convert the Variable Reference name to the
     // channel (projection) index, if there is a mask.
     if (const auto& mask = aggregate.mask) {
-      info.mask = inputType->asRow().getChildIdx(mask->name());
+      info.mask = inputType->getChildIdx(mask->name());
     } else {
       info.mask = std::nullopt;
     }

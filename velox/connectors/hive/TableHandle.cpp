@@ -281,7 +281,7 @@ void HiveColumnHandle::registerSerDe() {
 
 HiveTableHandle::HiveTableHandle(
     std::string connectorId,
-    const std::string& tableName,
+    std::string tableName,
     common::SubfieldFilters subfieldFilters,
     const core::TypedExprPtr& remainingFilter,
     const RowTypePtr& dataColumns,
@@ -292,7 +292,7 @@ HiveTableHandle::HiveTableHandle(
     std::string dbName,
     std::vector<int32_t> dataColumnFieldIds)
     : FileTableHandle(std::move(connectorId)),
-      tableName_(tableName),
+      tableName_(std::move(tableName)),
       subfieldFilters_(std::move(subfieldFilters)),
       remainingFilter_(remainingFilter),
       sampleRate_(sampleRate),

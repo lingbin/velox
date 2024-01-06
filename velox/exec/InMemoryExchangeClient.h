@@ -118,7 +118,7 @@ class InMemoryExchangeClient
   struct RequestSpec {
     std::shared_ptr<ExchangeSource> source;
 
-    // How much bytes to request from this source.  0 bytes means request data
+    // How many bytes to request from this source.  0 bytes means request data
     // sizes only.
     int64_t maxBytes;
   };
@@ -148,6 +148,7 @@ class InMemoryExchangeClient
   // capacity is unavailable or requests are already pending, returns empty
   // vector.
   std::vector<RequestSpec> pickupSingleSourceToRequestLocked();
+
   void request(std::vector<RequestSpec>&& requestSpecs);
 
   /// Returns true if skip request data size optimization is enabled for single

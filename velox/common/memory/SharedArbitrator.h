@@ -47,7 +47,7 @@ class SharedArbitratorTestHelper;
 /// the actual memory reclaim is executed by a thread pool to parallelize the
 /// memory reclamation from multiple running queries at the same time. The
 /// global arbitration first tries to reclaim memory by disk spilling and if it
-/// can't quickly reclaim enough memory, it then switchs to abort the younger
+/// can't quickly reclaim enough memory, it then switches to abort the younger
 /// queries which also have more memory usage.
 class SharedArbitrator : public memory::MemoryArbitrator {
  public:
@@ -146,8 +146,9 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     /// search for victim participant to reclaim used memory by spill. For
     /// participants with reclaimable used capacity larger than the limit, the
     /// global arbitration choose to spill the lowest priority participant with
-    /// highest reclaimable used capacity. The spill capacity limit is reduced
-    /// by half if couldn't find a victim participant until reaches to zero.
+    /// the highest reclaimable used capacity. The spill capacity limit is
+    /// reduced by half if couldn't find a victim participant until reaches to
+    /// zero.
     ///
     /// NOTE: the limit must be zero or a power of 2.
     static constexpr std::string_view kMemoryPoolSpillCapacityLimit{
@@ -160,11 +161,11 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     /// Specifies the starting memory capacity limit for global arbitration to
     /// search for victim participant to reclaim used memory by abort. For
     /// participants with capacity larger than the limit, the global arbitration
-    /// choose to abort the participant that has lowest priority and shortest
-    /// execution time (largest participant id). This helps to let the low
-    /// priority queries to be aborted first, as well as old queries to run to
-    /// completion. The abort capacity limit is reduced by half if couldn't find
-    /// a victim participant until reaches to zero.
+    /// choose to abort the participant that has the lowest priority and
+    /// shortest execution time (largest participant id). This helps to let the
+    /// low priority queries to be aborted first, as well as old queries to run
+    /// to completion. The abort capacity limit is reduced by half if couldn't
+    /// find a victim participant until reaches to zero.
     ///
     /// NOTE: the limit must be zero or a power of 2.
     static constexpr std::string_view kMemoryPoolAbortCapacityLimit{
@@ -230,7 +231,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     static uint32_t globalArbitrationMemoryReclaimPct(
         const std::unordered_map<std::string, std::string>& configs);
 
-    /// The ratio used with 'memory-reclaim-max-wait-time', beyond which, global
+    /// The ratio used with 'max-memory-arbitration-time', beyond which, global
     /// arbitration will no longer reclaim memory by spilling, but instead
     /// directly abort. It is only in effect when 'global-arbitration-enabled'
     /// is true
@@ -276,16 +277,16 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   void growCapacity(MemoryPool* pool, uint64_t requestBytes) final;
 
   /// NOTE: only support shrinking away all the unused free capacity for now.
-  uint64_t shrinkCapacity(MemoryPool* pool, uint64_t requestBytes) final;
+  uint64_t shrinkCapacity(MemoryPool* pool, uint64_t /*unused*/) final;
 
   uint64_t shrinkCapacity(
       uint64_t requestBytes,
       bool allowSpill = true,
-      bool force = false) override final;
+      bool force = false) final;
 
   Stats stats() const final;
 
-  std::string kind() const override;
+  std::string kind() const final;
 
   std::string toString() const final;
 
@@ -319,7 +320,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   inline static const std::string kind_{"SHARED"};
 
   // Used to manage an arbitration operation execution. It starts 'op' execution
-  // in ctor and finishes its exection in dtor.
+  // in ctor and finishes its execution in dtor.
   class ScopedArbitration {
    public:
     explicit ScopedArbitration(
@@ -332,7 +333,6 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     SharedArbitrator* const arbitrator_;
     ArbitrationOperation* const operation_;
     const ScopedMemoryArbitrationContext arbitrationCtx_;
-    const std::chrono::steady_clock::time_point startTime_;
   };
 
   // The scoped object to cover the global arbitration execution. It ensures
@@ -347,10 +347,10 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     SharedArbitrator* const arbitrator_;
 
     // Default to global arbitration context.
-    const memory::ScopedMemoryArbitrationContext arbitrationCtx_{};
+    const ScopedMemoryArbitrationContext arbitrationCtx_{};
   };
 
-  FOLLY_ALWAYS_INLINE void checkRunning() {
+  FOLLY_ALWAYS_INLINE void checkRunning() const {
     std::lock_guard<std::mutex> l(stateMutex_);
     VELOX_CHECK(!hasShutdownLocked(), "SharedArbitrator is not running");
   }
@@ -372,10 +372,9 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   // memory 'pool'.
   ArbitrationOperation createArbitrationOperation(
       MemoryPool* pool,
-      uint64_t requestBytes);
+      uint64_t requestBytes) const;
 
-  // Run arbitration to grow capacity for 'op'. The function returns true on
-  // success.
+  // Run arbitration to grow capacity for 'op'.
   void growCapacity(ArbitrationOperation& op);
 
   // Invoked to start execution of 'op'. It waits for the serialized execution
@@ -395,7 +394,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   bool ensureCapacity(ArbitrationOperation& op);
 
   // Invoked to initialize the global arbitration on arbitrator start-up. It
-  // starts the background threads to used memory from running queries
+  // starts the background threads to reclaim used memory from running queries
   // on-demand.
   void setupGlobalArbitration(
       uint64_t spillCapacityLimit,
@@ -424,7 +423,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
       uint64_t lastReclaimedBytes) const;
 
   // Invoked to get the global arbitration target in bytes.
-  uint64_t getGlobalArbitrationTarget();
+  uint64_t getGlobalArbitrationTarget() const;
 
   // Invoked to run global arbitration to reclaim free or used memory from other
   // queries. The global arbitration run is protected by the exclusive lock of
@@ -436,9 +435,9 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   // 'freeCapacityOnly' is true, then we only get reclaimable free capacity from
   // each participant.
   std::vector<ArbitrationCandidate> getCandidates(
-      bool freeCapacityOnly = false);
+      bool freeCapacityOnly = false) const;
 
-  // Invoked to reclaim unused memory capacity from participants without
+  // Invoked to reclaim unused memory capacity from all participants without
   // actually freeing used memory. The function returns the actually reclaimed
   // free capacity in bytes.
   uint64_t reclaimUnusedCapacity();
@@ -465,7 +464,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   // across multiple global arbitration runs.
   //
   // 'allParticipantsReclaimed' returns if all participants have been
-  // reclaimed by spilling so far. It is used by gllobal arbitration to decide
+  // reclaimed by spilling so far. It is used by global arbitration to decide
   // if need to switch to abort to reclaim used memory in the next arbitration
   // round. The function returns the actually reclaimed used capacity in bytes.
   //
@@ -485,7 +484,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   // reclaimed capacity in bytes.
   //
   // The function returns the total of released and to be released capacity,
-  // including the soon to be released capacity from the victim query. Returns
+  // including the soon-to-be released capacity from the victim query. Returns
   // zero if there is no eligible participant to abort. If 'force' is true,
   // it picks up the youngest participant which has largest participant id to
   // abort if there is no eligible one.
@@ -498,41 +497,44 @@ class SharedArbitrator : public memory::MemoryArbitrator {
   // priority value) and higher reclaimable used capacity ones in front.
   // Priority takes precedence over reclaimable used capacity.
   std::vector<std::vector<ArbitrationCandidate>> sortAndGroupSpillCandidates(
-      std::vector<ArbitrationCandidate>&& candidates);
+      std::vector<ArbitrationCandidate>&& candidates) const;
 
-  // Sorts 'candidates' based on participant's reclaimer priority in descending
-  // order, putting lower priority ones (with higher priority value) first, and
-  // high priority ones (with lower priority value) later.
+  // Sorts and groups 'candidates' based on participant's reclaimer priority in
+  // descending order, putting lower priority ones (with higher priority value)
+  // first, and high priority ones (with lower priority value) later.
   static std::vector<std::vector<ArbitrationCandidate>>
   sortAndGroupAbortCandidates(std::vector<ArbitrationCandidate>&& candidates);
 
-  // Finds the participant victim to abort to free used memory based on the
-  // participant's memory capacity and age. The function returns std::nullopt if
-  // there is no eligible candidate. If 'force' is true, it picks up the
-  // youngest participant to abort if there is no eligible one.
+  // Finds a participant victim to abort to free used memory. Selection is by
+  // reclaimer priority first (lower-priority participants are preferred), then
+  // by larger memory capacity, and finally the youngest participant is chosen
+  // so older long-running queries are preserved. Returns 'std::nullopt' if
+  // there is no eligible candidate. If 'force' is true, falls back to aborting
+  // the youngest participant in the lowest-priority group even when none is
+  // eligible.
   std::optional<ArbitrationCandidate> findAbortCandidate(bool force);
-
-  // Invoked to use free capacity from arbitrator to grow participant's
-  // capacity.
-  bool growWithFreeCapacity(ArbitrationOperation& op);
 
   // Checks if the operation has been aborted or not. The function throws if
   // aborted.
-  void checkIfAborted(ArbitrationOperation& op);
+  static void checkIfAborted(const ArbitrationOperation& op);
 
   // Checks if the operation has timed out or not. The function throws if timed
   // out.
-  void checkIfTimeout(ArbitrationOperation& op);
+  static void checkIfTimeout(const ArbitrationOperation& op);
 
   // Checks if the request participant already has enough free capacity for the
   // growth. This could happen if there are multiple arbitration operations from
   // the same participant. When the first served operation succeeds, it might
   // have reserved enough capacity for the followup operations.
-  bool maybeGrowFromSelf(ArbitrationOperation& op);
+  static bool maybeGrowFromSelf(ArbitrationOperation& op);
+
+  // Invoked to use free capacity from arbitrator to grow participant's
+  // capacity.
+  bool growWithFreeCapacity(const ArbitrationOperation& op);
 
   // Invoked to grow 'participant' capacity by 'growBytes' and commit used
   // reservation by 'reservationBytes'. The function throws if the growth fails.
-  void checkedGrow(
+  static void checkedGrow(
       const ScopedArbitrationParticipant& participant,
       uint64_t growBytes,
       uint64_t reservationBytes);
@@ -607,11 +609,11 @@ class SharedArbitrator : public memory::MemoryArbitrator {
 
   // Increments the global arbitration wait count in both arbitrator and the
   // corresponding operator's runtime stats.
-  void incrementGlobalArbitrationWaitCount();
+  static void incrementGlobalArbitrationWaitCount();
 
   // Increments the local arbitration count in both arbitrator and the
   // corresponding operator's runtime stats.
-  void incrementLocalArbitrationCount();
+  static void incrementLocalArbitrationCount();
 
   Stats statsLocked() const;
 
@@ -675,7 +677,7 @@ class SharedArbitrator : public memory::MemoryArbitrator {
 
   // The global arbitration control thread which runs the global arbitration at
   // the background, and dispatch the actual memory reclaim work on different
-  // participants to 'globalArbitrationExecutor_' and collects the results back.
+  // participants to 'memoryReclaimExecutor_' and collects the results back.
   std::unique_ptr<std::thread> globalArbitrationController_;
 
   // Signal used to wakeup 'globalArbitrationController_' to run global

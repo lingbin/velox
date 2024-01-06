@@ -152,6 +152,7 @@ bool MemoryAllocator::isAlignmentValid(
        (allocateBytes & (alignmentBytes - 1)) == 0);
 }
 
+// static
 void MemoryAllocator::alignmentCheck(
     uint64_t allocateBytes,
     uint16_t alignmentBytes) {
@@ -457,6 +458,7 @@ std::string Stats::toString() const {
   return out.str();
 }
 
+// static
 void MemoryAllocator::useHugePages(
     const ContiguousAllocation& data,
     bool enable) {

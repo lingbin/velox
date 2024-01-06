@@ -222,11 +222,11 @@ class MmapAllocator : public MemoryAllocator {
     void setAllMapped(const Allocation& allocation, bool value);
 
     // Sets the mapped flag for the class pages in 'run' to 'value'
-    void setMappedBits(const Allocation::PageRun run, bool value);
+    void setMappedBitsLocked(Allocation::PageRun run, bool value);
 
     // True if 'ptr' is in the address range of 'this'. Checks that ptr is at a
     // size class page boundary.
-    bool isInRange(uint8_t* ptr) const;
+    bool isInRange(const uint8_t* ptr) const;
 
     std::string toString() const;
 
@@ -280,9 +280,9 @@ class MmapAllocator : public MemoryAllocator {
     // of allocated class pages, numUnmapped is incremented by the count of
     // machine pages needed to back the unmapped part of  the new allocated
     // runs. The memorry runs are added to 'allocation'
-    void allocateAny(
+    void allocateAnyLocked(
         int32_t wordIndex,
-        ClassPageCount& numPages,
+        ClassPageCount& numClassPages,
         MachinePageCount& numUnmapped,
         Allocation& allocation);
 
@@ -393,7 +393,7 @@ class MmapAllocator : public MemoryAllocator {
   // advises them away. Returns the number of pages advised away.
   MachinePageCount adviseAway(MachinePageCount target);
 
-  bool useMalloc(uint64_t bytes);
+  bool useMalloc(uint64_t bytes) const;
 
   const Kind kind_;
 

@@ -118,6 +118,7 @@ std::string timeString(time_t seconds) {
 }
 } // namespace
 
+// static
 void Profiler::copyToResult(const std::string* data) {
   char* buffer;
   int32_t resultSize;
@@ -156,7 +157,6 @@ void Profiler::copyToResult(const std::string* data) {
     out->append(
         fmt::format(
             "Profile from {} to {} at {}% CPU\n\n",
-
             timeString(sampleStartTime_),
             timeString(now),
             100 * (cpu - cpuAtSampleStart_) / std::max<int64_t>(1, elapsed)));
@@ -242,6 +242,7 @@ bool Profiler::interruptibleSleep(int32_t seconds) {
   return shouldStop_;
 }
 
+// static
 void Profiler::stopSample(std::thread systemThread) {
   LOG(INFO) << "PROFILE: Signalling perf";
 
@@ -251,6 +252,7 @@ void Profiler::stopSample(std::thread systemThread) {
   sampleStartTime_ = 0;
 }
 
+// static
 void Profiler::threadFunction() {
   makeProfileDir(resultPath_);
   cpuAtLastCheck_ = cpuSeconds();
@@ -301,11 +303,13 @@ void Profiler::threadFunction() {
   }
 }
 
+// static
 bool Profiler::isRunning() {
   std::lock_guard<std::mutex> l(profileMutex_);
   return profileStarted_;
 }
 
+// static
 void Profiler::start(
     const std::string& path,
     std::function<void()> extraStart,
@@ -340,6 +344,7 @@ void Profiler::start(
   profileThread_ = std::thread([]() { threadFunction(); });
 }
 
+// static
 void Profiler::stop() {
   {
     std::lock_guard<std::mutex> l(profileMutex_);

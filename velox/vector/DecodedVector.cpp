@@ -52,6 +52,7 @@ const BaseVector* getValueVector(const BaseVector* vector) {
 
 } // namespace
 
+// static
 const std::vector<vector_size_t>& DecodedVector::consecutiveIndices() {
   static std::vector<vector_size_t> consecutiveIndices =
       makeConsecutiveIndices(10'000);
@@ -162,7 +163,7 @@ void DecodedVector::makeIndices(
 
 void DecodedVector::reset(vector_size_t size) {
   if (!indicesNotCopied()) {
-    // Init with default value to avoid invalid indices for unselected rows)
+    // Init with default value to avoid invalid indices for unselected rows.
     std::fill(copiedIndices_.begin(), copiedIndices_.end(), 0);
   }
   size_ = size;
@@ -258,15 +259,15 @@ void DecodedVector::applyDictionaryWrapper(
     return;
   }
 
-  auto newIndices = dictionaryVector.wrapInfo()->as<vector_size_t>();
-  auto newNulls = dictionaryVector.rawNulls();
+  auto* newIndices = dictionaryVector.wrapInfo()->as<vector_size_t>();
+  auto* newNulls = dictionaryVector.rawNulls();
   if (newNulls) {
     hasExtraNulls_ = true;
     mayHaveNulls_ = true;
-    // if we have both nulls for parent and the wrapped vectors, and nulls
-    // buffer is not copied, make a copy because we may need to
-    // change it when iterating through wrapped vector
-    if (!nulls_ || nullsNotCopied()) {
+    // If we have both nulls for parent and the wrapped vectors, and nulls
+    // buffer is not copied, make a copy because we may need to change it when
+    // iterating through wrapped vector.
+    if (nulls_ == nullptr || nullsNotCopied()) {
       copyNulls(end(rows));
     }
   }
@@ -332,7 +333,7 @@ void DecodedVector::fillInIndices() const {
     if (wouldCopyIndices()) {
       copiedIndices_.resize(size_);
       std::iota(copiedIndices_.begin(), copiedIndices_.end(), 0);
-      indices_ = &copiedIndices_[0];
+      indices_ = copiedIndices_.data();
     } else {
       indices_ = consecutiveIndices().data();
     }
@@ -346,10 +347,10 @@ void DecodedVector::makeIndicesMutable() {
   if (indicesNotCopied()) {
     copiedIndices_.resize(size_ > 0 ? size_ : 1);
     memcpy(
-        &copiedIndices_[0],
+        copiedIndices_.data(),
         indices_,
         copiedIndices_.size() * sizeof(copiedIndices_[0]));
-    indices_ = &copiedIndices_[0];
+    indices_ = copiedIndices_.data();
   }
 }
 
@@ -456,12 +457,11 @@ void DecodedVector::setBaseData(
   switch (encoding) {
     case VectorEncoding::Simple::LAZY:
       break;
-    case VectorEncoding::Simple::FLAT:
-      // values() may be nullptr if 'vector' is all nulls.
-      data_ =
-          vector->values() ? vector->values()->template as<void>() : nullptr;
+    case VectorEncoding::Simple::FLAT: {
+      data_ = vector->valuesAsVoid();
       setFlatNulls(*vector, rows);
       break;
+    }
     case VectorEncoding::Simple::ROW:
     case VectorEncoding::Simple::ARRAY:
     case VectorEncoding::Simple::FLAT_MAP:
@@ -481,6 +481,7 @@ void DecodedVector::setBaseDataForConstant(
     const T& vector,
     const SelectivityVector* rows,
     VectorPtr& sharedBase) {
+  VELOX_DCHECK(vector->isConstantEncoding());
   if (!vector->isScalar()) {
     if constexpr (std::is_same_v<T, VectorPtr>) {
       sharedBase = BaseVector::wrappedVectorShared(vector);
@@ -497,6 +498,7 @@ void DecodedVector::setBaseDataForConstant(
     hasExtraNulls_ = false;
     indices_ = nullptr;
     nulls_ = vector->isNullAt(0) ? &constantNullMask_ : nullptr;
+    mayHaveNulls_ = nulls_ != nullptr;
   } else {
     makeIndicesMutable();
 
@@ -504,16 +506,15 @@ void DecodedVector::setBaseDataForConstant(
       copiedIndices_[row] = constantIndex_;
     });
     setFlatNulls(*vector, rows);
+    if (nulls_ == nullptr) {
+      nulls_ = vector->isNullAt(0) ? &constantNullMask_ : nullptr;
+    }
+    mayHaveNulls_ = hasExtraNulls_ || nulls_;
   }
   data_ = vector->valuesAsVoid();
-  if (!nulls_) {
-    nulls_ = vector->isNullAt(0) ? &constantNullMask_ : nullptr;
-  }
-  mayHaveNulls_ = hasExtraNulls_ || nulls_;
 }
 
 namespace {
-
 /// Copies 'size' entries from 'indices' into a newly allocated buffer.
 BufferPtr copyIndicesBuffer(
     const vector_size_t* indices,

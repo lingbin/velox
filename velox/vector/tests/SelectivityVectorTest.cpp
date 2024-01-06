@@ -31,7 +31,6 @@ void assertState(
 
   size_t startIndexIncl = 0;
   size_t endIndexExcl = 0;
-
   size_t count = 0;
 
   for (size_t i = 0; i < expected.size(); ++i) {
@@ -77,7 +76,7 @@ void setValid_normal(bool setToValue) {
   // A little bit more than 2 simd widths, so overflow.
   const size_t vectorSize = 513;
 
-  // We'll set everything to the opposite of the setToValue
+  // We'll set everything to the opposite of the setToValue.
   std::vector<bool> expected(vectorSize, !setToValue);
   SelectivityVector vector(vectorSize);
   if (setToValue) {
@@ -225,12 +224,11 @@ TEST(SelectivityVectorTest, setValidRange) {
 TEST(SelectivityVectorTest, clearAll) {
   auto size = 3;
   // Explicitly set all bits to false.
-  // Will call clearAll
-  SelectivityVector vector(size, false);
+  SelectivityVector vector(size, true);
+  vector.clearAll();
 
   // Build another vector and set all bits to 0 in brute-force way
   SelectivityVector expected(size);
-
   for (auto i = 0; i < size; ++i) {
     expected.setValid(i, false);
   }
@@ -241,12 +239,11 @@ TEST(SelectivityVectorTest, clearAll) {
 
 TEST(SelectivityVectorTest, setAll) {
   auto size = 3;
-  // Initialize with all bits to false
-  // Will call clearAll
+  // Initialize with all bits to false.
   SelectivityVector vector(size, false);
   vector.setAll();
 
-  // Build another vector and set all bits to 1 in brute-force way
+  // Build another vector and set all bits to 1 in brute-force way.
   SelectivityVector expected(size, true);
 
   EXPECT_EQ(expected, vector);
@@ -311,6 +308,7 @@ TEST(SelectivityVectorTest, iterator) {
     }
   }
   vector.updateBounds();
+
   int32_t count = 0;
   SelectivityIterator iter(vector);
   while (iter.next(row)) {
@@ -336,6 +334,7 @@ TEST(SelectivityVectorTest, iterator) {
   EXPECT_EQ(fromBits.begin(), 67);
   EXPECT_EQ(fromBits.end(), 227);
   EXPECT_FALSE(fromBits.isAllSelected());
+
   count = 0;
   fromBits.applyToSelected([&count](int32_t row) {
     EXPECT_EQ(row, count + 67);
@@ -344,6 +343,7 @@ TEST(SelectivityVectorTest, iterator) {
   });
   EXPECT_EQ(count, bits::countBits(&contiguous[0], 0, 240));
   EXPECT_FALSE(fromBits.isAllSelected());
+
   count = 0;
   fromBits.applyToSelected([&count](int32_t row) {
     EXPECT_EQ(row, count + 67);
@@ -351,6 +351,7 @@ TEST(SelectivityVectorTest, iterator) {
     return true;
   });
   EXPECT_EQ(count, bits::countBits(&contiguous[0], 0, 240));
+
   count = 0;
   SelectivityIterator iter2(fromBits);
   while (iter2.next(row)) {
@@ -365,6 +366,7 @@ TEST(SelectivityVectorTest, resize) {
   vector.resize(128, /* value */ true);
   // Ensure last 64 bits are set to 1
   assertIsValid(64, 128, vector, true);
+  ASSERT_FALSE(vector.isAllSelected());
 
   SelectivityVector rows(64, true);
   rows.resize(128, /* value */ false);
@@ -378,14 +380,16 @@ TEST(SelectivityVectorTest, resize) {
   unusual.resize(63, /* value */ false);
   assertIsValid(0, 37, unusual, true);
   assertIsValid(37, 63, unusual, false);
+  ASSERT_FALSE(unusual.isAllSelected());
 
   // Test for much larger word lengths
   SelectivityVector larger(53, true);
   assertIsValid(0, 53, larger, true);
   larger.resize(656, true);
   assertIsValid(0, 656, larger, true);
+  ASSERT_TRUE(larger.isAllSelected());
 
-  // Check for word length reduction
+  // Check for word length reduction.
   larger.resize(53);
   assertIsValid(0, 53, larger, true);
   // Check if all selected is true
@@ -400,11 +404,13 @@ TEST(SelectivityVectorTest, fillAndCompare) {
   second.setAll();
   // The significant 10 bits are equal, the rest are not. Expect == to be true.
   EXPECT_TRUE(first == second);
+
   first.resizeFill(200, false);
   second.resizeFill(300, false);
   EXPECT_FALSE(second.isAllSelected());
   // Vectors with nothing selected are equal even if their max size differs.
-  EXPECT_FALSE(first != second);
+  EXPECT_EQ(first, second);
+
   first.resizeFill(100, true);
   EXPECT_TRUE(first.isAllSelected());
   second.resize(100);
@@ -424,7 +430,7 @@ TEST(SelectivityVectorTest, select) {
   a.resize(33, true);
   SelectivityVector b(32, false);
   b.select(a);
-  assertIsValid(16, 32, b, true);
+  assertIsValid(16, 33, b, true);
 
   SelectivityVector empty(0);
   empty.select(first);
