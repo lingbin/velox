@@ -53,8 +53,8 @@ struct AsciiInfo {
   }
 
   /// Sets isAllAscii boolean flag.
-  void setIsAllAscii(bool f) {
-    isAllAscii_ = f;
+  void setIsAllAscii(bool flag) {
+    isAllAscii_ = flag;
   }
 
   bool asciiComputedRowsEmpty() const {
@@ -134,7 +134,7 @@ class SimpleVector : public BaseVector {
         elementSize_(sizeof(T)),
         stats_(stats) {}
 
-  virtual ~SimpleVector() override {}
+  virtual ~SimpleVector() override = default;
 
   SimpleVectorStats<T> getStats() const {
     return stats_;
@@ -146,7 +146,7 @@ class SimpleVector : public BaseVector {
 
   // Concrete Vector types need to implement this themselves.
   // This method does not do bounds checking. When the value is null the return
-  // value is technically undefined (currently implemented as default of T)
+  // value is technically undefined (currently implemented as default of T).
   virtual const T valueAt(vector_size_t idx) const = 0;
 
   std::optional<int32_t> compare(
@@ -168,7 +168,7 @@ class SimpleVector : public BaseVector {
       return BaseVector::compareNulls(thisNull, otherNull, flags);
     }
 
-    auto simpleVector = reinterpret_cast<const SimpleVector<T>*>(other);
+    auto* simpleVector = reinterpret_cast<const SimpleVector<T>*>(other);
     auto thisValue = valueAt(index);
     auto otherValue = simpleVector->valueAt(otherIndex);
     auto result = this->typeUsesCustomComparison_
@@ -232,7 +232,7 @@ class SimpleVector : public BaseVector {
     VELOX_CHECK(false, "Can only resize flat vectors.");
   }
 
-  virtual vector_size_t elementSize() {
+  uint8_t elementSize() {
     return elementSize_;
   }
 
@@ -276,11 +276,11 @@ class SimpleVector : public BaseVector {
   /// the SelectivityVector to corresponding indexes in this vector. Then we
   /// return:
   /// 1. True if all specified rows after the translation are known to be ASCII.
-  /// 2. False if all specified rows after translation contain atleast one non
+  /// 2. False if all specified rows after translation contain at least one non
   ///    ASCII character.
   /// 3. std::nullopt if ASCII-ness is not known for even one of the translated
-  /// rows. If rowMappings is null then we revert to indexes in the
-  /// SelectivityVector.
+  ///    rows. If rowMappings is null then we revert to indexes in the
+  ///    SelectivityVector.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, std::optional<bool>>
   isAscii(
@@ -303,9 +303,9 @@ class SimpleVector : public BaseVector {
   }
 
   /// This function takes an index and returns:
-  /// 1. True if the string at that index is ASCII
-  /// 2. False if the string at that index is not ASCII
-  /// 3. std::nullopt if we havent computed ASCII'ness at that index.
+  /// 1. True if the string at that index is ASCII.
+  /// 2. False if the string at that index is not ASCII.
+  /// 3. std::nullopt if we haven't computed ASCII-ness at that index.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, std::optional<bool>>
   isAscii(vector_size_t index) const {
@@ -330,7 +330,7 @@ class SimpleVector : public BaseVector {
     bool isAllAscii = true;
     rows.applyToSelected([&](auto row) {
       if (!isNullAt(row)) {
-        auto string = valueAt(row);
+        StringView string = valueAt(row);
         isAllAscii &=
             functions::stringCore::isAscii(string.data(), string.size());
       }
@@ -363,7 +363,7 @@ class SimpleVector : public BaseVector {
     asciiInfo.setIsAllAscii(false);
   }
 
-  /// Explicitly set asciness.
+  /// Explicitly set asciiness.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, void> setIsAscii(
       bool ascii,
@@ -372,7 +372,7 @@ class SimpleVector : public BaseVector {
     auto wlockedAsciiComputedRows = asciiInfo.writeLockedAsciiComputedRows();
     if (wlockedAsciiComputedRows->hasSelections() &&
         !wlockedAsciiComputedRows->isSubset(rows)) {
-      asciiInfo.setIsAllAscii(asciiInfo.isAllAscii() & ascii);
+      asciiInfo.setIsAllAscii(asciiInfo.isAllAscii() && ascii);
     } else {
       asciiInfo.setIsAllAscii(ascii);
     }
@@ -436,7 +436,7 @@ class SimpleVector : public BaseVector {
   FOLLY_ALWAYS_INLINE static int comparePrimitiveAsc(
       const T& left,
       const T& right) {
-    if constexpr (std::is_floating_point<T>::value) {
+    if constexpr (std::is_floating_point_v<T>) {
       bool isLeftNan = std::isnan(left);
       bool isRightNan = std::isnan(right);
       if (isLeftNan) {

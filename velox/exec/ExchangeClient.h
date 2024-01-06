@@ -20,8 +20,8 @@
 
 namespace facebook::velox::exec {
 
-// Handle for a set of producers. This may be shared by multiple Exchanges, one
-// per consumer thread.
+/// Handle for a set of producers. This may be shared by multiple Exchanges, one
+/// per consumer thread.
 class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
  public:
   static constexpr int32_t kDefaultMaxQueuedBytes = 32 << 20; // 32 MB.
@@ -121,7 +121,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   struct RequestSpec {
     std::shared_ptr<ExchangeSource> source;
 
-    // How much bytes to request from this source.  0 bytes means request data
+    // How many bytes to request from this source.  0 bytes means request data
     // sizes only.
     int64_t maxBytes;
   };

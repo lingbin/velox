@@ -47,7 +47,7 @@ class raw_vector {
     free();
   }
 
-  // Constructs  a copy of 'other'. See operator=. 'data_' must be copied.
+  // Constructs a copy of 'other'. See operator=. 'data_' must be copied.
   raw_vector(const raw_vector<T>& other) {
     *this = other;
   }
@@ -56,7 +56,10 @@ class raw_vector {
     *this = std::move(other);
   }
 
+<<<<<<< HEAD:velox/common/memory/RawVector.h
   // Copies 'other' to this, leaves 'other' unchanged.
+=======
+>>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   void operator=(const raw_vector<T>& other) {
     if (this == &other) {
       return;
@@ -74,8 +77,12 @@ class raw_vector {
     }
   }
 
+<<<<<<< HEAD:velox/common/memory/RawVector.h
   // Moves 'other' to this, leaves 'other' empty, as after default
   // construction.
+=======
+  // Moves 'other' to this, leaves 'other' empty, as after default construction.
+>>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   void operator=(raw_vector<T>&& other) noexcept {
     free();
     data_ = other.data_;
@@ -163,6 +170,7 @@ class raw_vector {
   }
 
  private:
+<<<<<<< HEAD:velox/common/memory/RawVector.h
   // Returns the raw pointer that points to the start of the allocated raw
   // buffer that accommodates both paddings and 'data'.
   static inline uint8_t* getBufferFromData(T* data) {
@@ -184,6 +192,11 @@ class raw_vector {
   // container.
   static inline int64_t calculateCapacity(int64_t size) {
     return (paddedSize(sizeof(T) * size) - 2 * simd::kPadding) / sizeof(T);
+=======
+  // Adds 'bytes' to the address 'pointer'.
+  inline T* addBytes(T* pointer, int32_t bytes) {
+    return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(pointer) + bytes);
+>>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   }
 
   // Size with one full width SIMD load worth data above and below, rounded to
@@ -255,12 +268,12 @@ class raw_vector {
   int64_t capacity_{0};
 };
 
-// Returns a pointer to 'size' int32_t's with consecutive values
-// starting at 0. There are at least kPadding / sizeof(int32_t) values
-// past 'size', so that it is safe to access the returned pointer at maximum
-// SIMD width. Typically returns preallocated memory but if this is
-// not large enough,resizes and initializes 'storage' to the requested
-// size and returns storage.data().
+// Returns a pointer to 'size' int32_t's with consecutive values starting at 0.
+// There are at least kPadding / sizeof(int32_t) values past 'size', so that it
+// is safe to access the returned pointer at maximum SIMD width. Typically,
+// returns pre-allocated memory but if this is not large enough, otherwise,
+// resizes and initializes 'storage' to the requested size and returns
+// storage.data().
 const int32_t*
 iota(int32_t size, raw_vector<int32_t>& storage, int32_t offset = 0);
 

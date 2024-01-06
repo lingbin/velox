@@ -25,6 +25,7 @@ const SelectivityVector& SelectivityVector::empty() {
   return kEmpty;
 }
 
+// static
 SelectivityVector SelectivityVector::empty(vector_size_t size) {
   return SelectivityVector{size, false};
 }

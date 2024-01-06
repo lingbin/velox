@@ -123,7 +123,7 @@ TEST_P(MemoryCapExceededTest, singleDriver) {
     readCursor(params);
     FAIL() << "Expected a MEM_CAP_EXCEEDED RuntimeException.";
   } catch (const VeloxException& e) {
-    const auto errorMessage = e.message();
+    const auto& errorMessage = e.message();
     for (const auto& expectedText : expectedTexts) {
       ASSERT_TRUE(errorMessage.find(expectedText) != std::string::npos)
           << "Expected error message to contain \n'" << expectedText

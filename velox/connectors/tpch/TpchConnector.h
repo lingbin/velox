@@ -65,7 +65,7 @@ class TpchTableHandle : public ConnectorTableHandle {
 
  private:
   const velox::tpch::Table table_;
-  double scaleFactor_;
+  const double scaleFactor_;
 };
 
 class TpchDataSource : public DataSource {

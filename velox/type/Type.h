@@ -42,8 +42,6 @@
 
 namespace facebook::velox {
 
-using int128_t = __int128_t;
-
 using column_index_t = uint32_t;
 
 constexpr column_index_t kConstantChannel =
@@ -57,7 +55,7 @@ constexpr column_index_t kConstantChannel =
 /// These logical definitions each serve slightly different purposes.
 /// These type sets are:
 /// - TypeKind
-/// - Type (RowType, BigIntType, ect.)
+/// - Type (RowType, BigIntType, etc.)
 /// - Templated Types (Row<T...>, Map<K, V>, ...)
 ///     C++ templated classes. Never instantiated, used to pass limited type
 ///     information into template parameters.
@@ -258,7 +256,7 @@ struct TypeTraits<TypeKind::TIMESTAMP> {
   static constexpr uint32_t maxSubTypes = 0;
   static constexpr TypeKind typeKind = TypeKind::TIMESTAMP;
   // isPrimitiveType in the type traits indicate whether it is a leaf type.
-  // So only types which have other sub types, should be set to false.
+  // So only types which have other sub-types, should be set to false.
   // Timestamp does not contain other types, so it is set to true.
   static constexpr bool isPrimitiveType = true;
   static constexpr bool isFixedWidth = true;
@@ -406,8 +404,8 @@ enum class TypeParameterKind {
 struct TypeParameter {
   const TypeParameterKind kind;
 
-  /// Must be not not null when kind is kType. All other properties should be
-  /// null or unset (other than rowFieldName).
+  /// Must be not null when kind is kType. All other properties should be null
+  /// or unset (other than rowFieldName).
   const TypePtr type;
 
   /// Must be set when kind is kLongLiteral. All other properties should be null
@@ -577,10 +575,9 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   bool isShortDecimal() const;
   bool isLongDecimal() const;
   bool isDecimal() const;
+
   bool isIntervalYearMonth() const;
-
   bool isIntervalDayTime() const;
-
   bool isDate() const;
 
   bool containsUnknown() const;
@@ -1149,6 +1146,7 @@ class FunctionType : public TypeBase<TypeKind::FUNCTION> {
     children.push_back(returnType);
     return children;
   }
+
   // Argument types from left to right followed by return value type.
   const std::vector<std::shared_ptr<const Type>> children_;
   const std::vector<TypeParameter> parameters_;
@@ -1296,7 +1294,7 @@ class IntervalDayTimeType : public BigintType {
   /// HOURS:MINUTES:SECONDS.MILLIS. For example, 1 03:48:20.100.
   /// TODO Figure out how to make this API generic, i.e. available via Type.
   /// Perhaps, Type::valueToString(variant)?
-  std::string valueToString(int64_t value) const;
+  static std::string valueToString(int64_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;
@@ -1347,9 +1345,9 @@ class IntervalYearMonthType : public IntegerType {
   }
 
   /// Returns the interval 'value' (months) formatted as YEARS MONTHS.
-  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be
-  /// represented as 1-2; -14 months would be represents as -1-2.
-  std::string valueToString(int32_t value) const;
+  /// For example, 14 months (INTERVAL '1-2' YEAR TO MONTH) would be represented
+  /// as 1-2; -14 months would be represented as -1-2.
+  static std::string valueToString(int32_t value);
 
   folly::dynamic serialize() const override {
     folly::dynamic obj = folly::dynamic::object;

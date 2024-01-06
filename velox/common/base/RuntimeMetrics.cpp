@@ -31,7 +31,8 @@ void RuntimeMetric::addValue(int64_t value) {
 
 void RuntimeMetric::aggregate() {
   count = std::min(count, static_cast<int64_t>(1));
-  min = max = sum;
+  min = sum;
+  max = sum;
 }
 
 void RuntimeMetric::merge(const RuntimeMetric& other)

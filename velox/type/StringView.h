@@ -82,7 +82,7 @@ struct StringView {
     return StringView{str};
   }
 
-  // Making StringView implicitly constructible/convertible from char* and
+  // Making StringView implicitly constructable/convertible from char* and
   // string literals, in order to allow for a more flexible API and optional
   // interoperability. E.g:
   //
