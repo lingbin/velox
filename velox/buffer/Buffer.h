@@ -84,7 +84,7 @@ class Buffer {
   template <typename T>
   const T* as() const {
     // We can't check actual types, but we can sanity-check POD/non-POD
-    // conversion. `void` is special as it's used in type-erased contexts
+    // conversion. `void` is special as it is used in type-erased contexts.
     VELOX_DCHECK((std::is_same_v<T, void>) || podType_ == is_pod_like_v<T>);
     return reinterpret_cast<const T*>(data_);
   }
@@ -100,7 +100,7 @@ class Buffer {
     // https://github.com/facebookincubator/velox/issues/6562.
     VELOX_CHECK(!isView());
     // We can't check actual types, but we can sanity-check POD/non-POD
-    // conversion. `void` is special as it's used in type-erased contexts
+    // conversion. `void` is special as it is used in type-erased contexts.
     VELOX_DCHECK((std::is_same_v<T, void>) || podType_ == is_pod_like_v<T>);
     return reinterpret_cast<T*>(data_);
   }
