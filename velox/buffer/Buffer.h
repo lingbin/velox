@@ -60,7 +60,7 @@ class Buffer {
   static inline constexpr bool is_pod_like_v =
       std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>;
 
-  virtual ~Buffer() {}
+  virtual ~Buffer() = default;
 
   void addRef() {
     referenceCount_.fetch_add(1);
@@ -161,7 +161,7 @@ class Buffer {
         os << "|| <-- size | remaining allocated --> || ";
       }
 
-      // the individual chars need to be in int32_t to display correctly.
+      // The individual chars need to be in int32_t to display correctly.
       os << std::hex << std::setw(2) << std::setfill('0')
          << static_cast<int32_t>(buffer.data_[i]) << " ";
     }
@@ -226,10 +226,11 @@ class Buffer {
   // is anyway already compromized this is not an issue.
   virtual void checkEndGuardImpl() const {}
 
-  void setCapacity(size_t capacity) {
-    capacity_ = capacity;
-    setEndGuard();
-  }
+  // void setCapacity(size_t capacity) {
+  //   capacity_ = capacity;
+  //   setEndGuard();
+  // }
+
   // If 'this' is allocated from a pool, frees the memory, including
   // all padding. This must be overridden by Buffer classes that are
   // allocated from a pool and does not apply to BufferViews.
@@ -270,6 +271,7 @@ class Buffer {
   // Pad to 64 bytes. If using as int32_t[], guarantee that value at index -1 ==
   // -1.
   uint64_t padding_[2] = {static_cast<uint64_t>(-1), static_cast<uint64_t>(-1)};
+
   // Needs to use setCapacity() from static method reallocate().
   friend class AlignedBuffer;
 
@@ -368,7 +370,7 @@ class AlignedBuffer : public Buffer {
   // Changes the capacity of '*buffer'. The buffer may grow/shrink in
   // place or may change addresses. The content is copied up to the
   // old size() or the new size, whichever is smaller. If the buffer grows, the
-  // new elements are initialized to 'initValue' if it's provided
+  // new elements are initialized to 'initValue' if it's provided.
   template <typename T>
   static void reallocate(
       BufferPtr* buffer,
@@ -376,7 +378,7 @@ class AlignedBuffer : public Buffer {
       const std::optional<T>& initValue = std::nullopt) {
     auto size = checkedMultiply(numElements, sizeof(T));
     Buffer* old = buffer->get();
-    VELOX_CHECK(old, "Buffer doesn't exist in reallocate");
+    VELOX_CHECK_NOT_NULL(old, "Buffer doesn't exist in reallocate");
     old->checkEndGuard();
     VELOX_DCHECK(
         dynamic_cast<ImplClass<T>*>(old) != nullptr,
@@ -423,9 +425,9 @@ class AlignedBuffer : public Buffer {
 
     void* newPtr = pool->reallocate(old, oldCapacity, preferredSize);
 
-    // Make the old buffer no longer owned by '*buffer' because reallocate
-    // freed the old buffer. Reassigning the new buffer to
-    // '*buffer' would be a double free if we didn't do this.
+    // Make the old buffer no longer owned by '*buffer' because
+    // MemoryPool::reallocate() freed the old buffer. Reassigning the new buffer
+    // to '*buffer' will be a double free if we do not detach.
     buffer->detach();
 
     auto newBuffer =
@@ -597,7 +599,7 @@ class NonPODAlignedBuffer : public Buffer {
   void releaseResources() override {
     VELOX_CHECK_EQ(size_ % sizeof(T), 0);
     size_t numValues = size_ / sizeof(T);
-    // we can't use asMutable because it checks "isMutable" but we want to
+    // we can't use asMutable because it checks 'isMutable' and we want to
     // destroy regardless.
     T* ptr = reinterpret_cast<T*>(data_);
     for (int i = 0; i < numValues; ++i) {

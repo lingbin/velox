@@ -90,10 +90,13 @@ TEST_F(BufferTest, testAlignedBuffer) {
   }
   EXPECT_EQ(pool_->usedBytes(), pool_->preferredSize(3 * size + kHeaderSize));
   other = nullptr;
-  BufferPtr bits = AlignedBuffer::allocate<bool>(65, pool_.get(), true);
-  EXPECT_EQ(bits->size(), 9);
-  EXPECT_EQ(bits->as<uint8_t>()[8], 0xff);
-  bits = nullptr;
+
+  {
+    BufferPtr bits = AlignedBuffer::allocate<bool>(65, pool_.get(), true);
+    EXPECT_EQ(bits->size(), 9);
+    EXPECT_EQ(bits->as<uint8_t>()[8], 0xff);
+  }
+
   EXPECT_EQ(pool_->usedBytes(), 0);
 }
 
@@ -116,11 +119,10 @@ TEST_F(BufferTest, testAsRange) {
 
 TEST_F(BufferTest, testAlignedBufferPrint) {
   // We'll only put non-default values for the first 2 bytes. Note how below
-  // in the string it has 05 ff which corresponds to these.
+  // in the string it has "05 ff" which corresponds to these.
   std::vector<uint8_t> testData({5, 255});
 
-  // We want at least 4 bytes, since we're going to see what unallocated prints
-  // as also
+  // Size is 4 (>2), so we can see what unallocated prints.
   BufferPtr buffer = AlignedBuffer::allocate<uint8_t>(
       4 /*numElements*/, pool_.get(), 1 /*value*/);
 
@@ -153,7 +155,7 @@ TEST_F(BufferTest, testReallocate) {
   int32_t numInPlace = 0;
   int32_t numMoved = 0;
   for (int32_t i = 0; i < buffers.size(); ++i) {
-    auto ptr = buffers[i].get();
+    const auto* ptr = buffers[i].get();
     if (i % 10 == 0) {
       AlignedBuffer::reallocate<char>(&buffers[i], i + 10000);
       EXPECT_EQ(buffers[i]->size(), i + 10000);
@@ -245,10 +247,10 @@ DEBUG_ONLY_TEST_F(BufferTest, testReallocateFails) {
   // was in the midst of resizing.  This test verifies the buffer is valid at
   // different points in the exception's lifecycle.
 
-  const size_t bufferSize = 10;
-  auto buffer = AlignedBuffer::allocate<char>(bufferSize, pool_.get());
+  static constexpr size_t kBufferSize = 10;
+  auto buffer = AlignedBuffer::allocate<char>(kBufferSize, pool_.get());
 
-  ::memset(buffer->asMutable<char>(), 'a', bufferSize);
+  ::memset(buffer->asMutable<char>(), 'a', kBufferSize);
 
   common::testutil::TestValue::enable();
 
@@ -268,8 +270,8 @@ DEBUG_ONLY_TEST_F(BufferTest, testReallocateFails) {
            auto bufferArg = *static_cast<BufferPtr*>(untypedArg);
 
            const auto* bufferContents = bufferArg->as<char>();
-           VELOX_CHECK_EQ(bufferArg->size(), 10);
-           for (int i = 0; i < 10; i++) {
+           VELOX_CHECK_EQ(bufferArg->size(), kBufferSize);
+           for (int i = 0; i < kBufferSize; i++) {
              VELOX_CHECK_EQ(bufferContents[i], 'a');
            }
 
@@ -286,8 +288,8 @@ DEBUG_ONLY_TEST_F(BufferTest, testReallocateFails) {
 
   // Validate the buffer is valid after the exception is caught.
   const auto* bufferContents = buffer->as<char>();
-  VELOX_CHECK_EQ(buffer->size(), bufferSize);
-  for (int i = 0; i < bufferSize; i++) {
+  VELOX_CHECK_EQ(buffer->size(), kBufferSize);
+  for (int i = 0; i < kBufferSize; i++) {
     VELOX_CHECK_EQ(bufferContents[i], 'a');
   }
 }
@@ -306,19 +308,21 @@ struct MockCachePin {
 
 TEST_F(BufferTest, testBufferView) {
   MockCachePin pin;
-  const char* data = "12345678\0";
+  const char* data = "123456789\0";
   BufferPtr buffer = BufferView<MockCachePin&>::create(
-      reinterpret_cast<const uint8_t*>(data), sizeof(data), pin);
-  EXPECT_EQ(buffer->size(), sizeof(data));
-  EXPECT_EQ(buffer->capacity(), sizeof(data));
+      reinterpret_cast<const uint8_t*>(data), std::strlen(data), pin);
+  EXPECT_EQ(buffer->size(), std::strlen(data));
+  EXPECT_EQ(buffer->capacity(), std::strlen(data));
   EXPECT_EQ(pin.pinCount, 1);
   EXPECT_FALSE(buffer->isMutable());
+
   {
     BufferPtr other = buffer;
     EXPECT_EQ(pin.pinCount, 1);
     EXPECT_FALSE(buffer->unique());
-    EXPECT_EQ(memcmp(data, other->as<uint8_t>(), strlen(data)), 0);
+    EXPECT_EQ(memcmp(data, other->as<uint8_t>(), std::strlen(data)), 0);
   }
+
   EXPECT_TRUE(buffer->unique());
   buffer = nullptr;
   EXPECT_EQ(pin.pinCount, 0);
@@ -388,19 +392,19 @@ TEST_F(BufferTest, testNonPOD) {
   EXPECT_EQ(NonPOD::constructed, 10);
   EXPECT_EQ(NonPOD::destructed, 1);
 
-  // shrink by reallocating, we don't enforce in-place shrink yet, thus checking
-  // only relative difference between constructed and destructed
+  // Shrink by reallocating, we don't enforce in-place shrink yet, thus checking
+  // only relative difference between 'constructed' and 'destructed'.
   AlignedBuffer::reallocate<NonPOD>(&buf, 7);
   EXPECT_EQ(NonPOD::constructed - NonPOD::destructed, 7);
   for (int i = 0; i < 7; ++i) {
     EXPECT_EQ(buf->as<NonPOD>()[i].x, i);
   }
 
-  // grow out-of-place
+  // Grow out-of-place.
   {
     const void* prev = buf->as<void>();
     AlignedBuffer::reallocate<NonPOD>(&buf, 20);
-    // make sure we're testing out-of-place reallocation
+    // Make sure we're testing out-of-place reallocation.
     EXPECT_NE(prev, buf->as<void>());
   }
   EXPECT_EQ(NonPOD::constructed - NonPOD::destructed, 20);
@@ -408,12 +412,12 @@ TEST_F(BufferTest, testNonPOD) {
     EXPECT_EQ(buf->as<NonPOD>()[i].x, i);
   }
 
-  // grow in-place
+  // Grow in-place.
   {
     EXPECT_LE(buf->size() + sizeof(NonPOD), buf->capacity());
     const void* prev = buf->as<void>();
     AlignedBuffer::reallocate<NonPOD>(&buf, 21);
-    // make sure we're testing in-place allocation, the test size might need to
+    // Make sure we're testing in-place allocation, the test size might need to
     // be adjusted if the "preferred size formula" changes
     EXPECT_EQ(prev, buf->as<void>());
   }
@@ -422,7 +426,7 @@ TEST_F(BufferTest, testNonPOD) {
     EXPECT_EQ(buf->as<NonPOD>()[i].x, i);
   }
 
-  // grow in-place by setting size
+  // Grow in-place by setting size.
   EXPECT_LE(buf->size() + sizeof(NonPOD), buf->capacity());
   buf->setSize(22 * sizeof(NonPOD));
   EXPECT_EQ(NonPOD::constructed - NonPOD::destructed, 22);
@@ -430,7 +434,7 @@ TEST_F(BufferTest, testNonPOD) {
     EXPECT_EQ(buf->as<NonPOD>()[i].x, i);
   }
 
-  // free stuff
+  // Free stuff.
   buf = nullptr;
   EXPECT_EQ(NonPOD::constructed, NonPOD::destructed);
 }
