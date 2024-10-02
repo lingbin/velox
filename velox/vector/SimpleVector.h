@@ -53,8 +53,8 @@ struct AsciiInfo {
   }
 
   /// Sets isAllAscii boolean flag.
-  void setIsAllAscii(bool f) {
-    isAllAscii_ = f;
+  void setIsAllAscii(bool flag) {
+    isAllAscii_ = flag;
   }
 
   /// Returns locked for read bit vector with bits set for rows where ascii was
@@ -130,7 +130,7 @@ class SimpleVector : public BaseVector {
         elementSize_(sizeof(T)),
         stats_(stats) {}
 
-  virtual ~SimpleVector() override {}
+  virtual ~SimpleVector() override = default;
 
   SimpleVectorStats<T> getStats() const {
     return stats_;
@@ -142,7 +142,7 @@ class SimpleVector : public BaseVector {
 
   // Concrete Vector types need to implement this themselves.
   // This method does not do bounds checking. When the value is null the return
-  // value is technically undefined (currently implemented as default of T)
+  // value is technically undefined (currently implemented as default of T).
   virtual const T valueAt(vector_size_t idx) const = 0;
 
   std::optional<int32_t> compare(
@@ -224,7 +224,7 @@ class SimpleVector : public BaseVector {
     VELOX_CHECK(false, "Can only resize flat vectors.");
   }
 
-  virtual vector_size_t elementSize() {
+  int8_t elementSize() {
     return elementSize_;
   }
 
@@ -295,9 +295,9 @@ class SimpleVector : public BaseVector {
   }
 
   /// This function takes an index and returns:
-  /// 1. True if the string at that index is ASCII
-  /// 2. False if the string at that index is not ASCII
-  /// 3. std::nullopt if we havent computed ASCII'ness at that index.
+  /// 1. True if the string at that index is ASCII.
+  /// 2. False if the string at that index is not ASCII.
+  /// 3. std::nullopt if we haven't computed ASCII-ness at that index.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, std::optional<bool>>
   isAscii(vector_size_t index) const {
@@ -417,7 +417,7 @@ class SimpleVector : public BaseVector {
   FOLLY_ALWAYS_INLINE static int comparePrimitiveAsc(
       const T& left,
       const T& right) {
-    if constexpr (std::is_floating_point<T>::value) {
+    if constexpr (std::is_floating_point_v<T>) {
       bool isLeftNan = std::isnan(left);
       bool isRightNan = std::isnan(right);
       if (isLeftNan) {

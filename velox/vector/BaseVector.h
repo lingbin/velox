@@ -105,8 +105,8 @@ class BaseVector {
     return mayHaveNulls();
   }
 
-  inline bool isIndexInRange(vector_size_t index) const {
-    // This compiles better than index >= 0 && index < length_.
+  bool isIndexInRange(vector_size_t index) const {
+    // This compiles better than 'index >= 0 && index < length_'.
     return static_cast<uint32_t>(index) < length_;
   }
 
@@ -167,7 +167,7 @@ class BaseVector {
 
   /// Returns true if value at specified index is null or contains null.
   /// Primitive type values can be null, but cannot contain nulls. Arrays, maps
-  /// and structs can be null and can contains nulls. Non-null array may contain
+  /// and structs can be null and can contain nulls. Non-null array may contain
   /// one or more elements that are null or contain nulls themselves. Non-null
   /// maps may contain one more entry with key or value that's null or contains
   /// null. Non-null struct may contain a field that's null or contains null.
@@ -217,7 +217,7 @@ class BaseVector {
   }
 
   /// Returns a pointer to the raw null bitmap buffer of this vector. Notice
-  /// that users should not used this API to access nulls directly of a
+  /// that users should not use this API to access nulls directly of a
   /// ConstantVector or DictionaryVector. If the vector is a ConstantVector,
   /// rawNulls_ is only of size 1. If the vector is a DictionaryVector,
   /// rawNulls_ points to a raw buffer of only nulls in the top-level layer.
@@ -310,7 +310,7 @@ class BaseVector {
   /// than 'other' at 'otherIndex', 0 if equal and > 0 otherwise.
   /// When CompareFlags is DESCENDING, returns < 0 if 'this' at 'index' is
   /// larger than 'other' at 'otherIndex', 0 if equal and < 0 otherwise. If
-  /// flags.nullHandlingMode is not NullAsValue, the function may returns
+  /// flags.nullHandlingMode is not NullAsValue, the function may return
   /// std::nullopt if null encountered.
   virtual std::optional<int32_t> compare(
       const BaseVector* other,

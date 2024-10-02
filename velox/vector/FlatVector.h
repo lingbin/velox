@@ -125,7 +125,7 @@ class FlatVector final : public SimpleVector<T> {
   /// Note this method is implemented on each vector type, but is intentionally
   /// not virtual for performance reasons.
   /// 'index' indicates the byte offset to load from
-  xsimd::batch<T> loadSIMDValueBufferAt(size_t index) const;
+  xsimd::batch<T> loadSIMDValueBufferAt(size_t byteOffset) const;
 
   /// dictionary vector makes internal usehere for SIMD functions
   template <typename X>
@@ -466,12 +466,12 @@ class FlatVector final : public SimpleVector<T> {
     return true;
   }
 
-  /// Acquire ownership for any string buffer that appears in source, the
+  /// Acquire ownership for any string buffer that appears in 'source', the
   /// function does nothing if the vector type is not Varchar or Varbinary.
   /// The function throws if input encoding is lazy.
   void acquireSharedStringBuffers(const BaseVector* source);
 
-  /// Acquire ownership for any string buffer that appears in source or any
+  /// Acquire ownership for any string buffer that appears in 'source' or any
   /// of its children recursively. The function throws if input encoding is
   /// lazy.
   void acquireSharedStringBuffersRecursive(const BaseVector* source);

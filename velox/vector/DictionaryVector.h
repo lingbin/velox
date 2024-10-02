@@ -24,8 +24,7 @@
 #include "velox/vector/SimpleVector.h"
 #include "velox/vector/TypeAliases.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 template <typename T>
 class DictionaryVector : public SimpleVector<T> {
@@ -112,7 +111,7 @@ class DictionaryVector : public SimpleVector<T> {
   /**
    * Loads a SIMD vector of data at the virtual byteOffset given
    * Note this method is implemented on each vector type, but is intentionally
-   * not virtual for performance reasons
+   * not virtual for performance reasons.
    *
    * @param index at which to start the vector load
    * @return the vector of values starting at the given index
@@ -162,8 +161,8 @@ class DictionaryVector : public SimpleVector<T> {
     SelectivityVector rows(dictionaryValues_->size(), false);
     for (vector_size_t i = 0; i < this->size(); i++) {
       if (!BaseVector::isNullAt(i)) {
-        auto ind = getDictionaryIndex(i);
-        rows.setValid(ind, true);
+        auto innerIndex = getDictionaryIndex(i);
+        rows.setValid(innerIndex, true);
       }
     }
     rows.updateBounds();
@@ -190,10 +189,10 @@ class DictionaryVector : public SimpleVector<T> {
     if (BaseVector::isNullAt(index)) {
       return "null";
     }
-    auto inner = rawIndices_[index];
+    auto innerIndex = rawIndices_[index];
     std::stringstream out;
-    out << "[" << index << "->" << inner << "] "
-        << dictionaryValues_->toString(inner);
+    out << "[" << index << "->" << innerIndex << "] "
+        << dictionaryValues_->toString(innerIndex);
     return out.str();
   }
 
@@ -229,7 +228,7 @@ class DictionaryVector : public SimpleVector<T> {
 
   VectorPtr copyPreserveEncodings(
       velox::memory::MemoryPool* pool = nullptr) const override {
-    auto selfPool = pool ? pool : BaseVector::pool_;
+    auto* selfPool = pool ? pool : BaseVector::pool_;
     return std::make_shared<DictionaryVector<T>>(
         selfPool,
         AlignedBuffer::copy(selfPool, BaseVector::nulls_),
@@ -245,7 +244,7 @@ class DictionaryVector : public SimpleVector<T> {
   }
 
  private:
-  // return the dictionary index for the specified vector index.
+  // Return the dictionary index for the specified vector index.
   inline vector_size_t getDictionaryIndex(vector_size_t idx) const {
     return rawIndices_[idx];
   }
@@ -270,7 +269,6 @@ class DictionaryVector : public SimpleVector<T> {
 template <typename T>
 using DictionaryVectorPtr = std::shared_ptr<DictionaryVector<T>>;
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox
 
 #include "velox/vector/DictionaryVector-inl.h"

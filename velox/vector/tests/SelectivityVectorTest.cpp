@@ -31,7 +31,6 @@ void assertState(
 
   size_t startIndexIncl = 0;
   size_t endIndexExcl = 0;
-
   size_t count = 0;
 
   for (size_t i = 0; i < expected.size(); ++i) {
@@ -230,7 +229,6 @@ TEST(SelectivityVectorTest, clearAll) {
 
   // Build another vector and set all bits to 0 in brute-force way
   SelectivityVector expected(size);
-
   for (auto i = 0; i < size; ++i) {
     expected.setValid(i, false);
   }
@@ -310,6 +308,7 @@ TEST(SelectivityVectorTest, iterator) {
     }
   }
   vector.updateBounds();
+
   int32_t count = 0;
   SelectivityIterator iter(vector);
   while (iter.next(row)) {

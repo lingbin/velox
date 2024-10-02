@@ -58,7 +58,7 @@ BaseVector::BaseVector(
 
   if (nulls_) {
     auto bytes = byteSize<bool>(length_);
-    VELOX_CHECK_GE(nulls_->capacity(), bytes);
+    VELOX_CHECK_LE(bytes, nulls_->capacity());
     if (nulls_->size() < bytes) {
       // Set the size so that values get preserved by resize. Do not
       // set if already large enough, so that it is safe to take a

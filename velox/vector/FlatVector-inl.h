@@ -70,7 +70,7 @@ Range<T> FlatVector<T>::asRange() const {
 
 template <typename T>
 xsimd::batch<T> FlatVector<T>::loadSIMDValueBufferAt(size_t byteOffset) const {
-  auto mem = reinterpret_cast<uint8_t*>(rawValues_) + byteOffset;
+  auto* mem = reinterpret_cast<uint8_t*>(rawValues_) + byteOffset;
   if constexpr (std::is_same_v<T, bool>) {
     return xsimd::batch<T>(xsimd::load_unaligned(mem));
   } else {

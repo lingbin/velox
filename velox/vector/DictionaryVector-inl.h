@@ -19,8 +19,7 @@
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/TypeAliases.h"
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 
 template <typename T>
 void DictionaryVector<T>::setInternalState() {
@@ -86,9 +85,8 @@ DictionaryVector<T>::DictionaryVector(
           isSorted,
           representedBytes,
           storageByteCount) {
-  VELOX_CHECK(dictionaryValues != nullptr, "dictionaryValues must not be null");
-  VELOX_CHECK(
-      dictionaryIndices != nullptr, "dictionaryIndices must not be null");
+  VELOX_CHECK_NOT_NULL(dictionaryValues);
+  VELOX_CHECK_NOT_NULL(dictionaryIndices);
   VELOX_CHECK_GE(
       dictionaryIndices->size(),
       length * sizeof(vector_size_t),
@@ -218,5 +216,4 @@ void DictionaryVector<T>::validate(const VectorValidateOptions& options) const {
   dictionaryValues_->validate(options);
 }
 
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox

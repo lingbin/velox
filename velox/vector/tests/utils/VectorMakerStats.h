@@ -61,7 +61,7 @@ struct EvalTypeHelper<uint128_t> {
 template <typename T>
 using EvalType = typename EvalTypeHelper<T>::Type;
 
-// Struct that caries metadata about a vector of nullable elements.
+// Struct that carries metadata about a vector of nullable elements.
 template <typename T>
 class VectorMakerStats {
  public:
