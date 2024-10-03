@@ -117,6 +117,8 @@ void BaseVector::resize(vector_size_t size, bool setNotNull) {
   length_ = size;
 }
 
+namespace {
+
 template <TypeKind kind>
 static VectorPtr addDictionary(
     BufferPtr nulls,
@@ -128,6 +130,8 @@ static VectorPtr addDictionary(
       DictionaryVector<typename KindToFlatVector<kind>::WrapperType>>(
       pool, std::move(nulls), size, std::move(vector), std::move(indices));
 }
+
+} // namespace
 
 // static
 VectorPtr BaseVector::wrapInDictionary(
@@ -154,6 +158,8 @@ VectorPtr BaseVector::wrapInDictionary(
       std::move(vector));
 }
 
+namespace {
+
 template <TypeKind kind>
 static VectorPtr
 addSequence(BufferPtr lengths, vector_size_t size, VectorPtr vector) {
@@ -177,6 +183,8 @@ addSequence(BufferPtr lengths, vector_size_t size, VectorPtr vector) {
           : std::nullopt);
 }
 
+} // namespace
+
 // static
 VectorPtr BaseVector::wrapInSequence(
     BufferPtr lengths,
@@ -186,6 +194,8 @@ VectorPtr BaseVector::wrapInSequence(
   return VELOX_DYNAMIC_TYPE_DISPATCH_ALL(
       addSequence, kind, std::move(lengths), size, std::move(vector));
 }
+
+namespace {
 
 template <TypeKind kind>
 static VectorPtr addConstant(
@@ -242,6 +252,8 @@ static VectorPtr addConstant(
       pool, size, index, std::move(vector), SimpleVectorStats<T>{});
 }
 
+} // namespace
+
 // static
 VectorPtr BaseVector::wrapInConstant(
     vector_size_t length,
@@ -268,6 +280,8 @@ std::optional<bool> BaseVector::equalValueAt(
   return std::nullopt;
 }
 
+namespace {
+
 template <TypeKind kind>
 static VectorPtr createEmpty(
     vector_size_t size,
@@ -291,6 +305,8 @@ static VectorPtr createEmpty(
       std::move(values),
       std::vector<BufferPtr>());
 }
+
+} // namespace
 
 // static
 VectorPtr BaseVector::createInternal(
@@ -387,9 +403,9 @@ void BaseVector::addNulls(const uint64_t* bits, const SelectivityVector& rows) {
   VELOX_CHECK(isNullsWritable());
   VELOX_CHECK_GE(length_, rows.end());
   ensureNulls();
-  auto target = nulls_->asMutable<uint64_t>();
+  auto* target = nulls_->asMutable<uint64_t>();
   const uint64_t* selected = rows.asRange().bits();
-  // A 0 in bits with a 1 in rows makes a 0 in nulls.
+  // A 0 in bits with a 1 in rows makes a 0 in 'nulls_'.
   bits::forEachWord(
       rows.begin(),
       rows.end(),
@@ -408,11 +424,10 @@ void BaseVector::addNulls(const SelectivityVector& nullRows) {
   VELOX_CHECK(isNullsWritable());
   VELOX_CHECK_GE(length_, nullRows.end());
   ensureNulls();
-  auto target = nulls_->asMutable<uint64_t>();
+  auto* target = nulls_->asMutable<uint64_t>();
   const uint64_t* selected = nullRows.asRange().bits();
-  // A 1 in rows makes a 0 in nulls.
+  // A 1 in rows makes a 0 in 'nulls_'.
   bits::andWithNegatedBits(target, selected, nullRows.begin(), nullRows.end());
-  return;
 }
 
 void BaseVector::clearNulls(const SelectivityVector& nonNullRows) {
@@ -428,7 +443,7 @@ void BaseVector::clearNulls(const SelectivityVector& nonNullRows) {
     return;
   }
 
-  auto rawNulls = nulls_->asMutable<uint64_t>();
+  auto* rawNulls = nulls_->asMutable<uint64_t>();
   bits::orBits(
       rawNulls,
       nonNullRows.asRange().bits(),
@@ -571,8 +586,8 @@ void BaseVector::ensureWritable(const SelectivityVector& rows) {
   auto newSize = std::max<vector_size_t>(rows.end(), length_);
   if (nulls_ && !nulls_->isMutable()) {
     BufferPtr newNulls = AlignedBuffer::allocate<bool>(newSize, pool_);
-    auto rawNewNulls = newNulls->asMutable<uint64_t>();
-    memcpy(rawNewNulls, rawNulls_, bits::nbytes(length_));
+    auto* newRawNulls = newNulls->asMutable<uint64_t>();
+    memcpy(newRawNulls, rawNulls_, bits::nbytes(length_));
 
     nulls_ = std::move(newNulls);
     rawNulls_ = nulls_->as<uint64_t>();
@@ -636,6 +651,8 @@ void BaseVector::ensureWritable(
   result = std::move(copy);
 }
 
+namespace {
+
 template <TypeKind kind>
 VectorPtr newConstant(
     const TypePtr& type,
@@ -670,6 +687,8 @@ VectorPtr newConstant<TypeKind::OPAQUE>(
   return std::make_shared<ConstantVector<std::shared_ptr<void>>>(
       pool, size, value.isNull(), type, std::shared_ptr<void>(capsule.obj));
 }
+
+} // namespace
 
 // static
 VectorPtr BaseVector::createConstant(

@@ -436,11 +436,11 @@ class BaseVector {
   }
 
   /// Sets null when 'nullBits' has a null value for active rows in 'rows'. Is a
-  /// no-op if 'bits' is a nullptr or 'nullRows' has no selections. This API
+  /// no-op if 'nullBits' is a nullptr or 'rows' has no selections. This API
   /// throws if the vector is a ConstantVector.
   virtual void addNulls(
       const uint64_t* nullBits,
-      const SelectivityVector& nullRows);
+      const SelectivityVector& rows);
 
   /// Sets nulls for all active row in 'nullRows'. Is a no-op if 'nullRows' has
   /// no selections. This API throws if the vector is a ConstantVector.
@@ -685,7 +685,7 @@ class BaseVector {
   /// 'newSize' > 'currentSize'.
   ///
   /// If 'indices' is nullptr, read-only, not uniquely-referenced, or doesn't
-  /// have capacity for 'newSize' elements allocates new buffer and copies data
+  /// have capacity for 'newSize' elements, allocates new buffer and copies data
   /// to it. Updates '*rawIndices' to point to the start of 'indices' buffer.
   static void resizeIndices(
       vector_size_t currentSize,
