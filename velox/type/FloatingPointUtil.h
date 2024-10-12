@@ -99,7 +99,7 @@ template <
     std::enable_if_t<std::is_floating_point<FLOAT>::value, bool> = true>
 struct NaNAwareHash {
   std::size_t operator()(const FLOAT& val) const noexcept {
-    static constexpr std::size_t kNanHash =
+    static const std::size_t kNanHash =
         folly::hasher<FLOAT>{}(std::numeric_limits<FLOAT>::quiet_NaN());
     if (std::isnan(val)) {
       return kNanHash;

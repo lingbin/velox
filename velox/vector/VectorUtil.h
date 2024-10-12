@@ -30,7 +30,7 @@ static inline BufferPtr copyToBuffer(
     folly::Optional<int32_t> size = folly::none,
     bool returnsNullptr = false) {
   using Value = typename T::value_type;
-  VELOX_CHECK(pool, "pool must be non-null");
+  VELOX_CHECK_NOT_NULL(pool, "pool must be non-null");
   VELOX_CHECK(
       !size.has_value() || size.value() <= values.size(),
       "size out of bound: {}",

@@ -160,7 +160,7 @@ class SimpleVector : public BaseVector {
       return BaseVector::compareNulls(thisNull, otherNull, flags);
     }
 
-    auto simpleVector = reinterpret_cast<const SimpleVector<T>*>(other);
+    auto* simpleVector = reinterpret_cast<const SimpleVector<T>*>(other);
     auto thisValue = valueAt(index);
     auto otherValue = simpleVector->valueAt(otherIndex);
     auto result = this->typeUsesCustomComparison_
@@ -224,7 +224,7 @@ class SimpleVector : public BaseVector {
     VELOX_CHECK(false, "Can only resize flat vectors.");
   }
 
-  int8_t elementSize() {
+  uint8_t elementSize() {
     return elementSize_;
   }
 
@@ -271,8 +271,8 @@ class SimpleVector : public BaseVector {
   /// 2. False if all specified rows after translation contain at least one non
   ///    ASCII character.
   /// 3. std::nullopt if ASCII-ness is not known for even one of the translated
-  /// rows. If rowMappings is null then we revert to indexes in the
-  /// SelectivityVector.
+  ///    rows. If rowMappings is null then we revert to indexes in the
+  ///    SelectivityVector.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, std::optional<bool>>
   isAscii(
@@ -322,7 +322,7 @@ class SimpleVector : public BaseVector {
     bool isAllAscii = true;
     rows.template applyToSelected([&](auto row) {
       if (!isNullAt(row)) {
-        auto string = valueAt(row);
+        StringView string = valueAt(row);
         isAllAscii &=
             functions::stringCore::isAscii(string.data(), string.size());
       }
@@ -348,7 +348,7 @@ class SimpleVector : public BaseVector {
     asciiInfo.setIsAllAscii(false);
   }
 
-  /// Explicitly set asciness.
+  /// Explicitly set asciiness.
   template <typename U = T>
   typename std::enable_if_t<std::is_same_v<U, StringView>, void> setIsAscii(
       bool ascii,
@@ -357,7 +357,7 @@ class SimpleVector : public BaseVector {
     auto wlockedAsciiComputedRows = asciiInfo.writeLockedAsciiComputedRows();
     if (wlockedAsciiComputedRows->hasSelections() &&
         !wlockedAsciiComputedRows->isSubset(rows)) {
-      asciiInfo.setIsAllAscii(asciiInfo.isAllAscii() & ascii);
+      asciiInfo.setIsAllAscii(asciiInfo.isAllAscii() && ascii);
     } else {
       asciiInfo.setIsAllAscii(ascii);
     }

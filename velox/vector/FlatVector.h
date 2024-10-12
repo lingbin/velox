@@ -34,7 +34,7 @@ namespace facebook::velox {
 template <typename T>
 class FlatVector final : public SimpleVector<T> {
  public:
-  using value_type = T;
+  // using value_type = T;
   FlatVector(const FlatVector&) = delete;
   FlatVector& operator=(const FlatVector&) = delete;
 
@@ -85,7 +85,7 @@ class FlatVector final : public SimpleVector<T> {
     VELOX_CHECK(
         values_ || BaseVector::nulls_,
         "FlatVector needs to either have values or nulls");
-    if (!values_) {
+    if (values_ == nullptr) {
       // Make sure that all rows are null.
       auto cnt =
           bits::countNonNulls(BaseVector::rawNulls_, 0, BaseVector::length_);
@@ -127,7 +127,7 @@ class FlatVector final : public SimpleVector<T> {
   /// 'index' indicates the byte offset to load from
   xsimd::batch<T> loadSIMDValueBufferAt(size_t byteOffset) const;
 
-  /// dictionary vector makes internal usehere for SIMD functions
+  /// dictionary vector makes internal use here for SIMD functions
   template <typename X>
   friend class DictionaryVector;
 
@@ -147,9 +147,8 @@ class FlatVector final : public SimpleVector<T> {
   /// the new size > old size.
   ///
   /// If 'values_' is nullptr, read-only, not uniquely-referenced, or doesn't
-  /// have capacity for 'size' elements allocates new buffer and copies data to
-  /// it. Updates 'rawValues_' to point to element 0 of
-  /// values_->as<T>().
+  /// have capacity for 'size' elements, allocates new buffer and copies data to
+  /// it. Updates 'rawValues_' to point to element 0 of values_->as<T>().
   BufferPtr mutableValues(vector_size_t size) {
     const auto numNewBytes = BaseVector::byteSize<T>(size);
     if (values_ && !values_->isView() && values_->unique()) {
@@ -242,7 +241,7 @@ class FlatVector final : public SimpleVector<T> {
     }
   }
 
-  void setNoCopy(const vector_size_t /* unused */, const T& /* unused */) {
+  void setNoCopy(vector_size_t /* unused */, const T& /* unused */) {
     VELOX_UNREACHABLE();
   }
 
@@ -611,7 +610,7 @@ void FlatVector<StringView>::set(vector_size_t idx, StringView value);
 
 template <>
 void FlatVector<StringView>::setNoCopy(
-    const vector_size_t idx,
+    vector_size_t idx,
     const StringView& value);
 
 template <>

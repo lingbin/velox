@@ -82,7 +82,7 @@ class ConstantVector final : public SimpleVector<T> {
         setValue(value_.str());
       }
     }
-    // If this is not encoded integer, or string, set value buffer
+    // If this is not encoded integer, or string, set value buffer.
     if constexpr (can_simd) {
       valueBuffer_ = simd::setAll(value_);
     }
@@ -411,6 +411,7 @@ class ConstantVector final : public SimpleVector<T> {
     BaseVector::distinctValueCount_ = isNull_ ? 0 : 1;
     const vector_size_t vectorSize = BaseVector::length_;
     BaseVector::nullCount_ = isNull_ ? vectorSize : 0;
+
     if (valueVector_->isScalar()) {
       auto simple = valueVector_->loadedVector()->as<SimpleVector<T>>();
       isNull_ = simple->isNullAt(index_);
@@ -429,6 +430,7 @@ class ConstantVector final : public SimpleVector<T> {
       }
       valueVector_ = nullptr;
     }
+
     makeNullsBuffer();
     initialized_ = true;
   }
@@ -456,7 +458,7 @@ class ConstantVector final : public SimpleVector<T> {
   // value. 'valueVector_' is nullptr if the constant is scalar.
   VectorPtr valueVector_;
   // The index of the represented value in 'valueVector_'.
-  vector_size_t index_ = 0;
+  const vector_size_t index_ = 0;
   // Holds the memory for backing non-inlined values represented by StringView.
   BufferPtr stringBuffer_;
   T value_;
