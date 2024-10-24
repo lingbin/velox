@@ -410,6 +410,7 @@ class AlignedBuffer : public Buffer {
       *buffer = std::move(newBuffer);
       return;
     }
+
     if (!old->unique()) {
       auto newBuffer = allocate<T>(numElements, pool);
       newBuffer->copyFrom(old, std::min(size, old->size()));
@@ -426,14 +427,15 @@ class AlignedBuffer : public Buffer {
     void* newPtr = pool->reallocate(old, oldCapacity, preferredSize);
 
     // Make the old buffer no longer owned by '*buffer' because
-    // MemoryPool::reallocate() freed the old buffer. Reassigning the new buffer
-    // to '*buffer' will be a double free if we do not detach.
+    // 'MemoryPool::reallocate()' freed the old buffer. Reassigning the new
+    // buffer to '*buffer' will be a double free to MemoryPool if we do not
+    // detach.
     buffer->detach();
 
-    auto newBuffer =
+    auto* newBuffer =
         new (newPtr) AlignedBuffer(pool, preferredSize - kPaddedSize);
-    newBuffer->setSize(size);
     newBuffer->fillNewMemory<T>(oldSize, size, initValue);
+    newBuffer->size_ = size;
     // Will add reference count.
     *buffer = newBuffer;
   }
@@ -495,7 +497,7 @@ class AlignedBuffer : public Buffer {
   }
 
   // Fills raw memory with the given value. For non-POD types it calls the copy
-  // constructor, so it can't be used for already initialized memory regions
+  // constructor, so it can't be used for already initialized memory regions.
   template <typename RawT>
   void fillNewMemory(
       size_t oldBytes,
@@ -522,7 +524,6 @@ class AlignedBuffer : public Buffer {
     }
   }
 
- protected:
   void setEndGuardImpl() override {
     *reinterpret_cast<uint64_t*>(data_ + capacity_) = kEndGuard;
   }
