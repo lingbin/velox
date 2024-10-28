@@ -64,8 +64,7 @@ class PrestoVectorSerde : public VectorSerde {
     /// Serializes nulls of structs before the columns. Used to allow
     /// single pass reading of in spilling.
     ///
-    /// TODO: Make Presto also serialize nulls before columns of
-    /// structs.
+    /// TODO: Make Presto also serialize nulls before columns of structs.
     bool nullsFirst{false};
 
     /// Minimum achieved compression if compression is enabled. Compressing less

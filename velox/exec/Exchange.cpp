@@ -42,7 +42,7 @@ bool Exchange::getSplits(ContinueFuture* future) {
       if (split.hasConnectorSplit()) {
         auto remoteSplit = std::dynamic_pointer_cast<RemoteConnectorSplit>(
             split.connectorSplit);
-        VELOX_CHECK(remoteSplit, "Wrong type of split");
+        VELOX_CHECK_NOT_NULL(remoteSplit, "Wrong type of split");
         remoteTaskIds.push_back(remoteSplit->taskId);
       } else {
         addRemoteTaskIds(remoteTaskIds);

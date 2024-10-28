@@ -37,7 +37,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   virtual ~ExchangeSource() = default;
 
   static std::shared_ptr<ExchangeSource> create(
-      const std::string& taskId,
+      const std::string& remoteTaskId,
       int destination,
       std::shared_ptr<ExchangeQueue> queue,
       memory::MemoryPool* pool);
@@ -79,7 +79,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
       std::chrono::microseconds maxWait) = 0;
 
   /// Ask for available data sizes that can be fetched.  Normally should not
-  /// fetching any actual data (i.e. Response::bytes should be 0).  However for
+  /// fetch any actual data (i.e. Response::bytes should be 0).  However, for
   /// backward compatibility (e.g. communicating with coordinator), we allow
   /// small data (1MB) to be returned.
   virtual folly::SemiFuture<Response> requestDataSizes(
@@ -146,9 +146,9 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   }
 
  protected:
-  // ID of the task producing data
+  // ID of the remote task producing data.
   const std::string remoteTaskId_;
-  // Destination number of 'this' on producer
+  // Destination number of 'this' on producer.
   const int destination_;
   const std::shared_ptr<ExchangeQueue> queue_{nullptr};
   // Holds a shared reference on the memory pool as it might be still possible
