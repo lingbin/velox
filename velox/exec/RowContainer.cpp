@@ -514,7 +514,7 @@ void RowContainer::store(
         rowColumn.offset(),
         rowColumn.nullByte(),
         rowColumn.nullMask(),
-        column);
+        columnIndex);
   }
 }
 

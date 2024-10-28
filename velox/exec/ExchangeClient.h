@@ -101,7 +101,7 @@ class ExchangeClient : public std::enable_shared_from_this<ExchangeClient> {
   struct RequestSpec {
     std::shared_ptr<ExchangeSource> source;
 
-    // How much bytes to request from this source.  0 bytes means request data
+    // How many bytes to request from this source.  0 bytes means request data
     // sizes only.
     int64_t maxBytes;
   };

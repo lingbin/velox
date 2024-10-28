@@ -769,11 +769,7 @@ void Driver::run(std::shared_ptr<Driver> self) {
   VELOX_CHECK_NULL(
       nullResult,
       "The last operator (sink) must not produce any results. "
-<<<<<<< HEAD
-      "Results need to be consumed by either a callback or another operator. ");
-=======
-      "Results need to be consumed by either a callback or another operator.")
->>>>>>> 197c2f54b (lingbin-temp-update: temp-commit-at-20240106)
+      "Results need to be consumed by either a callback or another operator.");
 
   // There can be a race between Task terminating and the Driver being on the
   // thread and exiting the runInternal() in a blocked state. If this happens
