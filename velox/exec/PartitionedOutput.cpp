@@ -51,7 +51,7 @@ BlockingReason Destination::advance(
   }
 
   // Serialize
-  if (!current_) {
+  if (current_ == nullptr) {
     current_ = std::make_unique<VectorStreamGroup>(pool_);
     auto rowType = asRowType(output->type());
     serializer::presto::PrestoVectorSerde::PrestoOptions options;
@@ -221,7 +221,7 @@ void PartitionedOutput::estimateRowSizes() {
   auto numInput = input_->size();
   std::fill(rowSize_.begin(), rowSize_.end(), 0);
   raw_vector<vector_size_t> storage;
-  auto numbers = iota(numInput, storage);
+  auto* numbers = iota(numInput, storage);
   for (int i = 0; i < output_->childrenSize(); ++i) {
     VectorStreamGroup::estimateSerializedSize(
         output_->childAt(i).get(),
@@ -387,7 +387,7 @@ RowVectorPtr PartitionedOutput::getOutput() {
       destination->updateStats(this);
     }
 
-    bufferManager->noMoreData(operatorCtx_->task()->taskId());
+    bufferManager->noMoreData(operatorCtx_->taskId());
     finished_ = true;
   }
   // The input is fully processed, drop the reference to allow reuse.

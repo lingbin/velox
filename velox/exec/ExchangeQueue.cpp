@@ -142,8 +142,8 @@ void ExchangeQueue::setError(const std::string& error) {
     }
     error_ = error;
     atEnd_ = true;
-    // NOTE: clear the serialized page queue as we won't consume from an
-    // errored queue.
+    // NOTE: clear the serialized page queue as we won't consume from an errored
+    // queue.
     queue_.clear();
     promises = clearAllPromisesLocked();
   }

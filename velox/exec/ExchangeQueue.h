@@ -103,15 +103,15 @@ class ExchangeQueue {
       std::unique_ptr<SerializedPage>&& page,
       std::vector<ContinuePromise>& promises);
 
-  /// If data is permanently not available, e.g. the source cannot be
-  /// contacted, this registers an error message and causes the reading
-  /// Exchanges to throw with the message.
+  /// If data is permanently not available, e.g. the source cannot be contacted,
+  /// this registers an error message and causes the reading Exchanges to throw
+  /// with the message.
   void setError(const std::string& error);
 
   /// Returns pages of data.
   ///
   /// Returns empty list if no data is available. If data is still expected,
-  /// sets 'atEnd' to false and 'future' to a Future that will complete when
+  /// sets 'atEnd' to false and 'future' to a future that will complete when
   /// data arrives. If no more data is expected, sets 'atEnd' to true. Returns
   /// at least one page if data is available. If multiple pages are available,
   /// returns as many pages as fit within 'maxBytes', but no fewer than one.

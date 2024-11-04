@@ -70,7 +70,7 @@ class HashPartitionFunction : public core::PartitionFunction {
 /// 'keyChannels' stores the index of keys to partition on, if the key is a
 /// constant, use index 'kConstantChannel' to indicate so and store the constant
 /// value as a base vector in 'constValues'.
-/// The 'constValues' size is less than or equal to 'keyChannels' size
+/// The 'constValues' size is less than or equal to 'keyChannels' size.
 class HashPartitionFunctionSpec : public core::PartitionFunctionSpec {
  public:
   HashPartitionFunctionSpec(
