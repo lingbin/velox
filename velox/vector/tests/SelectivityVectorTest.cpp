@@ -76,7 +76,7 @@ void setValid_normal(bool setToValue) {
   // A little bit more than 2 simd widths, so overflow.
   const size_t vectorSize = 513;
 
-  // We'll set everything to the opposite of the setToValue
+  // We'll set everything to the opposite of the setToValue.
   std::vector<bool> expected(vectorSize, !setToValue);
   SelectivityVector vector(vectorSize);
   if (setToValue) {
@@ -366,6 +366,7 @@ TEST(SelectivityVectorTest, resize) {
   vector.resize(128, /* value */ true);
   // Ensure last 64 bits are set to 1
   assertIsValid(64, 128, vector, true);
+  ASSERT_FALSE(vector.isAllSelected());
 
   SelectivityVector rows(64, true);
   rows.resize(128, /* value */ false);
@@ -379,12 +380,14 @@ TEST(SelectivityVectorTest, resize) {
   unusual.resize(63, /* value */ false);
   assertIsValid(0, 37, unusual, true);
   assertIsValid(37, 63, unusual, false);
+  ASSERT_FALSE(unusual.isAllSelected());
 
   // Test for much larger word lengths
   SelectivityVector larger(53, true);
   assertIsValid(0, 53, larger, true);
   larger.resize(656, true);
   assertIsValid(0, 656, larger, true);
+  ASSERT_TRUE(larger.isAllSelected());
 
   // Check for word length reduction
   larger.resize(53);
@@ -427,7 +430,7 @@ TEST(SelectivityVectorTest, select) {
   a.resize(33, true);
   SelectivityVector b(32, false);
   b.select(a);
-  assertIsValid(16, 32, b, true);
+  assertIsValid(16, 33, b, true);
 
   SelectivityVector empty(0);
   empty.select(first);
