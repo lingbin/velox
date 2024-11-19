@@ -153,9 +153,7 @@ class SelectivityVector {
     return begin_ < end_;
   }
 
-  /**
-   * Sets the vector to all not selected.
-   */
+  /// Sets the vector to all not selected.
   void clearAll() {
     bits::fillBits(bits_.data(), 0, size_, false);
     begin_ = 0;
@@ -165,9 +163,7 @@ class SelectivityVector {
     VELOX_UNSUPPRESS_STRINGOP_OVERFLOW_WARNING
   }
 
-  /**
-   * Sets the vector to all selected.
-   */
+  /// Sets the vector to all selected.
   void setAll() {
     bits::fillBits(bits_.data(), 0, size_, true);
     begin_ = 0;
@@ -183,24 +179,21 @@ class SelectivityVector {
     memcpy(bits_.data(), bits, numWords * 8);
     size_ = size;
     end_ = size;
-    begin_ = 0;
+    // No need, updateBounds() will update 'begin_';
+    // begin_ = 0;
     updateBounds();
   }
 
-  /**
-   * Removes rows that are not present in the 'other' vector.
-   */
+  /// Removes rows that are not present in the 'other' vector.
   void intersect(const SelectivityVector& other) {
     bits::andBits(
         bits_.data(), other.bits_.data(), begin_, std::min(end_, other.size()));
     updateBounds();
   }
 
-  /**
-   * Merges the valid vector of another SelectivityVector by !AND'ing them
-   * together. This is used to support logical deletes where
-   * any keys passing should actually be inverted
-   */
+  /// Merges the valid vector of another SelectivityVector by !AND'ing them
+  /// together. This is used to support logical deletes where any keys passing
+  /// should actually be inverted.
   void deselect(const SelectivityVector& other) {
     bits::andWithNegatedBits(
         bits_.data(), other.bits_.data(), begin_, std::min(end_, other.size()));
@@ -236,7 +229,7 @@ class SelectivityVector {
 
   /// Clear null bits in 'nulls' for active rows.
   void clearNulls(BufferPtr& nulls) const {
-    if (nulls) {
+    if (nulls != nullptr) {
       bits::orBits(nulls->asMutable<uint64_t>(), bits_.data(), begin_, end_);
     }
   }
@@ -283,11 +276,9 @@ class SelectivityVector {
     return false;
   }
 
-  /**
-   * Updates the begin_ and end_ values to match the
-   * current bounds of the minimum selected index and the maximum selected
-   * index (noting that the range in between may contain not selected indices).
-   */
+  /// Updates the begin_ and end_ values to match the
+  /// current bounds of the minimum selected index and the maximum selected
+  /// index (noting that the range in between may contain not selected indices).
   void updateBounds() {
     begin_ = bits::findFirstBit(bits_.data(), 0, size_);
     if (begin_ == -1) {
@@ -310,9 +301,8 @@ class SelectivityVector {
         bits::isAllSet(bits_.data(), 0, size_, true);
     return allSelected_.value();
   }
-  /**
-   * Iterate and count the number of selected values in this SelectivityVector.
-   */
+
+  /// Iterate and count the number of selected values in this SelectivityVector.
   vector_size_t countSelected() const {
     if (allSelected_.has_value() && *allSelected_) {
       return size();
@@ -338,6 +328,7 @@ class SelectivityVector {
                  return bits_[index] == other.bits_[index];
                });
   }
+
   bool operator!=(const SelectivityVector& other) const {
     return !(*this == other);
   }
@@ -363,7 +354,7 @@ class SelectivityVector {
     bool firstValidEncountered = true;
 
     // Intentionally going from zero to avoid surprises debugging if begin() and
-    // end() not correct
+    // end() not correct.
     for (size_t i = 0; i < selectivityVector.size(); ++i) {
       if (selectivityVector.isValid(i)) {
         if (!firstValidEncountered) {
