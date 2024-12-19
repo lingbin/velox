@@ -39,7 +39,7 @@ OperatorCtx::OperatorCtx(
       pool_(driverCtx_->addOperatorPool(planNodeId, operatorType)) {}
 
 core::ExecCtx* OperatorCtx::execCtx() const {
-  if (!execCtx_) {
+  if (execCtx_ == nullptr) {
     execCtx_ = std::make_unique<core::ExecCtx>(
         pool_, driverCtx_->task->queryCtx().get());
   }

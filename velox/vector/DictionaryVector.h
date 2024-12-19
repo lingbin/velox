@@ -69,7 +69,7 @@ class DictionaryVector : public SimpleVector<T> {
 
   bool mayHaveNulls() const override {
     VELOX_DCHECK(initialized_);
-    return BaseVector::nulls() || dictionaryValues_->mayHaveNulls();
+    return BaseVector::mayHaveNulls() || dictionaryValues_->mayHaveNulls();
   }
 
   bool mayHaveNullsRecursive() const override {

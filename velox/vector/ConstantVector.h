@@ -69,7 +69,7 @@ class ConstantVector final : public SimpleVector<T> {
         isNull_(isNull),
         initialized_(true) {
     makeNullsBuffer();
-    // Special handling for complex types
+    // Special handling for complex types.
     if (type->size() > 0) {
       // Only allow null constants to be created through this interface.
       VELOX_CHECK(isNull_);
@@ -157,12 +157,12 @@ class ConstantVector final : public SimpleVector<T> {
     VELOX_FAIL("setNull not supported on ConstantVector");
   }
 
-  const T value() const {
+  T value() const {
     VELOX_DCHECK(initialized_);
     return value_;
   }
 
-  const T valueAtFast(vector_size_t /*idx*/) const {
+  T valueAtFast(vector_size_t /*idx*/) const {
     return value();
   }
 
@@ -187,7 +187,7 @@ class ConstantVector final : public SimpleVector<T> {
     return &value_;
   }
 
-  /// Loads a 256bit vector of data at the virtual byteOffset given
+  /// Loads a 256bit vector of data at the virtual byteOffset given.
   /// Note this method is implemented on each vector type, but is intentionally
   /// not virtual for performance reasons
   xsimd::batch<T> loadSIMDValueBufferAt(size_t /* byteOffset */) const {
@@ -426,7 +426,7 @@ class ConstantVector final : public SimpleVector<T> {
     BaseVector::nullCount_ = isNull_ ? vectorSize : 0;
 
     if (valueVector_->isScalar()) {
-      auto simple = valueVector_->loadedVector()->as<SimpleVector<T>>();
+      auto* simple = valueVector_->loadedVector()->as<SimpleVector<T>>();
       isNull_ = simple->isNullAt(index_);
       if (!isNull_) {
         value_ = simple->valueAt(index_);
@@ -435,7 +435,7 @@ class ConstantVector final : public SimpleVector<T> {
           StringView* valuePtr = reinterpret_cast<StringView*>(&value_);
           setValue(std::string(valuePtr->data(), valuePtr->size()));
 
-          auto stringVector = simple->template as<SimpleVector<StringView>>();
+          auto* stringVector = simple->template as<SimpleVector<StringView>>();
           if (auto ascii = stringVector->isAscii(index_)) {
             SimpleVector<T>::setAllIsAscii(ascii.value());
           }

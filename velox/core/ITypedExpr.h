@@ -88,7 +88,7 @@ class ITypedExpr : public ISerializable {
   }
 
  private:
-  TypePtr type_;
+  const TypePtr type_;
   std::vector<TypedExprPtr> inputs_;
 };
 

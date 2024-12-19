@@ -159,8 +159,7 @@ ArrayVectorPtr VectorMaker::arrayOfRowVector(
   }
 
   // Create the underlying vector.
-  auto rowVector = std::dynamic_pointer_cast<RowVector>(
-      BaseVector::create(rowType, numElements, pool_));
+  auto rowVector = BaseVector::create<RowVector>(rowType, numElements, pool_);
   for (auto& field : rowVector->children()) {
     field->resize(numElements);
   }
@@ -170,7 +169,7 @@ ArrayVectorPtr VectorMaker::arrayOfRowVector(
     *rawSizes++ = arrayValue.size();
     *rawOffsets++ = currentIdx;
 
-    for (auto arrayElement : arrayValue) {
+    for (const auto& arrayElement : arrayValue) {
       if (arrayElement.isNull()) {
         rowVector->setNull(currentIdx, true);
       } else {

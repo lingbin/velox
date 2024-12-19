@@ -101,9 +101,10 @@ class DecodedVector {
   /// LazyVector only for the necessary rows. This uses ValueHook which adds
   /// values to aggregation accumulators without intermediate materialization.
   ///
+  /// if `rows` is not passed then the vector is decoded for its size.
+  ///
   /// Limitations: Decoding a constant vector wrapping a lazy vector that has
   /// not been loaded yet with is not supported loadLazy = false.
-  /// if `rows` is not passed then the vector is decoded for its size.
   DecodedVector(
       const BaseVector& vector,
       const SelectivityVector& rows,
@@ -140,9 +141,8 @@ class DecodedVector {
   ///
   ///  nulls() ? bits::isBitNull(nulls(), i) : false
   ///
-  /// Only bit positions for decoded rows are valid. If 'rows' were
-  /// specified with decode(), the same rows have to be specified
-  /// here.
+  /// Only bit positions for decoded rows are valid. If 'rows' were specified
+  /// with decode(), the same rows have to be specified here.
   const uint64_t* nulls(const SelectivityVector* rows = nullptr);
 
   /// Returns true if wrappings may have added nulls.
@@ -153,7 +153,7 @@ class DecodedVector {
   /// Returns the mapping from top-level rows to rows in the base vector or
   /// data() buffer.
   const vector_size_t* indices() const {
-    if (!indices_) {
+    if (indices_ == nullptr) {
       fillInIndices();
     }
     return &indices_[0];
@@ -366,8 +366,8 @@ class DecodedVector {
 
   void reset(vector_size_t size);
 
-  // If `rows` is null applies the `func` to all rows in [0, size_)
-  // otherwise, applies it to selected rows only.
+  // If `rows` is null applies the `func` to all rows in [0, size_), otherwise,
+  // applies it to selected rows only.
   template <typename Func>
   void applyToRows(const SelectivityVector* rows, Func&& func) const;
 

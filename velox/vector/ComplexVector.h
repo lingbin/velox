@@ -79,7 +79,7 @@ class RowVector : public BaseVector {
       std::shared_ptr<const Type> type,
       velox::memory::MemoryPool* pool);
 
-  virtual ~RowVector() override {}
+  virtual ~RowVector() override = default;
 
   bool containsNullAt(vector_size_t idx) const override;
 
