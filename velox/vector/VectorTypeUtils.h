@@ -87,8 +87,8 @@ struct TypeToFlatVector {
 // Generic's, by design, do not have any compile time type information, so it is
 // impossible to determine what sort of Vector would hold values for this type.
 // To work around this, we just return BaseVector, since any Vector class can be
-// safely casted to BaseVector, and it is consistent with classes specialized
-// for the Generic type, like the VectorWriter.
+// safely cast to BaseVector, and it is consistent with classes specialized for
+// the Generic type, like the VectorWriter.
 template <typename T, bool comparable, bool orderable>
 struct TypeToFlatVector<Generic<T, comparable, orderable>> {
   using type = BaseVector;

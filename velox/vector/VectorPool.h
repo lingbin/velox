@@ -25,13 +25,13 @@ namespace facebook::velox {
 /// recyclable if it is flat and recursively singly-referenced.
 /// Only singleton built-in types are supported. Decimal types, fixed-size array
 /// type, complex and custom types are not supported. Calling 'get' for an
-/// unsupported type already returns a newly allocated vector. Calling 'release'
+/// unsupported type always returns a newly allocated vector. Calling 'release'
 /// for an unsupported type is a no-op.
 class VectorPool {
  public:
   explicit VectorPool(memory::MemoryPool* pool) : pool_{pool} {}
 
-  /// Gets a possibly recycled vector of 'type and 'size'. Allocates from
+  /// Gets a possibly recycled vector of 'type' and 'size'. Allocates from
   /// 'pool_' if no pre-allocated vector or type is a complex type.
   VectorPtr get(const TypePtr& type, vector_size_t size);
 
@@ -50,6 +50,8 @@ class VectorPool {
   /// the batch the less the win from recycling.
   static constexpr vector_size_t kMaxRecycleSize = 64 * 1024;
   static constexpr int32_t kNumPerType = 10;
+  static constexpr int32_t kNumCachedVectorTypes =
+      static_cast<int32_t>(TypeKind::HUGEINT) + 1;
 
   struct TypePool {
     int32_t size{0};
@@ -67,9 +69,6 @@ class VectorPool {
   };
 
   memory::MemoryPool* const pool_;
-
-  static constexpr int32_t kNumCachedVectorTypes =
-      static_cast<int32_t>(TypeKind::HUGEINT) + 1;
 
   /// Caches of pre-allocated vectors indexed by typeKind.
   std::array<TypePool, kNumCachedVectorTypes> vectors_;
@@ -89,7 +88,7 @@ class VectorRecycler {
   VectorRecycler& operator=(VectorRecycler&) = delete;
 
   ~VectorRecycler() {
-    if (pool_) {
+    if (pool_ != nullptr) {
       pool_->release(vector_);
     }
   }

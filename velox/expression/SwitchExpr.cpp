@@ -240,7 +240,7 @@ TypePtr SwitchExpr::resolveType(const std::vector<TypePtr>& argTypes) {
     VELOX_CHECK_EQ(
         conditionType->kind(),
         TypeKind::BOOLEAN,
-        "Condition of  SWITCH statement is not bool");
+        "Condition of SWITCH statement is not bool");
 
     VELOX_CHECK(
         *thenType == *expressionType,

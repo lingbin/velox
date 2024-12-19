@@ -33,6 +33,7 @@ std::vector<vector_size_t> makeConsecutiveIndices(size_t size) {
 }
 } // namespace
 
+// static
 const std::vector<vector_size_t>& DecodedVector::consecutiveIndices() {
   static std::vector<vector_size_t> consecutiveIndices =
       makeConsecutiveIndices(10'000);
@@ -106,7 +107,7 @@ void DecodedVector::makeIndices(
 
 void DecodedVector::reset(vector_size_t size) {
   if (!indicesNotCopied()) {
-    // Init with default value to avoid invalid indices for unselected rows)
+    // Init with default value to avoid invalid indices for unselected rows.
     std::fill(copiedIndices_.begin(), copiedIndices_.end(), 0);
   }
   size_ = size;
@@ -200,22 +201,22 @@ void DecodedVector::applyDictionaryWrapper(
   if (newNulls) {
     hasExtraNulls_ = true;
     mayHaveNulls_ = true;
-    // if we have both nulls for parent and the wrapped vectors, and nulls
-    // buffer is not copied, make a copy because we may need to
-    // change it when iterating through wrapped vector
-    if (!nulls_ || nullsNotCopied()) {
+    // If we have both nulls for parent and the wrapped vectors, and nulls
+    // buffer is not copied, make a copy because we may need to change it when
+    // iterating through wrapped vector.
+    if (nulls_ == nullptr || nullsNotCopied()) {
       copyNulls(end(rows));
     }
   }
-  auto copiedNulls = copiedNulls_.data();
-  auto currentIndices = indices_;
+  auto* copiedNulls = copiedNulls_.data();
+  auto* currentIndices = indices_;
   if (indicesNotCopied()) {
     copiedIndices_.resize(size_);
     indices_ = copiedIndices_.data();
   }
 
   applyToRows(rows, [&](vector_size_t row) {
-    if (!nulls_ || !bits::isBitNull(nulls_, row)) {
+    if (nulls_ == nullptr || !bits::isBitNull(nulls_, row)) {
       auto wrappedIndex = currentIndices[row];
       if (newNulls && bits::isBitNull(newNulls, wrappedIndex)) {
         bits::setNull(copiedNulls, row);
@@ -241,7 +242,7 @@ void DecodedVector::fillInIndices() {
     if (size_ > consecutiveIndices().size()) {
       copiedIndices_.resize(size_);
       std::iota(copiedIndices_.begin(), copiedIndices_.end(), 0);
-      indices_ = &copiedIndices_[0];
+      indices_ = copiedIndices_.data();
     } else {
       indices_ = consecutiveIndices().data();
     }
@@ -255,10 +256,10 @@ void DecodedVector::makeIndicesMutable() {
   if (indicesNotCopied()) {
     copiedIndices_.resize(size_ > 0 ? size_ : 1);
     memcpy(
-        &copiedIndices_[0],
+        copiedIndices_.data(),
         indices_,
         copiedIndices_.size() * sizeof(copiedIndices_[0]));
-    indices_ = &copiedIndices_[0];
+    indices_ = copiedIndices_.data();
   }
 }
 
@@ -269,15 +270,15 @@ void DecodedVector::setFlatNulls(
     if (nullsNotCopied()) {
       copyNulls(end(rows));
     }
-    auto leafNulls = vector.rawNulls();
-    auto copiedNulls = &copiedNulls_[0];
+    auto* leafNulls = vector.rawNulls();
+    auto* copiedNulls = copiedNulls_.data();
     applyToRows(rows, [&](vector_size_t row) {
       if (!bits::isBitNull(nulls_, row) &&
           (leafNulls && bits::isBitNull(leafNulls, indices_[row]))) {
         bits::setNull(copiedNulls, row);
       }
     });
-    nulls_ = &copiedNulls_[0];
+    nulls_ = copiedNulls_.data();
   } else {
     nulls_ = vector.rawNulls();
     mayHaveNulls_ = nulls_ != nullptr;
@@ -316,6 +317,7 @@ void DecodedVector::setBaseData(
 void DecodedVector::setBaseDataForConstant(
     const BaseVector& vector,
     const SelectivityVector* rows) {
+  VELOX_DCHECK(vector.isConstantEncoding());
   if (!vector.isScalar()) {
     baseVector_ = vector.wrappedVector();
     constantIndex_ = vector.wrappedIndex(0);
@@ -336,7 +338,7 @@ void DecodedVector::setBaseDataForConstant(
     setFlatNulls(vector, rows);
   }
   data_ = vector.valuesAsVoid();
-  if (!nulls_) {
+  if (nulls_ == nullptr) {
     nulls_ = vector.isNullAt(0) ? &constantNullMask_ : nullptr;
   }
   mayHaveNulls_ = hasExtraNulls_ || nulls_;

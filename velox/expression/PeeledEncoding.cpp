@@ -20,7 +20,8 @@
 
 namespace facebook::velox::exec {
 
-/*static*/ std::shared_ptr<PeeledEncoding> PeeledEncoding::peel(
+// static
+std::shared_ptr<PeeledEncoding> PeeledEncoding::peel(
     const std::vector<VectorPtr>& vectorsToPeel,
     const SelectivityVector& rows,
     DecodedVector& decodedVector,
@@ -38,7 +39,8 @@ namespace facebook::velox::exec {
   return nullptr;
 }
 
-/*static*/ std::shared_ptr<PeeledEncoding> PeeledEncoding::peel(
+// static
+std::shared_ptr<PeeledEncoding> PeeledEncoding::peel(
     const std::vector<VectorPtr>& vectorsToPeel,
     const SelectivityVector& rows,
     LocalDecodedVector& decodedVector,
@@ -163,7 +165,7 @@ bool PeeledEncoding::peelInternal(
           break;
         }
         BufferPtr indices = leaf->wrapInfo();
-        if (!firstIndices) {
+        if (firstIndices == nullptr) {
           firstIndices = std::move(indices);
         } else if (indices != firstIndices) {
           // different fields use different dictionaries

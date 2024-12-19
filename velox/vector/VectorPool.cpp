@@ -109,7 +109,7 @@ VectorPtr VectorPool::TypePool::pop(
     const TypePtr& type,
     vector_size_t vectorSize,
     memory::MemoryPool& pool) {
-  if (size) {
+  if (size > 0) {
     auto result = std::move(vectors[--size]);
     if (UNLIKELY(result->rawNulls() != nullptr)) {
       // This is a recyclable vector, no need to check uniqueness.
