@@ -35,7 +35,7 @@ class SpecialFormRegistry {
   /// 'registerFunctionCallToSpecialForm'.
   void unregisterAllFunctionCallToSpecialForm();
 
-  /// @brief Return null if the FunctionCallToSpeicalForm not exists
+  /// @brief Return null if the FunctionCallToSpecialForm not exists
   /// @param name Function name
   /// @return FunctionCallToSpecialForm
   FunctionCallToSpecialForm* FOLLY_NULLABLE
@@ -62,7 +62,7 @@ void registerFunctionCallToSpecialForm(
 /// 'registerFunctionCallToSpecialForm'.
 void unregisterAllFunctionCallToSpecialForm();
 
-/// Returns true if a FunctionCallToSpeicalForm object has been registered for
+/// Returns true if a FunctionCallToSpecialForm object has been registered for
 /// the given functionName.
 bool isFunctionCallToSpecialFormRegistered(const std::string& functionName);
 

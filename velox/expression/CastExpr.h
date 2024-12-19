@@ -91,7 +91,7 @@ class CastExpr : public SpecialForm {
       std::shared_ptr<CastHooks> hooks)
       : SpecialForm(
             type,
-            std::vector<ExprPtr>({expr}),
+            std::vector<ExprPtr>({std::move(expr)}),
             nullOnFailure ? kTryCast.data() : kCast.data(),
             false /* supportsFlatNoNullsFastPath */,
             trackCpuUsage),

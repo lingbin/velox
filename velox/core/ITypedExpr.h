@@ -110,7 +110,7 @@ class ITypedExpr : public ISerializable {
     return false;
   }
 
-  TypePtr type_;
+  const TypePtr type_;
   std::vector<TypedExprPtr> inputs_;
 };
 
