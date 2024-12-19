@@ -492,7 +492,7 @@ class AbstractProjectNode : public PlanNode {
       std::vector<TypedExprPtr>&& projections,
       PlanNodePtr source)
       : PlanNode(id),
-        sources_{source},
+        sources_{std::move(source)},
         names_(std::move(names)),
         projections_(std::move(projections)),
         outputType_(makeOutputType(names_, projections_)) {}
@@ -503,7 +503,7 @@ class AbstractProjectNode : public PlanNode {
       const std::vector<TypedExprPtr>& projections,
       PlanNodePtr source)
       : PlanNode(id),
-        sources_{source},
+        sources_{std::move(source)},
         names_(names),
         projections_(projections),
         outputType_(makeOutputType(names_, projections_)) {}

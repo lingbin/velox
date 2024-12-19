@@ -25,6 +25,8 @@
 
 namespace facebook::velox {
 
+namespace {
+
 // Up to # of elements to show as debug string for `toString()`.
 constexpr vector_size_t kMaxElementsInToString = 5;
 
@@ -59,6 +61,8 @@ std::string stringifyTruncatedElementList(
   return out.str();
 }
 
+} // namespace
+
 // static
 std::shared_ptr<RowVector> RowVector::createEmpty(
     std::shared_ptr<const Type> type,
@@ -87,9 +91,10 @@ std::optional<int32_t> RowVector::compare(
     vector_size_t index,
     vector_size_t otherIndex,
     CompareFlags flags) const {
-  auto otherRow = other->wrappedVector()->as<RowVector>();
-  VELOX_CHECK(
-      otherRow->encoding() == VectorEncoding::Simple::ROW,
+  auto* otherRow = other->wrappedVector()->as<RowVector>();
+  VELOX_CHECK_EQ(
+      otherRow->encoding(),
+      VectorEncoding::Simple::ROW,
       "Compare of ROW and non-ROW {} and {}",
       BaseVector::toString(),
       otherRow->BaseVector::toString());
@@ -110,10 +115,10 @@ std::optional<int32_t> RowVector::compare(
   for (int32_t i = 0; i < compareSize; ++i) {
     BaseVector* child = children_[i].get();
     BaseVector* otherChild = otherRow->childAt(i).get();
-    if (!child && !otherChild) {
+    if (child == nullptr && otherChild == nullptr) {
       continue;
     }
-    if (!child || !otherChild) {
+    if (child == nullptr || otherChild == nullptr) {
       return child ? 1 : -1; // Absent child counts as less.
     }
 

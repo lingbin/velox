@@ -375,7 +375,7 @@ class BaseVector {
   std::optional<vector_size_t> findDuplicateValue(
       vector_size_t start,
       vector_size_t size,
-      CompareFlags flags);
+      CompareFlags flags) const;
 
   /// @return the hash of the value at the given index in this vector
   virtual uint64_t hashValueAt(vector_size_t index) const = 0;
@@ -458,7 +458,7 @@ class BaseVector {
   /// This does not guarantee the existence of the nulls buffer, if using this
   /// within BaseVector you still may need to call 'ensureNulls'.
   virtual bool isNullsWritable() const {
-    return !nulls_ || (nulls_->isMutable());
+    return nulls_ == nullptr || nulls_->isMutable();
   }
 
   /// Sets null when 'nullBits' has a null value for active rows in 'rows'. Is a
@@ -857,7 +857,7 @@ class BaseVector {
   /// 'to' is greater than vector size. Returns values from the start of the
   /// vector if 'from' is negative.
   ///
-  /// The type of the 'delimiter' is a const char* and not an std::string to
+  /// The type of the 'delimiter' is a const char* and not a std::string to
   /// allow for invoking this method from LLDB.
   std::string toString(
       vector_size_t from,
@@ -977,7 +977,7 @@ class BaseVector {
   BufferPtr nulls_;
   // Caches raw pointer to 'nulls->as<uint64_t>().
   const uint64_t* rawNulls_ = nullptr;
-  velox::memory::MemoryPool* pool_;
+  velox::memory::MemoryPool* const pool_;
   tsan_atomic<vector_size_t> length_{0};
 
   // Holds the number of nulls in the vector. If the number of nulls is not

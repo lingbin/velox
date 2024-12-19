@@ -265,21 +265,21 @@ class ExecCtx {
     /// enabled, including VectorPool, DecodedVectorPool, SelectivityVectorPool
     /// and dictionary memoization.
     bool exprEvalCacheEnabled;
-    /// True if dictionary memoization optimization is enabled during experssion
+    /// True if dictionary memoization optimization is enabled during expression
     /// evaluation, whichallows the reuse of results between consecutive input
     /// batches if they are dictionary encoded and have the same
     /// alphabet(undelying flat vector).
     bool dictionaryMemoizationEnabled;
-    /// True if peeling is enabled during experssion evaluation.
+    /// True if peeling is enabled during expression evaluation.
     bool peelingEnabled;
-    /// True if shared subexpression reuse is enabled during experssion
+    /// True if shared subexpression reuse is enabled during expression
     /// evaluation.
     bool sharedSubExpressionReuseEnabled;
     /// True if loading lazy inputs are deferred till they need to be
-    /// accessed during experssion evaluation.
+    /// accessed during expression evaluation.
     bool deferredLazyLoadingEnabled;
     /// The maximum number of distinct inputs to cache results in a
-    /// given shared subexpression during experssion evaluation.
+    /// given shared subexpression during expression evaluation.
     uint32_t maxSharedSubexprResultsCached;
   };
 
@@ -357,7 +357,7 @@ class ExecCtx {
     return vectorPool_.get();
   }
 
-  /// Gets a possibly recycled vector of 'type and 'size'. Allocates from
+  /// Gets a possibly recycled vector of 'type' and 'size'. Allocates from
   /// 'pool_' if no pre-allocated vector.
   VectorPtr getVector(const TypePtr& type, vector_size_t size) {
     if (vectorPool_) {

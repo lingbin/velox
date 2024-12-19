@@ -200,7 +200,7 @@ VectorPtr BaseVector::wrapInSequence(
 namespace {
 
 template <TypeKind kind>
-static VectorPtr addConstant(
+VectorPtr addConstant(
     vector_size_t size,
     vector_size_t index,
     VectorPtr vector,
@@ -223,7 +223,7 @@ static VectorPtr addConstant(
 
   for (;;) {
     if (vector->isConstantEncoding()) {
-      auto constVector = vector->asUnchecked<ConstantVector<T>>();
+      auto* constVector = vector->asUnchecked<ConstantVector<T>>();
       if constexpr (!std::is_same_v<T, ComplexType>) {
         if (!vector->valueVector()) {
           T value = constVector->valueAt(0);
@@ -606,7 +606,7 @@ void BaseVector::ensureWritable(
     velox::memory::MemoryPool* pool,
     VectorPtr& result,
     VectorPool* vectorPool) {
-  if (!result) {
+  if (result == nullptr) {
     if (vectorPool) {
       result = vectorPool->get(type, rows.end());
     } else {
@@ -669,7 +669,7 @@ VectorPtr newConstant(
 
   T copy;
   if constexpr (std::is_same_v<T, StringView>) {
-    copy = StringView(value.value<kind>());
+    copy = StringView(value.value<StringView>());
   } else {
     copy = value.value<T>();
   }
@@ -711,10 +711,10 @@ std::vector<BaseVector::CopyRange> BaseVector::toCopyRanges(
   }
 
   std::vector<BaseVector::CopyRange> ranges;
-  ranges.reserve(rows.end());
+  ranges.reserve(rows.end() - rows.begin());
 
   vector_size_t prevRow = rows.begin();
-  auto bits = rows.asRange().bits();
+  auto* bits = rows.asRange().bits();
   bits::forEachUnsetBit(bits, rows.begin(), rows.end(), [&](vector_size_t row) {
     if (row > prevRow) {
       ranges.push_back({prevRow, prevRow, row - prevRow});
@@ -839,7 +839,7 @@ uint64_t BaseVector::estimateFlatSize() const {
     return 0;
   }
 
-  auto leaf = wrappedVector();
+  auto* leaf = wrappedVector();
   // If underlying vector is empty we should return the leaf's single element
   // size times this vector's size plus any nulls of this vector.
   if (UNLIKELY(leaf->size() == 0)) {
@@ -864,7 +864,7 @@ bool isReusableEncoding(VectorEncoding::Simple encoding) {
 
 // static
 void BaseVector::flattenVector(VectorPtr& vector) {
-  if (!vector) {
+  if (vector == nullptr) {
     return;
   }
   switch (vector->encoding()) {
@@ -945,7 +945,7 @@ void BaseVector::validate(const VectorValidateOptions& options) const {
 std::optional<vector_size_t> BaseVector::findDuplicateValue(
     vector_size_t start,
     vector_size_t size,
-    CompareFlags flags) {
+    CompareFlags flags) const {
   if (length_ == 0 || size == 0) {
     return std::nullopt;
   }

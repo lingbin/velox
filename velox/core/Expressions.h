@@ -140,7 +140,7 @@ class ConstantTypedExpr : public ITypedExpr {
 
   bool equals(const ITypedExpr& other) const {
     const auto* casted = dynamic_cast<const ConstantTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
 
@@ -231,8 +231,7 @@ class CallTypedExpr : public ITypedExpr {
   }
 
   std::string toString() const override {
-    std::string str{};
-    str += name();
+    std::string str = name();
     str += "(";
     for (size_t i = 0; i < inputs().size(); ++i) {
       auto& input = inputs().at(i);
@@ -329,9 +328,10 @@ class FieldAccessTypedExpr : public ITypedExpr {
     auto it = mapping.find(name_);
     auto newName = name_;
     if (it != mapping.end()) {
-      if (auto name = std::dynamic_pointer_cast<const FieldAccessTypedExpr>(
-              it->second)) {
-        newName = name->name();
+      if (auto fieldExpr =
+              std::dynamic_pointer_cast<const FieldAccessTypedExpr>(
+                  it->second)) {
+        newName = fieldExpr->name();
       }
     }
     return std::make_shared<FieldAccessTypedExpr>(
@@ -360,7 +360,7 @@ class FieldAccessTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const FieldAccessTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
@@ -475,7 +475,7 @@ class ConcatTypedExpr : public ITypedExpr {
   ConcatTypedExpr(
       const std::vector<std::string>& names,
       const std::vector<TypedExprPtr>& inputs)
-      : ITypedExpr{toType(names, inputs), inputs} {}
+      : ITypedExpr{toRowType(names, inputs), inputs} {}
 
   TypedExprPtr rewriteInputNames(
       const std::unordered_map<std::string, TypedExprPtr>& mapping)
@@ -532,7 +532,7 @@ class ConcatTypedExpr : public ITypedExpr {
   static TypedExprPtr create(const folly::dynamic& obj, void* context);
 
  private:
-  static TypePtr toType(
+  static TypePtr toRowType(
       const std::vector<std::string>& names,
       const std::vector<TypedExprPtr>& expressions) {
     std::vector<TypePtr> children{};
@@ -553,8 +553,8 @@ class LambdaTypedExpr : public ITypedExpr {
       : ITypedExpr(std::make_shared<FunctionType>(
             std::vector<TypePtr>(signature->children()),
             body->type())),
-        signature_(signature),
-        body_(body) {}
+        signature_(std::move(signature)),
+        body_(std::move(body)) {}
 
   const RowTypePtr& signature() const {
     return signature_;
@@ -616,7 +616,7 @@ using LambdaTypedExprPtr = std::shared_ptr<const LambdaTypedExpr>;
 class CastTypedExpr : public ITypedExpr {
  public:
   /// @param type Type to convert to. This is the return type of the CAST
-  /// expresion.
+  /// expression.
   /// @param input Single input. The type of input is referred to as from-type
   /// and expected to be different from to-type.
   /// @param nullOnFailure Whether to suppress cast errors and return null.
