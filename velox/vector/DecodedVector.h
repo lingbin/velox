@@ -216,7 +216,7 @@ class DecodedVector {
     return baseVector_;
   }
 
-  /// Returns true if the decoded vector was flat.
+  /// Returns true if the decoded vector was no wrap.
   bool isIdentityMapping() const {
     return isIdentityMapping_;
   }
