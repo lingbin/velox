@@ -510,7 +510,7 @@ class SimpleVector : public BaseVector {
 
 template <>
 void SimpleVector<StringView>::validate(
-    const VectorValidateOptions& options) const;
+    const VectorValidateOptions& options) const override;
 
 template <>
 inline std::optional<int32_t> SimpleVector<ComplexType>::compare(
@@ -519,8 +519,8 @@ inline std::optional<int32_t> SimpleVector<ComplexType>::compare(
     vector_size_t otherIndex,
     CompareFlags flags) const {
   other = other->loadedVector();
-  auto wrapped = wrappedVector();
-  auto otherWrapped = other->wrappedVector();
+  auto* wrapped = wrappedVector();
+  auto* otherWrapped = other->wrappedVector();
   DCHECK(wrapped->encoding() == otherWrapped->encoding())
       << "Attempting to compare vectors not of the same type";
 
