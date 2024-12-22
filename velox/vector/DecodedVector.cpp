@@ -360,10 +360,8 @@ void DecodedVector::setBaseData(
   switch (encoding) {
     case VectorEncoding::Simple::LAZY:
       break;
-    case VectorEncoding::Simple::FLAT:
-      // values() may be nullptr if 'vector' is all nulls.
-      data_ =
-          vector->values() ? vector->values()->template as<void>() : nullptr;
+    case VectorEncoding::Simple::FLAT: {
+      data_ = vector->valuesAsVoid();
       setFlatNulls(*vector, rows);
       break;
     case VectorEncoding::Simple::ROW:
@@ -418,7 +416,6 @@ void DecodedVector::setBaseDataForConstant(
 }
 
 namespace {
-
 /// Copies 'size' entries from 'indices' into a newly allocated buffer.
 BufferPtr copyIndicesBuffer(
     const vector_size_t* indices,
