@@ -48,8 +48,9 @@ namespace facebook::velox {
 /// 3. Next, If it encounters a non-constant base layer:
 ///    ** It combines the nulls from that base layer into the set of nulls that
 ///    it is tracking
-///    ** Additionally, it will flatten the base layer if its not already flat.
-///    Currently, such a transformation is only supported for bias encoding.
+///    ** Additionally, it will flatten the base layer if it is not already
+///    flat. Currently, such a transformation is only supported for bias
+///    encoding.
 ///
 /// Having access to a flat base’s data buffer and a single level of indices and
 /// nulls (or a constant index) means that we can read all values in constant

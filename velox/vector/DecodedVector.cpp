@@ -294,8 +294,7 @@ void DecodedVector::setBaseData(
     case VectorEncoding::Simple::LAZY:
       break;
     case VectorEncoding::Simple::FLAT: {
-      // values() may be nullptr if 'vector' is all nulls.
-      data_ = vector.values() ? vector.values()->as<void>() : nullptr;
+      data_ = vector.valuesAsVoid();
       setFlatNulls(vector, rows);
       break;
     }
@@ -329,6 +328,7 @@ void DecodedVector::setBaseDataForConstant(
     hasExtraNulls_ = false;
     indices_ = nullptr;
     nulls_ = vector.isNullAt(0) ? &constantNullMask_ : nullptr;
+    mayHaveNulls_ = nulls_ != nullptr;
   } else {
     makeIndicesMutable();
 
@@ -336,16 +336,15 @@ void DecodedVector::setBaseDataForConstant(
       copiedIndices_[row] = constantIndex_;
     });
     setFlatNulls(vector, rows);
+    if (nulls_ == nullptr) {
+      nulls_ = vector.isNullAt(0) ? &constantNullMask_ : nullptr;
+    }
+    mayHaveNulls_ = hasExtraNulls_ || nulls_;
   }
   data_ = vector.valuesAsVoid();
-  if (nulls_ == nullptr) {
-    nulls_ = vector.isNullAt(0) ? &constantNullMask_ : nullptr;
-  }
-  mayHaveNulls_ = hasExtraNulls_ || nulls_;
 }
 
 namespace {
-
 /// Copies 'size' entries from 'indices' into a newly allocated buffer.
 BufferPtr copyIndicesBuffer(
     const vector_size_t* indices,
