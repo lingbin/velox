@@ -191,7 +191,7 @@ class DecodedVector {
 
   /// Return null flag for the top-level row.
   bool isNullAt(vector_size_t idx) const {
-    if (!nulls_) {
+    if (nulls_ == nullptr) {
       return false;
     }
 
