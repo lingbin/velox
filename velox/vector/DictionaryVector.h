@@ -203,7 +203,7 @@ class DictionaryVector : public SimpleVector<T> {
     return out.str();
   }
 
-  void setDictionaryValues(VectorPtr dictionaryValues) {
+  void setDictionaryValues(const VectorPtr& dictionaryValues) {
     dictionaryValues_->clearContainingLazyAndWrapped();
     dictionaryValues_ = dictionaryValues;
     initialized_ = false;

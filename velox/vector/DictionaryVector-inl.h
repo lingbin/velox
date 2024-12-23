@@ -34,8 +34,8 @@ void DictionaryVector<T>::setInternalState() {
   if (isLazyNotLoaded(*dictionaryValues_)) {
     VELOX_CHECK(
         dictionaryValues_->markAsContainingLazyAndWrapped(),
-        "An unloaded lazy vector cannot be wrapped by two different"
-        " top level vectors.");
+        "An unloaded lazy vector cannot be wrapped by two different "
+        "top level vectors.");
     // Do not load Lazy vector
     return;
   }
@@ -91,8 +91,8 @@ DictionaryVector<T>::DictionaryVector(
       dictionaryIndices->size(),
       length * sizeof(vector_size_t),
       "Malformed dictionary, index array is shorter than DictionaryVector");
-  dictionaryValues_ = dictionaryValues;
-  indices_ = dictionaryIndices;
+  dictionaryValues_ = std::move(dictionaryValues);
+  indices_ = std::move(dictionaryIndices);
   setInternalState();
 }
 
@@ -185,7 +185,7 @@ VectorPtr DictionaryVector<T>::slice(vector_size_t offset, vector_size_t length)
       valueVector(),
       indices_
           ? Buffer::slice<vector_size_t>(indices_, offset, length, this->pool_)
-          : indices_);
+          : BufferPtr{nullptr});
 }
 
 template <typename T>

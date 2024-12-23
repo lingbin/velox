@@ -256,8 +256,8 @@ void DecodedVector::applyDictionaryWrapper(
     return;
   }
 
-  auto newIndices = dictionaryVector.wrapInfo()->as<vector_size_t>();
-  auto newNulls = dictionaryVector.rawNulls();
+  auto* newIndices = dictionaryVector.wrapInfo()->as<vector_size_t>();
+  auto* newNulls = dictionaryVector.rawNulls();
   if (newNulls) {
     hasExtraNulls_ = true;
     mayHaveNulls_ = true;
