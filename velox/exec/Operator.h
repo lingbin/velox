@@ -75,6 +75,7 @@ struct MemoryStats {
     const auto poolStats = pool->stats();
     MemoryStats memStats;
     memStats.userMemoryReservation = poolStats.usedBytes;
+    memStats.revocableMemoryReservation = 0;
     memStats.systemMemoryReservation = 0;
     memStats.peakUserMemoryReservation = poolStats.peakBytes;
     memStats.peakSystemMemoryReservation = 0;
@@ -160,7 +161,7 @@ struct OperatorStats {
 
   MemoryStats memoryStats;
 
-  // Total bytes in memory for spilling
+  // Total bytes in memory for spilling.
   uint64_t spilledInputBytes{0};
 
   // Total bytes written to file for spilling.
@@ -187,7 +188,7 @@ struct OperatorStats {
 
   std::unordered_map<std::string, RuntimeMetric> runtimeStats;
 
-  int numDrivers = 0;
+  int32_t numDrivers = 0;
 
   OperatorStats() = default;
 
@@ -520,7 +521,7 @@ class Operator : public BaseRuntimeStatWriter {
     return stats_;
   }
 
-  void recordBlockingTime(uint64_t startUs, BlockingReason reason);
+  void recordBlockingTime(uint64_t startMicros, BlockingReason reason);
 
   virtual std::string toString() const;
 

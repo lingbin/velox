@@ -38,7 +38,7 @@ struct AggregateInfo {
   std::optional<column_index_t> mask;
 
   /// Optional list of input columns that should be used to sort input rows
-  /// before aggregating. Thes column may or may not overlap with 'inputs'.
+  /// before aggregating. These columns may or may not overlap with 'inputs'.
   std::vector<column_index_t> sortingKeys;
 
   /// Optional list of sorting orders that goes with 'sortingKeys'.

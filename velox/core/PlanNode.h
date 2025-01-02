@@ -182,7 +182,7 @@ class PlanNode : public ISerializable {
   }
 
   /// Returns true if this is a leaf plan node and corresponding operator
-  /// requires splits to make progress. ValueNode is a leaf node that doesn't
+  /// requires splits to make progress. ValuesNode is a leaf node that doesn't
   /// require splits, but TableScanNode and ExchangeNode are leaf nodes that
   /// require splits.
   virtual bool requiresSplits() const {
@@ -817,7 +817,7 @@ class AggregationNode : public PlanNode {
 
 inline std::ostream& operator<<(
     std::ostream& out,
-    const AggregationNode::Step& step) {
+    const AggregationNode::Step step) {
   switch (step) {
     case AggregationNode::Step::kFinal:
       return out << "FINAL";
