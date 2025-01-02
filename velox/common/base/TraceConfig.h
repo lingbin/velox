@@ -21,6 +21,8 @@
 #include <string>
 #include <unordered_set>
 
+#include "velox/core/PlanNode.h"
+
 namespace facebook::velox::exec::trace {
 
 #define VELOX_TRACE_LIMIT_EXCEEDED(errorMessage)                    \
@@ -39,7 +41,7 @@ using UpdateAndCheckTraceLimitCB = std::function<void(uint64_t)>;
 
 struct TraceConfig {
   /// Target query trace nodes.
-  std::unordered_set<std::string> queryNodes;
+  std::unordered_set<core::PlanNodeId> queryNodes;
   /// Base dir of query trace.
   std::string queryTraceDir;
   UpdateAndCheckTraceLimitCB updateAndCheckTraceLimitCB;
@@ -47,7 +49,7 @@ struct TraceConfig {
   std::string taskRegExp;
 
   TraceConfig(
-      std::unordered_set<std::string> _queryNodeIds,
+      std::unordered_set<core::PlanNodeId> _queryNodeIds,
       std::string _queryTraceDir,
       UpdateAndCheckTraceLimitCB _updateAndCheckTraceLimitCB,
       std::string _taskRegExp);

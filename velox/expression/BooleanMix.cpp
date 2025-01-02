@@ -52,12 +52,12 @@ BooleanMix getFlatBool(
   const auto size = activeRows.end();
   switch (vector->encoding()) {
     case VectorEncoding::Simple::FLAT: {
-      auto values =
+      auto* values =
           vector->asUnchecked<FlatVector<bool>>()->rawValues<uint64_t>();
-      if (!values) {
+      if (values == nullptr) {
         return BooleanMix::kAllNull;
       }
-      auto nulls = vector->rawNulls();
+      auto* nulls = vector->rawNulls();
       if (nulls && mergeNullsToValues) {
         uint64_t* mergedValues;
         BaseVector::ensureBuffer<bool>(
@@ -103,9 +103,9 @@ BooleanMix getFlatBool(
           size, context.pool(), tempValues, &valuesToSet);
       memset(valuesToSet, 0, bits::nbytes(size));
       DecodedVector decoded(*vector, activeRows);
-      auto values = decoded.data<uint64_t>();
-      auto nulls = decoded.nulls(&activeRows);
-      auto indices = decoded.indices();
+      auto* values = decoded.data<uint64_t>();
+      auto* nulls = decoded.nulls(&activeRows);
+      auto* indices = decoded.indices();
       activeRows.applyToSelected([&](int32_t i) {
         auto index = indices[i];
         bool isNull = nulls && bits::isBitNull(nulls, i);

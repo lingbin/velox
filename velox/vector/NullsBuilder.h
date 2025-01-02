@@ -31,7 +31,7 @@ struct NullsBuilder {
       nulls_ = AlignedBuffer::allocate<bool>(size_, pool_, bits::kNotNull);
       rawNulls_ = nulls_->asMutable<uint64_t>();
     }
-    bits::setNull(rawNulls_, row, true);
+    bits::setNull(rawNulls_, row);
   }
 
   /// Returns nulls buffer or nullptr if no nulls were added (e.g. setNull was

@@ -38,7 +38,7 @@ std::string OperatorTraceSummary::toString() const {
   } else {
     VELOX_CHECK_NE(opType, "TableScan");
     return fmt::format(
-        "opType {}, inputRows {},  inputBytes {}, rawInputRows {}, rawInputBytes {}, peakMemory {}",
+        "opType {}, inputRows {}, inputBytes {}, rawInputRows {}, rawInputBytes {}, peakMemory {}",
         opType,
         inputRows,
         succinctBytes(inputBytes),
@@ -47,4 +47,5 @@ std::string OperatorTraceSummary::toString() const {
         succinctBytes(peakMemory));
   }
 }
+
 } // namespace facebook::velox::exec::trace

@@ -22,7 +22,7 @@ namespace facebook::velox::exec {
 
 class AggregationMasks {
  public:
-  /// @param maskChannel Index of the 'mask' column for each aggregation.
+  /// @param maskChannels Index of the 'mask' column for each aggregation.
   /// Aggregations without masks use std::nullopt.
   explicit AggregationMasks(
       std::vector<std::optional<column_index_t>> maskChannels);
