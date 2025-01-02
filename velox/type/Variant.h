@@ -253,7 +253,7 @@ class variant {
   // On 64-bit platforms `int64_t` is declared as `long int`, not `long long
   // int`, thus adding an extra overload to make literals like 1LL resolve
   // correctly. Note that one has to use template T because otherwise SFINAE
-  // doesn't work, but in this case T = long long
+  // doesn't work, but in this case T = long long.
   template <
       typename T = long long,
       std::enable_if_t<

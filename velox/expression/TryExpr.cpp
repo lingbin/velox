@@ -108,11 +108,7 @@ void TryExpr::nullOutErrors(
     EvalCtx& context,
     VectorPtr& result) const {
   const auto* errors = context.errors();
-  if (!errors) {
-    return;
-  }
-
-  if (!errors->hasError()) {
+  if (errors == nullptr || !errors->hasError()) {
     return;
   }
 
@@ -130,10 +126,10 @@ void TryExpr::nullOutErrors(
     VELOX_DCHECK_GE(size, rows.end());
 
     auto nulls = allocateNulls(size, context.pool());
-    auto rawNulls = nulls->asMutable<uint64_t>();
+    auto* rawNulls = nulls->asMutable<uint64_t>();
     rows.applyToSelected([&](auto row) {
       if (errors->hasErrorAt(row)) {
-        bits::setNull(rawNulls, row, true);
+        bits::setNull(rawNulls, row);
       }
     });
 
