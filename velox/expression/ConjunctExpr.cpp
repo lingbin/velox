@@ -99,13 +99,13 @@ void ConjunctExpr::evalSpecialForm(
   ScopedVarSetter saveError(context.mutableThrowOnError(), false);
   context.ensureWritable(rows, type(), result);
   auto flatResult = result->asFlatVector<bool>();
-  // clear nulls from the result for the active rows.
+  // Clear nulls from the result for the active rows.
   if (flatResult->mayHaveNulls()) {
     auto& nulls = flatResult->mutableNulls(rows.end());
     rows.clearNulls(nulls);
   }
   // Initialize result to all true for AND and all false for OR.
-  auto values = flatResult->mutableValues(rows.end())->asMutable<uint64_t>();
+  auto* values = flatResult->mutableValues(rows.end())->asMutable<uint64_t>();
   if (isAnd_) {
     bits::orBits(values, rows.asRange().bits(), rows.begin(), rows.end());
   } else {
@@ -120,7 +120,7 @@ void ConjunctExpr::evalSpecialForm(
   bool handleErrors = false;
   LocalSelectivityVector errorRows(context);
   LocalSelectivityVector activeRowsHolder(context, rows);
-  auto activeRows = activeRowsHolder.get();
+  auto* activeRows = activeRowsHolder.get();
   VELOX_DCHECK(activeRows != nullptr);
   int32_t numActive = activeRows->countSelected();
   for (int32_t i = 0; i < inputs_.size(); ++i) {

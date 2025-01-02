@@ -51,7 +51,7 @@ SwitchExpr::SwitchExpr(
   auto typeExpected = resolveType(inputTypes);
   VELOX_CHECK(
       *typeExpected == *this->type(),
-      "Switch expression type different than then clause. Expected {} but got Actual {}.",
+      "Switch expression type different with then clause. Expected {} but got Actual {}.",
       typeExpected->toString(),
       this->type()->toString());
 }
@@ -65,7 +65,7 @@ void SwitchExpr::evalSpecialForm(
 
   LocalSelectivityVector thenRows(context);
 
-  // SWITCH: fix finalSelection at "rows" unless already fixed
+  // SWITCH: fix finalSelection at "rows" unless already fixed.
   ScopedFinalSelectionSetter scopedFinalSelectionSetter(context, &rows);
   if (propagatesNulls_) {
     // If propagates nulls, we load lazies before conditions so that we can
@@ -90,12 +90,12 @@ void SwitchExpr::evalSpecialForm(
   for (auto i = 0; i < numCases_; i++) {
     context.releaseVector(condition);
 
-    if (!remainingRows.get()->hasSelections()) {
+    if (!remainingRows->hasSelections()) {
       break;
     }
 
-    // evaluate the case condition
-    inputs_[2 * i]->eval(*remainingRows.get(), context, condition);
+    // Evaluate the case condition.
+    inputs_[2 * i]->eval(*remainingRows, context, condition);
 
     if (context.errors()) {
       context.deselectErrors(*remainingRows);
@@ -106,7 +106,7 @@ void SwitchExpr::evalSpecialForm(
 
     const auto booleanMix = getFlatBool(
         condition.get(),
-        *remainingRows.get(),
+        *remainingRows,
         context,
         &tempValues_,
         nullptr,
@@ -115,7 +115,7 @@ void SwitchExpr::evalSpecialForm(
         nullptr);
     switch (booleanMix) {
       case BooleanMix::kAllTrue:
-        inputs_[2 * i + 1]->eval(*remainingRows.get(), context, localResult);
+        inputs_[2 * i + 1]->eval(*remainingRows, context, localResult);
         remainingRows->clearAll();
         continue;
       case BooleanMix::kAllNull:
@@ -124,30 +124,30 @@ void SwitchExpr::evalSpecialForm(
       default: {
         thenRows.get(remainingRows->end(), false);
         bits::andBits(
-            thenRows.get()->asMutableRange().bits(),
-            remainingRows.get()->asRange().bits(),
+            thenRows->asMutableRange().bits(),
+            remainingRows->asRange().bits(),
             values,
             0,
             remainingRows->end());
-        thenRows.get()->updateBounds();
+        thenRows->updateBounds();
 
-        if (thenRows.get()->hasSelections()) {
-          inputs_[2 * i + 1]->eval(*thenRows.get(), context, localResult);
-          remainingRows.get()->deselect(*thenRows.get());
+        if (thenRows->hasSelections()) {
+          inputs_[2 * i + 1]->eval(*thenRows, context, localResult);
+          remainingRows->deselect(*thenRows);
         }
       }
     }
   }
 
   // Evaluate the "else" clause.
-  if (remainingRows.get()->hasSelections()) {
+  if (remainingRows->hasSelections()) {
     if (hasElseClause_) {
-      inputs_.back()->eval(*remainingRows.get(), context, localResult);
+      inputs_.back()->eval(*remainingRows, context, localResult);
     } else {
-      context.ensureWritable(*remainingRows.get(), type(), localResult);
+      context.ensureWritable(*remainingRows, type(), localResult);
 
       // fill in nulls for remainingRows
-      remainingRows.get()->applyToSelected(
+      remainingRows->applyToSelected(
           [&](auto row) { localResult->setNull(row, true); });
     }
   }

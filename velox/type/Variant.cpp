@@ -33,7 +33,6 @@ const folly::json::serialization_opts& getOpts() {
   }();
   return opts_;
 }
-} // namespace
 
 template <bool nullEqualsNull>
 bool evaluateNullEquality(const variant& a, const variant& b) {
@@ -44,6 +43,7 @@ bool evaluateNullEquality(const variant& a, const variant& b) {
   }
   return false;
 }
+} // namespace
 
 // scalars
 template <TypeKind KIND>
@@ -105,11 +105,11 @@ struct VariantEquality<TypeKind::ROW> {
     auto& aRow = a.value<TypeKind::ROW>();
     auto& bRow = b.value<TypeKind::ROW>();
 
-    // compare array size
+    // Compare array size.
     if (aRow.size() != bRow.size()) {
       return false;
     }
-    // compare array values
+    // Compare array values.
     for (size_t i = 0; i != aRow.size(); ++i) {
       bool result =
           dispatchDynamicVariantEquality(aRow[i], bRow[i], NullEqualsNull);
@@ -131,11 +131,11 @@ struct VariantEquality<TypeKind::MAP> {
 
     auto& aMap = a.value<TypeKind::MAP>();
     auto& bMap = b.value<TypeKind::MAP>();
-    // compare map size
+    // Compare map size.
     if (aMap.size() != bMap.size()) {
       return false;
     }
-    // compare map values
+    // Compare map values.
     for (auto it_a = aMap.begin(), it_b = bMap.begin();
          it_a != aMap.end() && it_b != bMap.end();
          ++it_a, ++it_b) {

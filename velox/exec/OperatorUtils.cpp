@@ -351,7 +351,7 @@ VectorPtr wrapChild(
     BufferPtr mapping,
     const VectorPtr& child,
     BufferPtr nulls) {
-  if (!mapping) {
+  if (mapping == nullptr) {
     return child;
   }
 
@@ -360,7 +360,7 @@ VectorPtr wrapChild(
 
 RowVectorPtr
 wrap(vector_size_t size, BufferPtr mapping, const RowVectorPtr& vector) {
-  if (!mapping) {
+  if (mapping == nullptr) {
     return vector;
   }
 

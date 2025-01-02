@@ -81,18 +81,20 @@ Operator::Operator(
     std::string planNodeId,
     std::string operatorType,
     std::optional<common::SpillConfig> spillConfig)
-    : operatorCtx_(std::make_unique<OperatorCtx>(
-          driverCtx,
-          planNodeId,
-          operatorId,
-          operatorType)),
+    : operatorCtx_(
+          std::make_unique<OperatorCtx>(
+              driverCtx,
+              planNodeId,
+              operatorId,
+              operatorType)),
       outputType_(std::move(outputType)),
       spillConfig_(std::move(spillConfig)),
-      stats_(OperatorStats{
-          operatorId,
-          driverCtx->pipelineId,
-          std::move(planNodeId),
-          std::move(operatorType)}) {}
+      stats_(
+          OperatorStats{
+              operatorId,
+              driverCtx->pipelineId,
+              std::move(planNodeId),
+              std::move(operatorType)}) {}
 
 void Operator::maybeSetReclaimer() {
   VELOX_CHECK_NULL(pool()->reclaimer());
@@ -110,7 +112,7 @@ void Operator::maybeSetTracer() {
     return;
   }
 
-  const auto nodeId = planNodeId();
+  const auto& nodeId = planNodeId();
   if (traceConfig->queryNodes.count(nodeId) == 0) {
     return;
   }
@@ -287,7 +289,8 @@ RowVectorPtr Operator::fillOutput(
     const std::vector<VectorPtr>& results) {
   bool wrapResults = true;
   if (size == input_->size() &&
-      (!mapping || isSequence(mapping->as<vector_size_t>(), 0, size))) {
+      (mapping == nullptr ||
+       isSequence(mapping->as<vector_size_t>(), 0, size))) {
     if (isIdentityProjection_) {
       return std::move(input_);
     }
@@ -370,12 +373,12 @@ void Operator::loadLazyReclaimable(RowVectorPtr& vector) {
   vector->loadedVector();
 }
 
-void Operator::recordBlockingTime(uint64_t startUs, BlockingReason reason) {
-  uint64_t nowUs =
+void Operator::recordBlockingTime(uint64_t startMicros, BlockingReason reason) {
+  uint64_t nowMicros =
       std::chrono::duration_cast<std::chrono::microseconds>(
           std::chrono::high_resolution_clock::now().time_since_epoch())
           .count();
-  const auto wallNanos = (nowUs - startUs) * 1000;
+  const auto wallNanos = (nowMicros - startMicros) * 1000;
   const auto blockReason = blockingReasonToString(reason).substr(1);
 
   auto lockedStats = stats_.wlock();
@@ -512,7 +515,7 @@ std::vector<column_index_t> toChannels(
 column_index_t exprToChannel(
     const core::ITypedExpr* expr,
     const TypePtr& type) {
-  if (auto field = dynamic_cast<const core::FieldAccessTypedExpr*>(expr)) {
+  if (auto* field = dynamic_cast<const core::FieldAccessTypedExpr*>(expr)) {
     return type->as<TypeKind::ROW>().getChildIdx(field->name());
   }
   if (dynamic_cast<const core::ConstantTypedExpr*>(expr)) {
@@ -621,13 +624,11 @@ void OperatorStats::clear() {
 
   blockedWallNanos = 0;
 
+  isBlockedTiming.clear();
   finishTiming.clear();
-
   backgroundTiming.clear();
 
   memoryStats.clear();
-
-  runtimeStats.clear();
 
   numDrivers = 0;
   spilledInputBytes = 0;
@@ -635,6 +636,14 @@ void OperatorStats::clear() {
   spilledRows = 0;
   spilledPartitions = 0;
   spilledFiles = 0;
+
+  lastLazyCpuNanos = 0;
+  lastLazyWallNanos = 0;
+  lastLazyInputBytes = 0;
+
+  numNullKeys = 0;
+
+  runtimeStats.clear();
 
   dynamicFilterStats.clear();
 }

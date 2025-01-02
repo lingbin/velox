@@ -80,6 +80,7 @@ class VectorRecycler {
  public:
   VectorRecycler(VectorPtr& vector, VectorPool* pool)
       : pool_(pool), vector_(vector) {}
+
   VectorRecycler(const VectorRecycler&) = delete;
   VectorRecycler& operator=(const VectorRecycler&) = delete;
   VectorRecycler(const VectorRecycler&&) = delete;

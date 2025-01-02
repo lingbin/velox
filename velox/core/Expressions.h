@@ -255,7 +255,7 @@ class CallTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const override {
     const auto* casted = dynamic_cast<const CallTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);

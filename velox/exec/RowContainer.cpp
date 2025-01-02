@@ -432,19 +432,20 @@ void RowColumn::Stats::removeOrUpdateCellStats(
     int32_t bytes,
     bool wasNull,
     bool setToNull) {
-  // we only update nullCount, nonNullCount, and numBytes
-  // when the cell is removed. Because min/max need the
-  // full column data and not recorded in stats.
+  // We only update nullCount_, nonNullCount_, and sumBytes_ when the cell is
+  // removed. Because min/max need the full column data and not recorded in
+  // stats.
   if (wasNull) {
     VELOX_DCHECK_EQ(bytes, 0);
     if (!setToNull) {
       --nullCount_;
+      ++nonNullCount_;
     }
   } else {
-    --nonNullCount_;
     sumBytes_ -= bytes;
     if (setToNull) {
       ++nullCount_;
+      --nonNullCount_;
     }
   }
   invalidateMinMaxColumnStats();
@@ -1242,7 +1243,7 @@ void RowPartitions::appendPartitions(folly::Range<const uint8_t*> partitions) {
     index += copySize;
     toAdd -= copySize;
     // Zero out to the next multiple of SIMD width for asan/valgrind.
-    if (!toAdd) {
+    if (toAdd == 0) {
       bits::padToAlignment(
           allocation_.runAt(run).data<uint8_t>(),
           runSize,

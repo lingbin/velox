@@ -116,10 +116,8 @@ RowTypePtr getAggregationOutputType(
   std::vector<TypePtr> types;
 
   for (auto& key : groupingKeys) {
-    auto field = TypedExprs::asFieldAccess(key);
-    VELOX_CHECK(field, "Grouping key must be a field reference");
-    names.push_back(field->name());
-    types.push_back(field->type());
+    names.push_back(key->name());
+    types.push_back(key->type());
   }
 
   for (int32_t i = 0; i < aggregateNames.size(); i++) {
