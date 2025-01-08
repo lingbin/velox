@@ -393,7 +393,8 @@ size_t OpCallStatusRaw::callDuration() const {
   return empty() ? 0 : (getCurrentTimeMs() - timeStartMs);
 }
 
-/*static*/ std::string OpCallStatusRaw::formatCall(
+// static
+std::string OpCallStatusRaw::formatCall(
     Operator* op,
     const char* operatorMethod) {
   return op
@@ -453,11 +454,12 @@ CpuWallTiming Driver::processLazyIoStats(
   cpuDelta = std::min<int64_t>(cpuDelta, timing.cpuNanos);
   wallDelta = std::min<int64_t>(wallDelta, timing.wallNanos);
   lockStats = operators_[0]->stats().wlock();
-  lockStats->getOutputTiming.add(CpuWallTiming{
-      1,
-      static_cast<uint64_t>(wallDelta),
-      static_cast<uint64_t>(cpuDelta),
-  });
+  lockStats->getOutputTiming.add(
+      CpuWallTiming{
+          1,
+          static_cast<uint64_t>(wallDelta),
+          static_cast<uint64_t>(cpuDelta),
+      });
   lockStats->inputBytes += inputBytesDelta;
   lockStats->outputBytes += inputBytesDelta;
   return CpuWallTiming{
@@ -576,7 +578,7 @@ StopReason Driver::runInternal(
         if (i < numOperators - 1) {
           Operator* nextOp = operators_[i + 1].get();
 
-          withDeltaCpuWallTimer(op, &OperatorStats::isBlockedTiming, [&]() {
+          withDeltaCpuWallTimer(nextOp, &OperatorStats::isBlockedTiming, [&]() {
             CALL_OPERATOR(
                 blockingReason_ = nextOp->isBlocked(&future),
                 nextOp,
@@ -617,23 +619,24 @@ StopReason Driver::runInternal(
             });
             pushdownFilters(i);
             if (intermediateResult) {
-              withDeltaCpuWallTimer(op, &OperatorStats::addInputTiming, [&]() {
-                {
-                  auto lockedStats = nextOp->stats().wlock();
-                  lockedStats->addInputVector(
-                      resultBytes, intermediateResult->size());
-                }
-                nextOp->traceInput(intermediateResult);
-                TestValue::adjust(
-                    "facebook::velox::exec::Driver::runInternal::addInput",
-                    nextOp);
+              withDeltaCpuWallTimer(
+                  nextOp, &OperatorStats::addInputTiming, [&]() {
+                    {
+                      auto lockedStats = nextOp->stats().wlock();
+                      lockedStats->addInputVector(
+                          resultBytes, intermediateResult->size());
+                    }
+                    nextOp->traceInput(intermediateResult);
+                    TestValue::adjust(
+                        "facebook::velox::exec::Driver::runInternal::addInput",
+                        nextOp);
 
-                CALL_OPERATOR(
-                    nextOp->addInput(intermediateResult),
-                    nextOp,
-                    curOperatorId_ + 1,
-                    kOpMethodAddInput);
-              });
+                    CALL_OPERATOR(
+                        nextOp->addInput(intermediateResult),
+                        nextOp,
+                        curOperatorId_ + 1,
+                        kOpMethodAddInput);
+                  });
               // The next iteration will see if operators_[i + 1] has
               // output now that it got input.
               i += 2;

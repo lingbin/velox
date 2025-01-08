@@ -62,6 +62,7 @@ class CallbackSink : public Operator {
 
  private:
   void close() override {
+    // TODO(lingbin): 调用 父类的 close() 方法。
     if (callback_) {
       callback_(nullptr, nullptr);
       callback_ = nullptr;
