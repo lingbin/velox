@@ -60,6 +60,7 @@ BlockingReason CallbackSink::isBlocked(ContinueFuture* future) {
 
 void CallbackSink::close() {
   if (consumeCb_ == nullptr) {
+    // TODO(lingbin): 调用 父类的 close() 方法?
     return;
   }
   consumeCb_(nullptr, false, nullptr);

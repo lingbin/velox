@@ -269,10 +269,10 @@ class BlockingState {
 constexpr uint32_t kUngroupedGroupId{std::numeric_limits<uint32_t>::max()};
 
 struct DriverCtx {
-  const int driverId;
-  const int pipelineId;
+  const int32_t driverId;
+  const int32_t pipelineId;
   /// Id of the split group this driver should process in case of grouped
-  /// execution, kUngroupedGroupId otherwise.
+  /// execution, 'kUngroupedGroupId' otherwise.
   const uint32_t splitGroupId;
   /// Id of the partition to use by this driver. For local exchange, for
   /// instance.
@@ -342,8 +342,9 @@ struct OpCallStatusRaw {
 /// Structure holds the information about the current operator call the driver
 /// is in. Can be used to detect deadlocks and otherwise blocked calls.
 /// If timeStartMs is zero, then we aren't in an operator call.
-struct OpCallStatus {
-  OpCallStatus() {}
+class OpCallStatus {
+ public:
+  OpCallStatus() = default;
 
   /// The status accessor.
   OpCallStatusRaw operator()() const {

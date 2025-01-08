@@ -545,7 +545,7 @@ class SimpleVector : public BaseVector {
 
 template <>
 void SimpleVector<StringView>::validate(
-    const VectorValidateOptions& options) const override;
+    const VectorValidateOptions& options) const;
 
 template <>
 inline std::optional<int32_t> SimpleVector<ComplexType>::compare(
