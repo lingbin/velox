@@ -94,10 +94,10 @@ std::string getNodeName(
 /// output data type from its source node plans as the input data type of the
 /// traced plan node.
 ///
-/// For hash join plan node, there are two source nodes, the  output data type
-/// of the first node is the input data type of the 'HashProbe' operator, and
-/// the output data type of the second one is the input data type of the
-/// 'HashBuild' operator.
+/// For hash join plan node, there are two source nodes, the output data type of
+/// the first node is the input data type of the 'HashProbe' operator, and the
+/// output data type of the second one is the input data type of the 'HashBuild'
+/// operator.
 ///
 /// @param tracedPlan The root node of the trace plan fragment.
 /// @param tracedNodeId The node id of the trace node.
