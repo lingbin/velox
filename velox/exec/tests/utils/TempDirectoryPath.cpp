@@ -20,6 +20,7 @@
 
 namespace facebook::velox::exec::test {
 
+// static
 std::shared_ptr<TempDirectoryPath> TempDirectoryPath::create(bool injectFault) {
   auto* tempDirPath = new TempDirectoryPath(injectFault);
   return std::shared_ptr<TempDirectoryPath>(tempDirPath);
@@ -35,6 +36,7 @@ TempDirectoryPath::~TempDirectoryPath() {
   }
 }
 
+// static
 std::string TempDirectoryPath::createTempDirectory() {
   char tempPath[] = "/tmp/velox_test_XXXXXX";
   const char* tempDirectoryPath = ::mkdtemp(tempPath);

@@ -40,7 +40,7 @@ OperatorReplayerBase::OperatorReplayerBase(
     const std::string& driverIds,
     uint64_t queryCapacity,
     folly::Executor* executor)
-    : queryId_(std::string(std::move(queryId))),
+    : queryId_(std::move(queryId)),
       taskId_(std::move(taskId)),
       nodeId_(std::move(nodeId)),
       operatorType_(std::move(operatorType)),
@@ -68,7 +68,7 @@ OperatorReplayerBase::OperatorReplayerBase(
   }
 
   const auto taskMetaReader = exec::trace::TaskTraceMetadataReader(
-      taskTraceDir_, memory::MemoryManager::getInstance()->tracePool());
+      taskTraceDir_, memory::traceMemoryPool());
   taskMetaReader.read(queryConfigs_, connectorConfigs_, planFragment_);
   queryConfigs_[core::QueryConfig::kQueryTraceEnabled] = "false";
 }
