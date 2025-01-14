@@ -98,7 +98,7 @@ DEFINE_string(
 DEFINE_uint64(
     query_memory_capacity_mb,
     0,
-    "Specify the query memory capacity limit in GB. If it is zero, then there is no limit.");
+    "Specify the query memory capacity limit in MB. If it is zero, then there is no limit.");
 DEFINE_bool(copy_results, false, "Copy the replaying results.");
 DEFINE_string(
     function_prefix,
@@ -159,11 +159,7 @@ void printPipelineTraceSummary(
   const auto opTraceDir = exec::trace::getOpTraceDirectory(
       taskTraceDir, nodeId, pipelineId, driverId);
   const auto opTraceSummary =
-      exec::trace::OperatorTraceSummaryReader(
-          exec::trace::getOpTraceDirectory(
-              taskTraceDir, nodeId, pipelineId, driverId),
-          pool)
-          .read();
+      exec::trace::OperatorTraceSummaryReader(opTraceDir, pool).read();
   oss << "driver " << driverId << ": " << opTraceSummary.toString() << "\n";
 }
 
@@ -231,16 +227,18 @@ void printSummary(
 } // namespace
 
 TraceReplayRunner::TraceReplayRunner()
-    : cpuExecutor_(std::make_unique<folly::CPUThreadPoolExecutor>(
-          std::thread::hardware_concurrency() *
-              FLAGS_driver_cpu_executor_hw_multiplier,
-          std::make_shared<folly::NamedThreadFactory>(
-              "TraceReplayCpuConnector"))),
-      ioExecutor_(std::make_unique<folly::IOThreadPoolExecutor>(
-          std::thread::hardware_concurrency() *
-              FLAGS_hive_connector_executor_hw_multiplier,
-          std::make_shared<folly::NamedThreadFactory>(
-              "TraceReplayIoConnector"))) {}
+    : cpuExecutor_(
+          std::make_unique<folly::CPUThreadPoolExecutor>(
+              std::thread::hardware_concurrency() *
+                  FLAGS_driver_cpu_executor_hw_multiplier,
+              std::make_shared<folly::NamedThreadFactory>(
+                  "TraceReplayCpuConnector"))),
+      ioExecutor_(
+          std::make_unique<folly::IOThreadPoolExecutor>(
+              std::thread::hardware_concurrency() *
+                  FLAGS_hive_connector_executor_hw_multiplier,
+              std::make_shared<folly::NamedThreadFactory>(
+                  "TraceReplayIoConnector"))) {}
 
 void TraceReplayRunner::init() {
   VELOX_USER_CHECK(!FLAGS_root_dir.empty(), "--root_dir must be provided");
