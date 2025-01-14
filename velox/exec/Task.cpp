@@ -572,8 +572,9 @@ velox::memory::MemoryPool* Task::addOperatorPool(
   } else {
     nodePool = getOrAddNodePool(planNodeId);
   }
-  childPools_.push_back(nodePool->addLeafChild(fmt::format(
-      "op.{}.{}.{}.{}", planNodeId, pipelineId, driverId, operatorType)));
+  childPools_.push_back(nodePool->addLeafChild(
+      fmt::format(
+          "op.{}.{}.{}.{}", planNodeId, pipelineId, driverId, operatorType)));
   return childPools_.back().get();
 }
 
@@ -584,13 +585,14 @@ velox::memory::MemoryPool* Task::addConnectorPoolLocked(
     const std::string& operatorType,
     const std::string& connectorId) {
   auto* nodePool = getOrAddNodePool(planNodeId);
-  childPools_.push_back(nodePool->addAggregateChild(fmt::format(
-      "op.{}.{}.{}.{}.{}",
-      planNodeId,
-      pipelineId,
-      driverId,
-      operatorType,
-      connectorId)));
+  childPools_.push_back(nodePool->addAggregateChild(
+      fmt::format(
+          "op.{}.{}.{}.{}.{}",
+          planNodeId,
+          pipelineId,
+          driverId,
+          operatorType,
+          connectorId)));
   return childPools_.back().get();
 }
 
@@ -1967,7 +1969,7 @@ template <class TBridgeType, typename MemberType>
 std::shared_ptr<TBridgeType> Task::getJoinBridgeInternalLocked(
     uint32_t splitGroupId,
     const core::PlanNodeId& planNodeId,
-    MemberType SplitGroupState::*bridges_member) {
+    MemberType SplitGroupState::* bridges_member) {
   const auto& splitGroupState = splitGroupStates_[splitGroupId];
 
   auto it = (splitGroupState.*bridges_member).find(planNodeId);
@@ -3082,7 +3084,7 @@ std::optional<trace::TraceConfig> Task::maybeMakeTraceConfig() const {
       };
   return trace::TraceConfig(
       std::move(traceNodeIdSet),
-      traceDir,
+      std::move(traceDir),
       std::move(updateAndCheckTraceLimitCB),
       queryConfig.queryTraceTaskRegExp());
 }
@@ -3279,8 +3281,8 @@ bool Task::DriverBlockingState::blocked(ContinueFuture* future) {
     VELOX_CHECK(promises_.empty());
     return false;
   }
-  auto [blockPromise, blockFuture] =
-      makeVeloxContinuePromiseContract(fmt::format(
+  auto [blockPromise, blockFuture] = makeVeloxContinuePromiseContract(
+      fmt::format(
           "DriverBlockingState {} from task {}",
           driver_->driverCtx()->driverId,
           driver_->task()->taskId()));

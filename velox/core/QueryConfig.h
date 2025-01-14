@@ -949,6 +949,6 @@ class QueryConfig {
  private:
   void validateConfig();
 
-  std::unique_ptr<velox::config::ConfigBase> config_;
+  std::unique_ptr<config::ConfigBase> config_;
 };
 } // namespace facebook::velox::core

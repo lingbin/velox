@@ -701,10 +701,10 @@ struct DriverFactory {
   /// sets plan node in 'planNode'.
   bool needsLocalExchange(core::PlanNodePtr& planNode) const {
     VELOX_CHECK(!planNodes.empty());
-    if (auto exchangeNode =
+    if (auto localPartitionNode =
             std::dynamic_pointer_cast<const core::LocalPartitionNode>(
                 planNodes.front())) {
-      planNode = exchangeNode;
+      planNode = localPartitionNode;
       return true;
     }
     return false;
