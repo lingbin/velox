@@ -304,7 +304,6 @@ class ByteOutputStream {
         isNegateBits_(isNegateBits) {}
 
   ByteOutputStream(const ByteOutputStream& other) = delete;
-
   void operator=(const ByteOutputStream& other) = delete;
 
   // Forcing a move constructor to be able to return ByteOutputStream objects
@@ -361,9 +360,10 @@ class ByteOutputStream {
   void append(folly::Range<const T*> values) {
     static_assert(std::is_trivially_copyable_v<T>);
     if (current_->position + sizeof(T) * values.size() > current_->size) {
-      appendStringView(std::string_view(
-          reinterpret_cast<const char*>(&values[0]),
-          values.size() * sizeof(T)));
+      appendStringView(
+          std::string_view(
+              reinterpret_cast<const char*>(&values[0]),
+              values.size() * sizeof(T)));
       return;
     }
     auto* target = current_->buffer + current_->position;
@@ -437,9 +437,8 @@ class ByteOutputStream {
 
   void flush(OutputStream* stream);
 
-  /// Returns the next byte that would be written to by a write. This
-  /// is used after an append to release the remainder of the reserved
-  /// space.
+  /// Returns the next byte that would be written to by a write. This is used
+  /// after an append to release the remainder of the reserved space.
   char* writePosition();
 
   int32_t testingAllocatedBytes() const {
@@ -542,9 +541,10 @@ class AppendWindow {
   ~AppendWindow() noexcept {
     if (scratchPtr_.size()) {
       try {
-        stream_.appendStringView(std::string_view(
-            reinterpret_cast<const char*>(scratchPtr_.get()),
-            scratchPtr_.size() * sizeof(T)));
+        stream_.appendStringView(
+            std::string_view(
+                reinterpret_cast<const char*>(scratchPtr_.get()),
+                scratchPtr_.size() * sizeof(T)));
       } catch (const std::exception& e) {
         // This is impossible because construction ensures there is space for
         // the bytes in the stream.
