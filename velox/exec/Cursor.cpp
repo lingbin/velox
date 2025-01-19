@@ -43,7 +43,7 @@ bool waitForTaskDriversToFinish(exec::Task* task, uint64_t maxWaitMicros) {
 exec::BlockingReason TaskQueue::enqueue(
     RowVectorPtr vector,
     velox::ContinueFuture* future) {
-  if (!vector) {
+  if (vector == nullptr) {
     std::lock_guard<std::mutex> l(mutex_);
     ++producersFinished_;
     if (consumerBlocked_) {
@@ -98,7 +98,7 @@ RowVectorPtr TaskQueue::dequeue() {
           numProducers_.has_value() && producersFinished_ == numProducers_) {
         return nullptr;
       }
-      if (!vector) {
+      if (vector == nullptr) {
         consumerBlocked_ = true;
         consumerPromise_ = ContinuePromise();
         consumerFuture_ = consumerPromise_.getFuture();
@@ -181,7 +181,7 @@ class TaskCursorBase : public TaskCursor {
       try {
         fileSystem->mkdir(taskSpillDirectory_);
       } catch (...) {
-        LOG(ERROR) << "Faield to create task spill directory "
+        LOG(ERROR) << "Failed to create task spill directory "
                    << taskSpillDirectory_ << " base director "
                    << params.spillDirectory << " exists["
                    << std::filesystem::exists(taskSpillDirectory_) << "]";
@@ -237,7 +237,7 @@ class MultiThreadedTaskCursor : public TaskCursorBase {
             velox::ContinueFuture* future) {
           VELOX_CHECK(
               !drained, "Unexpected drain in multithreaded task cursor");
-          if (!vector || !copyResult) {
+          if (vector == nullptr || !copyResult) {
             return queue->enqueue(vector, future);
           }
           // Make sure to load lazy vector if not loaded already.
@@ -300,7 +300,7 @@ class MultiThreadedTaskCursor : public TaskCursorBase {
     current_ = queue_->dequeue();
 
     checkTaskError();
-    if (!current_) {
+    if (current_ == nullptr) {
       atEnd_ = true;
     }
     return current_ != nullptr;
@@ -481,7 +481,7 @@ bool RowCursor::next() {
   }
   auto vector = cursor_->current();
   numRows_ = vector->size();
-  if (!numRows_) {
+  if (numRows_ == 0) {
     return next();
   }
   currentRow_ = 0;

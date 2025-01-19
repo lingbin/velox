@@ -49,7 +49,7 @@ class Aggregate {
   explicit Aggregate(TypePtr resultType) : resultType_(std::move(resultType)) {}
 
  public:
-  virtual ~Aggregate() {}
+  virtual ~Aggregate() = default;
 
   const TypePtr& resultType() const {
     return resultType_;
