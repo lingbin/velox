@@ -74,7 +74,7 @@ namespace detail {
 /// Returns true if source nodes must run in a separate pipeline.
 bool mustStartNewPipeline(
     const std::shared_ptr<const core::PlanNode>& planNode,
-    int sourceId) {
+    int sourceIdx) {
   if (auto localMerge =
           std::dynamic_pointer_cast<const core::LocalMergeNode>(planNode)) {
     // LocalMerge's source runs on its own pipeline.
@@ -86,7 +86,7 @@ bool mustStartNewPipeline(
   }
 
   // Non-first sources always run in their own pipeline.
-  return sourceId != 0;
+  return sourceIdx != 0;
 }
 
 // Creates the customized local partition operator for table writer scaling.
