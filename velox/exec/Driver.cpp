@@ -225,7 +225,7 @@ std::string stopReasonString(StopReason reason) {
   }
 }
 
-std::ostream& operator<<(std::ostream& out, const StopReason& reason) {
+std::ostream& operator<<(std::ostream& out, StopReason reason) {
   return out << stopReasonString(reason);
 }
 
@@ -319,8 +319,7 @@ RowVectorPtr Driver::next(
     BlockingReason& blockingReason) {
   enqueueInternal();
   auto self = shared_from_this();
-  facebook::velox::process::ScopedThreadDebugInfo scopedInfo(
-      self->driverCtx()->threadDebugInfo);
+  process::ScopedThreadDebugInfo scopedInfo(self->driverCtx()->threadDebugInfo);
   ScopedDriverThreadContext scopedDriverThreadContext(self->driverCtx());
   std::shared_ptr<BlockingState> blockingState;
   RowVectorPtr result;
@@ -487,11 +486,11 @@ StopReason Driver::runInternal(
     std::shared_ptr<Driver>& self,
     std::shared_ptr<BlockingState>& blockingState,
     RowVectorPtr& result) {
-  const auto now = getCurrentTimeMicro();
-  const auto queuedTimeUs = now - queueTimeStartUs_;
+  const auto nowUs = getCurrentTimeMicro();
+  const auto queuedTimeUs = nowUs - queueTimeStartUs_;
   // Update the next operator's queueTime.
   StopReason stop =
-      closed_ ? StopReason::kTerminate : task()->enter(state_, now);
+      closed_ ? StopReason::kTerminate : task()->enter(state_, nowUs);
   if (stop != StopReason::kNone) {
     if (stop == StopReason::kTerminate) {
       // ctx_ still has a reference to the Task. 'this' is not on
@@ -978,7 +977,7 @@ std::string Driver::toString() const {
     out << "terminated, ";
   }
   if (state_.hasBlockingFuture) {
-    std::string blockedOp = (blockedOperatorId_ < operators_.size())
+    std::string blockedOp = blockedOperatorId_ < operators_.size()
         ? operators_[blockedOperatorId_]->toString()
         : "<unknown op>";
     out << "blocked (" << blockingReasonToString(blockingReason_) << " "
@@ -1048,12 +1047,13 @@ void Driver::withDeltaCpuWallTimer(
   // If 'trackOperatorCpuUsage_' is true, create and initialize the timer object
   // to track cpu and wall time of the opFunction.
   if (!trackOperatorCpuUsage_) {
-    return opFunction();
+    opFunction();
+    return;
   }
 
   // The delta CpuWallTiming object would be recorded to the corresponding
-  // opTimingMember upon destruction of the timer when withDeltaCpuWallTimer
-  // ends. The timer is created on the stack to avoid heap allocation
+  // 'opTimingMember' upon destruction of the timer when withDeltaCpuWallTimer
+  // ends. The timer is created on the stack to avoid heap allocation.
   auto f = [op, opTimingMember, this](const CpuWallTiming& elapsedTime) {
     auto elapsedSelfTime = processLazyIoStats(*op, elapsedTime);
     op->stats().withWLock([&](auto& lockedStats) {
