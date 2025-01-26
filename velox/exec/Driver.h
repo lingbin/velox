@@ -59,7 +59,7 @@ enum class StopReason {
 
 std::string stopReasonString(StopReason reason);
 
-std::ostream& operator<<(std::ostream& out, const StopReason& reason);
+std::ostream& operator<<(std::ostream& out, StopReason reason);
 
 struct DriverStats {
   static constexpr const char* kTotalPauseTime = "totalDriverPauseWallNanos";
@@ -335,8 +335,9 @@ struct OpCallStatusRaw {
     return timeStartMs == 0;
   }
 
-  static std::string formatCall(Operator* op, const char* operatorMethod);
   size_t callDuration() const;
+
+  static std::string formatCall(Operator* op, const char* operatorMethod);
 };
 
 /// Structure holds the information about the current operator call the driver
@@ -368,10 +369,10 @@ class Driver : public std::enable_shared_from_this<Driver> {
  public:
   static void enqueue(std::shared_ptr<Driver> instance);
 
-  /// Run the pipeline until it produces a batch of data or gets blocked.
-  /// Return the data produced or nullptr if pipeline finished processing and
-  /// will not produce more data. Return nullptr and set 'future' if
-  /// pipeline got blocked.
+  /// Run the pipeline until it produces a batch of data or gets blocked. Return
+  /// the data produced or nullptr if pipeline finished processing and will not
+  /// produce more data. Return nullptr and set 'future' if pipeline got
+  /// blocked.
   ///
   /// This API supports execution of a Task synchronously in the caller's
   /// thread. The caller must use either this API or 'enqueue', but not both.
@@ -423,7 +424,7 @@ class Driver : public std::enable_shared_from_this<Driver> {
   bool mayPushdownAggregation(Operator* aggregation) const;
 
   /// Returns a subset of channels for which there are operators upstream from
-  /// filterSource that accept dynamically generated filters.
+  /// 'filterSource' that accept dynamically generated filters.
   std::unordered_set<column_index_t> canPushdownFilters(
       const Operator* filterSource,
       const std::vector<column_index_t>& channels) const;
