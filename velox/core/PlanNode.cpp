@@ -158,9 +158,9 @@ AggregationNode::AggregationNode(
   }
 
   if (groupId_.has_value()) {
-    VELOX_USER_CHECK_GT(
+    VELOX_USER_CHECK_EQ(
         groupingKeyNames.count(groupId_.value()->name()),
-        0,
+        1,
         "GroupId key {} must be one of the grouping keys",
         groupId_.value()->name());
 

@@ -718,7 +718,7 @@ class AggregationNode : public PlanNode {
     return globalGroupingSets_;
   }
 
-  std::optional<FieldAccessTypedExprPtr> groupId() const {
+  const std::optional<FieldAccessTypedExprPtr>& groupId() const {
     return groupId_;
   }
 

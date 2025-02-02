@@ -701,7 +701,6 @@ StopReason Driver::runInternal(
                 kOpMethodGetOutput);
             if (result) {
               validateOperatorOutputResult(result, *op);
-
               {
                 auto lockedStats = op->stats().wlock();
                 lockedStats->addOutputVector(
@@ -889,19 +888,7 @@ bool Driver::mayPushdownAggregation(Operator* aggregation) const {
 std::unordered_set<column_index_t> Driver::canPushdownFilters(
     const Operator* filterSource,
     const std::vector<column_index_t>& channels) const {
-  int filterSourceIndex = -1;
-  for (auto i = 0; i < operators_.size(); ++i) {
-    auto op = operators_[i].get();
-    if (filterSource == op) {
-      filterSourceIndex = i;
-      break;
-    }
-  }
-  VELOX_CHECK_GE(
-      filterSourceIndex,
-      0,
-      "Operator not found in its Driver: {}",
-      filterSource->toString());
+  int32_t filterSourceIndex = filterSource->operatorId();
 
   std::unordered_set<column_index_t> supportedChannels;
   for (auto i = 0; i < channels.size(); ++i) {
@@ -990,6 +977,7 @@ std::string Driver::toString() const {
     out << op->toString() << ", ";
   }
   out << "}";
+
   const auto ocs = opCallStatus();
   if (!ocs.empty()) {
     out << "{OpCallStatus: executing "

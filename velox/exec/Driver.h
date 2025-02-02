@@ -650,10 +650,10 @@ struct DriverFactory {
       std::shared_ptr<ExchangeClient> exchangeClient,
       std::function<int(int pipelineId)> numDrivers);
 
-  /// Replaces operators at indices 'begin' to 'end - 1' with
-  /// 'replaceWith, in the Driver being created.  Sets operator ids to be
-  /// consecutive after the replace. May only be called from inside a
-  /// DriverAdapter. Returns the replaced Operators.
+  /// Replaces operators at indices 'begin' to 'end - 1' with 'replaceWith', in
+  /// the Driver being created.  Sets operator ids to be consecutive after the
+  /// replacing. May only be called from inside a DriverAdapter. Returns the
+  /// replaced Operators.
   std::vector<std::unique_ptr<Operator>> replaceOperators(
       Driver& driver,
       int32_t begin,
