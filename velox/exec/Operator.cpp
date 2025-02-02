@@ -589,6 +589,7 @@ void OperatorStats::add(const OperatorStats& other) {
   }
 
   numDrivers += other.numDrivers;
+
   spilledInputBytes += other.spilledInputBytes;
   spilledBytes += other.spilledBytes;
   spilledRows += other.spilledRows;
@@ -598,6 +599,9 @@ void OperatorStats::add(const OperatorStats& other) {
   numNullKeys += other.numNullKeys;
 
   dynamicFilterStats.add(other.dynamicFilterStats);
+
+  // No need to accumulate 'lastLazyXxx' members because they do not need to be
+  // reported externally.
 }
 
 void OperatorStats::clear() {
