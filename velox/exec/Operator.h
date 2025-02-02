@@ -126,24 +126,20 @@ struct OperatorStats {
   uint64_t rawInputPositions = 0;
 
   CpuWallTiming addInputTiming;
-
   /// Bytes of input in terms of retained size of input vectors.
   uint64_t inputBytes = 0;
   uint64_t inputPositions = 0;
-
-  /// Contains the dynamic filters stats if applied.
-  DynamicFilterStats dynamicFilterStats;
-
   /// Number of input batches / vectors. Allows to compute an average batch
   /// size.
   uint64_t inputVectors = 0;
 
-  CpuWallTiming getOutputTiming;
+  /// Contains the dynamic filters stats if applied.
+  DynamicFilterStats dynamicFilterStats;
 
+  CpuWallTiming getOutputTiming;
   /// Bytes of output in terms of retained size of vectors.
   uint64_t outputBytes = 0;
   uint64_t outputPositions = 0;
-
   /// Number of output batches / vectors. Allows to compute an average batch
   /// size.
   uint64_t outputVectors = 0;
@@ -163,16 +159,12 @@ struct OperatorStats {
 
   // Total bytes in memory for spilling.
   uint64_t spilledInputBytes{0};
-
   // Total bytes written to file for spilling.
   uint64_t spilledBytes{0};
-
   // Total rows written for spilling.
   uint64_t spilledRows{0};
-
   // Total spilled partitions.
   uint32_t spilledPartitions{0};
-
   // Total current spilled files.
   uint32_t spilledFiles{0};
 
@@ -281,7 +273,7 @@ class OperatorCtx {
   const core::PlanNodeId planNodeId_;
   int32_t operatorId_;
   const std::string operatorType_;
-  velox::memory::MemoryPool* const pool_;
+  memory::MemoryPool* const pool_;
 
   // These members are created on demand.
   mutable std::unique_ptr<core::ExecCtx> execCtx_;
@@ -838,8 +830,8 @@ class Operator : public BaseRuntimeStatWriter {
 
   bool noMoreInput_ = false;
   std::vector<IdentityProjection> identityProjections_;
-  std::vector<VectorPtr> results_;
 
+  std::vector<VectorPtr> results_;
   /// Maps between index in results_ and index in output RowVector.
   std::vector<IdentityProjection> resultProjections_;
 
