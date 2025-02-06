@@ -1061,7 +1061,7 @@ class AggregationNode : public PlanNode {
   /// @param groupId Group ID key produced by the preceding GroupId node. Must
   /// be set if globalGroupingSets is not empty. Must not be set otherwise. Must
   /// be one of the groupingKeys.
-
+  ///
   /// GlobalGroupingSets and groupId trigger special handling when the input
   /// data set is empty (no rows). In that case, aggregation generates a single
   /// row with the default global aggregate value per global grouping set.

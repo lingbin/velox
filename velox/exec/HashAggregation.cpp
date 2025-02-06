@@ -327,7 +327,7 @@ RowVectorPtr HashAggregation::getOutput() {
     if (noMoreInput_) {
       finished_ = true;
     }
-    if (!input_) {
+    if (input_ == nullptr) {
       return nullptr;
     }
     prepareOutput(input_->size());
