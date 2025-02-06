@@ -414,9 +414,9 @@ AggregationNode::Aggregate AggregationNode::Aggregate::deserialize(
   auto sortingOrders = deserializeSortingOrders(obj["sortingOrders"]);
   bool distinct = obj["distinct"].asBool();
   return {
-      call,
-      rawInputTypes,
-      mask,
+      std::move(call),
+      std::move(rawInputTypes),
+      std::move(mask),
       std::move(sortingKeys),
       std::move(sortingOrders),
       distinct};

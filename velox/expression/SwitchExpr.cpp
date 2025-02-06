@@ -17,7 +17,6 @@
 #include "velox/expression/BooleanMix.h"
 #include "velox/expression/ConstantExpr.h"
 #include "velox/expression/FieldReference.h"
-#include "velox/expression/ScopedVarSetter.h"
 
 namespace facebook::velox::exec {
 

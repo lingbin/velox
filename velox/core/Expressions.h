@@ -312,7 +312,7 @@ class FieldAccessTypedExpr : public ITypedExpr {
 
     auto newInputs = rewriteInputsRecursive(mapping);
     VELOX_CHECK_EQ(1, newInputs.size());
-    // Only rewrite name if input in InputTypedExpr. Rewrite in other
+    // Only rewrite name if input is InputTypedExpr. Rewrite in other
     // cases(like dereference) is unsound.
     if (!std::dynamic_pointer_cast<const InputTypedExpr>(newInputs[0])) {
       return std::make_shared<FieldAccessTypedExpr>(
@@ -434,7 +434,7 @@ class DereferenceTypedExpr : public ITypedExpr {
 
   bool operator==(const ITypedExpr& other) const final {
     const auto* casted = dynamic_cast<const DereferenceTypedExpr*>(&other);
-    if (!casted) {
+    if (casted == nullptr) {
       return false;
     }
     return operator==(*casted);
