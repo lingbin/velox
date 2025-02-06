@@ -82,7 +82,7 @@ TEST_F(ExprToSubfieldFilterTest, eq) {
           *call, subfield, evaluator());
   ASSERT_TRUE(filter);
   validateSubfield(subfield, {"a"});
-  auto bigintRange = dynamic_cast<BigintRange*>(filter.get());
+  auto* bigintRange = dynamic_cast<BigintRange*>(filter.get());
   ASSERT_TRUE(bigintRange);
   ASSERT_EQ(bigintRange->lower(), 42);
   ASSERT_EQ(bigintRange->upper(), 42);
@@ -97,7 +97,7 @@ TEST_F(ExprToSubfieldFilterTest, eqExpr) {
           *call, subfield, evaluator());
   ASSERT_TRUE(filter);
   validateSubfield(subfield, {"a"});
-  auto bigintRange = dynamic_cast<BigintRange*>(filter.get());
+  auto* bigintRange = dynamic_cast<BigintRange*>(filter.get());
   ASSERT_TRUE(bigintRange);
   ASSERT_EQ(bigintRange->lower(), 42);
   ASSERT_EQ(bigintRange->upper(), 42);
@@ -112,7 +112,7 @@ TEST_F(ExprToSubfieldFilterTest, eqSubfield) {
           *call, subfield, evaluator());
   ASSERT_TRUE(filter);
   validateSubfield(subfield, {"a", "b"});
-  auto bigintRange = dynamic_cast<BigintRange*>(filter.get());
+  auto* bigintRange = dynamic_cast<BigintRange*>(filter.get());
   ASSERT_TRUE(bigintRange);
   ASSERT_EQ(bigintRange->lower(), 42);
   ASSERT_EQ(bigintRange->upper(), 42);
@@ -344,7 +344,7 @@ TEST_F(CustomExprToSubfieldFilterTest, eq) {
   auto [subfield, filter] = toSubfieldFilter(call, evaluator());
   ASSERT_TRUE(filter);
   validateSubfield(subfield, {"a"});
-  auto bigintRange = dynamic_cast<BigintRange*>(filter.get());
+  auto* bigintRange = dynamic_cast<BigintRange*>(filter.get());
   ASSERT_TRUE(bigintRange);
   ASSERT_EQ(bigintRange->lower(), 42);
   ASSERT_EQ(bigintRange->upper(), 42);
