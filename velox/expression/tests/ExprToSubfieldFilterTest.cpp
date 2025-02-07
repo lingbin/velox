@@ -119,6 +119,16 @@ TEST_F(ExprToSubfieldFilterTest, eqSubfield) {
   ASSERT_FALSE(bigintRange->testNull());
 }
 
+// 这是为了手动测试 array类型
+TEST_F(ExprToSubfieldFilterTest, eqSubfieldArray) {
+  auto call = parseCallExpr("a[1] = 42", ROW({{"a", ARRAY(BIGINT())}}));
+  Subfield subfield;
+  auto filter =
+      ExprToSubfieldFilterParser::getInstance()->leafCallToSubfieldFilter(
+          *call, subfield, evaluator());
+  ASSERT_FALSE(filter);
+}
+
 TEST_F(ExprToSubfieldFilterTest, neq) {
   auto call = parseCallExpr("a <> 42", ROW({{"a", BIGINT()}}));
   Subfield subfield;
