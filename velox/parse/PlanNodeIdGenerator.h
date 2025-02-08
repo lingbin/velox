@@ -23,18 +23,18 @@ namespace facebook::velox::core {
 /// value.
 class PlanNodeIdGenerator {
  public:
-  explicit PlanNodeIdGenerator(int startId = 0) : nextId_{startId} {}
+  explicit PlanNodeIdGenerator(int32_t startId = 0) : nextId_{startId} {}
 
   PlanNodeId next() {
     return fmt::format("{}", nextId_++);
   }
 
-  void reset(int startId = 0) {
+  void reset(int32_t startId = 0) {
     nextId_ = startId;
   }
 
  private:
-  int nextId_;
+  int32_t nextId_;
 };
 
 } // namespace facebook::velox::core
