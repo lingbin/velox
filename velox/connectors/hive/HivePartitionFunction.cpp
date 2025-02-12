@@ -497,7 +497,7 @@ std::optional<uint32_t> HivePartitionFunction::partition(
     }
   }
 
-  static const int32_t kInt32Max = std::numeric_limits<int32_t>::max();
+  static constexpr int32_t kInt32Max = std::numeric_limits<int32_t>::max();
 
   if (bucketToPartition_.empty()) {
     // NOTE: if bucket to partition mapping is empty, then we do
