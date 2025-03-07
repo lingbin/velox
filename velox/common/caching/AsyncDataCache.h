@@ -341,7 +341,7 @@ class AsyncDataCacheEntry {
 
 class CachePin {
  public:
-  CachePin() : entry_(nullptr) {}
+  CachePin() = default;
 
   CachePin(const CachePin& other) {
     *this = other;
@@ -639,7 +639,7 @@ class CacheShard {
   //
   // TODO: consider to pass a size hint so as to select the a free entry which
   // already has the right amount of memory associated with it.
-  std::unique_ptr<AsyncDataCacheEntry> getFreeEntry();
+  std::unique_ptr<AsyncDataCacheEntry> getFreeEntryLocked();
 
   CachePin initEntry(RawFileCacheKey key, AsyncDataCacheEntry* entry);
 
@@ -662,6 +662,7 @@ class CacheShard {
 
   // Index in 'entries_' for the next eviction candidate.
   uint32_t clockHand_{0};
+
   // Number of gets since last stats sampling.
   uint32_t eventCounter_{0};
   // Maximum retainable entry score(). Anything above this is evictable.
@@ -704,7 +705,7 @@ class AsyncDataCache : public memory::Cache {
         int32_t _minSsdSavableBytes = 1 << 24)
         : maxWriteRatio(_maxWriteRatio),
           ssdSavableRatio(_ssdSavableRatio),
-          minSsdSavableBytes(_minSsdSavableBytes){};
+          minSsdSavableBytes(_minSsdSavableBytes) {};
 
     /// The max ratio of the number of in-memory cache entries being written to
     /// SSD cache over the total number of cache entries. This is to control SSD

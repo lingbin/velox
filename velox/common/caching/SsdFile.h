@@ -50,7 +50,7 @@ class SsdRun {
     VELOX_CHECK_LE(size, 1 << kSizeBits);
   }
 
-  explicit SsdRun(uint64_t fileBits, uint32_t checksum)
+  SsdRun(uint64_t fileBits, uint32_t checksum)
       : fileBits_(fileBits), checksum_(checksum) {}
 
   SsdRun(const SsdRun& other) = default;
@@ -64,6 +64,8 @@ class SsdRun {
   void operator=(SsdRun&& other) {
     fileBits_ = other.fileBits_;
     checksum_ = other.checksum_;
+    other.fileBits_ = 0;
+    other.checksum_ = 0;
   }
 
   uint64_t offset() const {
@@ -230,6 +232,7 @@ struct SsdCacheStats {
   tsan_atomic<uint64_t> entriesAgedOut{0};
   tsan_atomic<uint64_t> regionsAgedOut{0};
   tsan_atomic<uint64_t> regionsEvicted{0};
+
   tsan_atomic<uint32_t> openFileErrors{0};
   tsan_atomic<uint32_t> openCheckpointErrors{0};
   tsan_atomic<uint32_t> openLogErrors{0};
@@ -270,7 +273,7 @@ class SsdFile {
           checksumEnabled(_checksumEnabled),
           checksumReadVerificationEnabled(
               _checksumEnabled && _checksumReadVerificationEnabled),
-          executor(_executor){};
+          executor(_executor) {};
 
     /// Name of cache file, used as prefix for checkpoint files.
     const std::string fileName;
@@ -306,7 +309,7 @@ class SsdFile {
 
   /// Adds entries of 'pins' to this file. 'pins' must be in read mode and
   /// those pins that are successfully added to SSD are marked as being on SSD.
-  /// The file of the entries must be a file that is backed by 'this'.
+  /// The file of the entries must be the file that is backed by 'this'.
   void write(std::vector<CachePin>& pins);
 
   /// Finds an entry for 'key'. If no entry is found, the returned pin is empty.
@@ -386,7 +389,7 @@ class SsdFile {
  private:
   // Magic number separating file names from cache entry data in checkpoint
   // file.
-  static constexpr int64_t kCheckpointMapMarker = 0xfffffffffffffffe;
+  static constexpr uint64_t kCheckpointMapMarker = 0xfffffffffffffffe;
   // Magic number at end of completed checkpoint file.
   static constexpr int64_t kCheckpointEndMarker = 0xcbedf11e;
 
@@ -465,7 +468,7 @@ class SsdFile {
   void logEviction(std::vector<int32_t>& regions);
 
   // Computes the checksum of data in cache 'entry'.
-  uint32_t checksumEntry(const AsyncDataCacheEntry& entry) const;
+  static uint32_t checksumEntry(const AsyncDataCacheEntry& entry);
 
   // Returns true if checkpoint has been enabled.
   bool checkpointEnabled() const {
@@ -489,7 +492,7 @@ class SsdFile {
   void disableFileCow();
 
   // Truncates the given file to 0.
-  void truncateFile(WriteFile* file);
+  static void truncateFile(WriteFile* file);
 
   // Deletes the given file if it exists.
   void deleteFile(std::unique_ptr<WriteFile> file);

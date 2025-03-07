@@ -55,9 +55,6 @@ class CacheTTLController {
   /// Return the process-wide singleton instance of CacheTTLController if it has
   /// been created. Otherwise, return nullptr.
   static CacheTTLController* getInstance() {
-    if (instance_ == nullptr) {
-      return nullptr;
-    }
     return instance_.get();
   }
 

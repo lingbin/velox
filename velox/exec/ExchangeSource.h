@@ -97,7 +97,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   /// and may not request more for a while. The implementation may choose to
   /// release temporary buffers or pause fetching any new data until any of
   /// the 'request' or 'requestDataSizes' methods are called.
-  virtual void pause(){};
+  virtual void pause() {};
 
   /// Close the exchange source. May be called before all data
   /// has been received and processed. This can happen in case
