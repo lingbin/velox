@@ -126,14 +126,15 @@ void AsyncDataCacheEntry::initialize(FileCacheKey key) {
     tinyData_.shrink_to_fit();
     const auto sizePages = memory::AllocationTraits::numPages(size_);
     if (cache->allocator()->allocateNonContiguous(sizePages, data_)) {
-      cache->incrementCachedPages(data().numPages());
+      cache->incrementCachedPages(data_.numPages());
     } else {
       // No memory to cover 'this'.
       release();
-      VELOX_CACHE_ERROR(fmt::format(
-          "Failed to allocate {} pages for cache: {}",
-          sizePages,
-          cache->allocator()->getAndClearFailureMessage()));
+      VELOX_CACHE_ERROR(
+          fmt::format(
+              "Failed to allocate {} pages for cache: {}",
+              sizePages,
+              cache->allocator()->getAndClearFailureMessage()));
     }
   }
 }
@@ -152,7 +153,7 @@ std::string AsyncDataCacheEntry::toString() const {
       numPins_);
 }
 
-std::unique_ptr<AsyncDataCacheEntry> CacheShard::getFreeEntry() {
+std::unique_ptr<AsyncDataCacheEntry> CacheShard::getFreeEntryLocked() {
   std::unique_ptr<AsyncDataCacheEntry> newEntry;
   if (freeEntries_.empty()) {
     newEntry = std::make_unique<AsyncDataCacheEntry>(this);
@@ -213,7 +214,7 @@ CachePin CacheShard::findOrCreate(
       entryMap_.erase(it);
     }
 
-    auto newEntry = getFreeEntry();
+    auto newEntry = getFreeEntryLocked();
     // Initialize the members that must be set inside 'mutex_'.
     newEntry->numPins_ = AsyncDataCacheEntry::kExclusive;
     newEntry->promise_ = nullptr;
@@ -460,7 +461,7 @@ uint64_t CacheShard::evict(
   freeAllocations(toFree);
   cache_->incrementCachedPages(
       -memory::AllocationTraits::numPages(largeEvicted));
-  if (evictSaveableSkipped) {
+  if (evictSaveableSkipped > 0) {
     VELOX_CHECK_NOT_NULL(ssdCache);
     if (ssdCache->startWrite()) {
       // Rare. May occur if SSD is unusually slow. Useful for diagnostics.
@@ -659,16 +660,13 @@ CacheStats CacheStats::operator-(const CacheStats& other) const {
 AsyncDataCache::AsyncDataCache(
     memory::MemoryAllocator* allocator,
     std::unique_ptr<SsdCache> ssdCache)
-    : AsyncDataCache({}, allocator, std::move(ssdCache)){};
+    : AsyncDataCache({}, allocator, std::move(ssdCache)) {};
 
 AsyncDataCache::AsyncDataCache(
     const Options& options,
     memory::MemoryAllocator* allocator,
     std::unique_ptr<SsdCache> ssdCache)
-    : opts_(options),
-      allocator_(allocator),
-      ssdCache_(std::move(ssdCache)),
-      cachedPages_(0) {
+    : opts_(options), allocator_(allocator), ssdCache_(std::move(ssdCache)) {
   for (auto i = 0; i < kNumShards; ++i) {
     shards_.push_back(std::make_unique<CacheShard>(this, opts_.maxWriteRatio));
   }
@@ -1064,8 +1062,9 @@ CoalesceIoStats readPins(
       [&](int32_t size, std::vector<folly::Range<char*>>& ranges) {
         // This hack allows us to store the size of the gap in the Range,
         // without actually allocating a buffer for it.
-        ranges.push_back(folly::Range<char*>(
-            nullptr, reinterpret_cast<char*>(static_cast<uint64_t>(size))));
+        ranges.push_back(
+            folly::Range<char*>(
+                nullptr, reinterpret_cast<char*>(static_cast<uint64_t>(size))));
       },
       std::move(readFunc));
 }

@@ -125,19 +125,17 @@ SsdFile::SsdFile(const Config& config)
   const uint64_t size = writeFile_->size();
   numRegions_ = std::min<int32_t>(size / kRegionSize, maxRegions_);
   fileSize_ = numRegions_ * kRegionSize;
-  if ((size % kRegionSize > 0) || (size > fileSize_)) {
+  if (size % kRegionSize > 0 || size > fileSize_) {
     writeFile_->truncate(fileSize_);
   }
   // The existing regions in the file are writable.
-  writableRegions_.resize(numRegions_);
-  std::iota(writableRegions_.begin(), writableRegions_.end(), 0);
+  writableRegions_.resize(numRegions_, 0);
   tracker_.resize(maxRegions_);
   regionSizes_.resize(maxRegions_, 0);
   erasedRegionSizes_.resize(maxRegions_, 0);
   regionPins_.resize(maxRegions_, 0);
-  if (checkpointEnabled()) {
-    initializeCheckpoint();
-  }
+
+  initializeCheckpoint();
 
   if (disableFileCow_) {
     disableFileCow();
@@ -198,7 +196,7 @@ CoalesceIoStats SsdFile::load(
   size_t totalPayloadBytes = 0;
   for (auto i = 0; i < pins.size(); ++i) {
     const auto runSize = ssdPins[i].run().size();
-    auto* entry = pins[i].checkedEntry();
+    const auto* entry = pins[i].checkedEntry();
     if (FOLLY_UNLIKELY(runSize < entry->size())) {
       ++stats_.readSsdErrors;
       VELOX_FAIL(
@@ -420,7 +418,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
         if (FLAGS_velox_ssd_verify_write) {
           verifyWrite(*entry, SsdRun(offset, size, checksum));
         }
-        // offset += size;
+        offset += size;
         ++stats_.entriesWritten;
         stats_.bytesWritten += size;
         bytesAfterCheckpoint_ += size;
@@ -592,7 +590,7 @@ bool SsdFile::removeFileEntries(
     clearRegionEntriesLocked(toFree);
     writableRegions_.reserve(
         std::min<size_t>(writableRegions_.size() + toFree.size(), numRegions_));
-    folly::F14FastSet<uint64_t> existingWritableRegions(
+    folly::F14FastSet<int32_t> existingWritableRegions(
         writableRegions_.begin(), writableRegions_.end());
     for (int32_t region : toFree) {
       if (existingWritableRegions.count(region) == 0) {
@@ -646,6 +644,7 @@ void SsdFile::deleteCheckpoint(bool keepLog) {
   }
 }
 
+// static
 void SsdFile::truncateFile(WriteFile* file) {
   VELOX_CHECK_NOT_NULL(file);
   file->truncate(0);
@@ -695,8 +694,7 @@ void SsdFile::appendToCheckpointBuffer(const void* source, int32_t size) {
   VELOX_CHECK_NOT_NULL(checkpointBuffer_);
   maybeFlushCheckpointBuffer(size);
   ::memcpy(
-      static_cast<void*>(
-          static_cast<char*>(checkpointBuffer_) + checkpointBufferedDataSize_),
+      static_cast<char*>(checkpointBuffer_) + checkpointBufferedDataSize_,
       source,
       size);
   checkpointBufferedDataSize_ += size;
@@ -711,9 +709,10 @@ void SsdFile::maybeFlushCheckpointBuffer(uint32_t appendBytes, bool force) {
       (force ||
        checkpointBufferedDataSize_ + appendBytes >= kCheckpointBufferSize)) {
     VELOX_CHECK_NOT_NULL(checkpointBuffer_);
-    checkpointWriteFile_->append(std::string_view(
-        static_cast<const char*>(checkpointBuffer_),
-        checkpointBufferedDataSize_));
+    checkpointWriteFile_->append(
+        std::string_view(
+            static_cast<const char*>(checkpointBuffer_),
+            checkpointBufferedDataSize_));
     checkpointBufferedDataSize_ = 0;
   }
 }
@@ -754,13 +753,13 @@ void SsdFile::checkpoint(bool force) {
       VELOX_CHECK_NOT_NULL(checkpointWriteFile_);
       truncateFile(checkpointWriteFile_.get());
       // The checkpoint state file contains:
-      // int32_t The 4 bytes of checkpoint version,
+      // char(4) The 4 bytes of checkpoint version,
       // int32_t maxRegions,
       // int32_t numRegions,
       // regionScores from the 'tracker_',
       // {fileId, fileName} pairs,
       // kMapMarker,
-      // {fileId, offset, SSdRun} triples,
+      // {fileId, offset, SsdRun} triples,
       // kEndMarker.
       allocateCheckpointBuffer();
       SCOPE_EXIT {
@@ -784,8 +783,8 @@ void SsdFile::checkpoint(bool force) {
           appendToCheckpointBuffer(name);
         }
       }
-
       appendToCheckpointBuffer(kCheckpointMapMarker);
+
       for (auto& pair : entries_) {
         const auto id = pair.first.fileNum.id();
         appendToCheckpointBuffer(id);
@@ -797,17 +796,17 @@ void SsdFile::checkpoint(bool force) {
           appendToCheckpointBuffer(checksum);
         }
       }
+      appendToCheckpointBuffer(kCheckpointEndMarker);
 
       // NOTE: we need to ensure cache file data sync update completes before
       // updating checkpoint file.
       fileSync->move();
 
-      appendToCheckpointBuffer(kCheckpointEndMarker);
       flushCheckpointFile();
       ++stats_.checkpointsWritten;
     } catch (const std::exception& e) {
       ++stats_.writeCheckpointErrors;
-      VELOX_SSD_CACHE_LOG(ERROR) << "Error in writing cehckpoint: " << e.what();
+      VELOX_SSD_CACHE_LOG(ERROR) << "Error in writing checkpoint: " << e.what();
       fileSync->close();
       std::rethrow_exception(std::current_exception());
     }
@@ -843,9 +842,9 @@ void SsdFile::initializeCheckpoint() {
     checkpointWriteFile_ =
         fs_->openFileForWrite(checkpointPath, writeFileOptions);
   } catch (const std::exception& e) {
-    ++stats_.writeCheckpointErrors;
+    ++stats_.openCheckpointErrors;
     VELOX_SSD_CACHE_LOG(ERROR) << fmt::format(
-        "Could not initilize checkpoint file {} for writing: {}: ",
+        "Could not initialize checkpoint file {} for writing: {}: ",
         checkpointPath,
         e.what());
   }
@@ -873,7 +872,8 @@ void SsdFile::initializeCheckpoint() {
   }
 }
 
-uint32_t SsdFile::checksumEntry(const AsyncDataCacheEntry& entry) const {
+// static
+uint32_t SsdFile::checksumEntry(const AsyncDataCacheEntry& entry) {
   bits::Crc32 crc;
   if (entry.tinyData()) {
     crc.process_bytes(entry.tinyData(), entry.size());
@@ -943,8 +943,7 @@ T readNumber(common::FileInputStream* stream) {
 
 std::string readString(common::FileInputStream* stream, int32_t length) {
   std::string data(length, '\0');
-  stream->readBytes(
-      reinterpret_cast<uint8_t*>(const_cast<char*>(data.data())), length);
+  stream->readBytes(reinterpret_cast<uint8_t*>(data.data()), length);
   return data;
 }
 
@@ -978,9 +977,9 @@ void SsdFile::readCheckpoint() {
   }
 
   const auto versionMagic = readString(stream.get(), 4);
-  const auto checkpoinHasChecksum =
+  const auto checkpointHasChecksum =
       isChecksumEnabledOnCheckpointVersion(versionMagic);
-  if (checksumEnabled_ && !checkpoinHasChecksum) {
+  if (checksumEnabled_ && !checkpointHasChecksum) {
     VELOX_SSD_CACHE_LOG(WARNING) << fmt::format(
         "Starting shard {} without checkpoint: checksum is enabled but the checkpoint was made without checksum, so skip the checkpoint recovery, checkpoint file {}",
         shardId_,
@@ -1017,10 +1016,7 @@ void SsdFile::readCheckpoint() {
     ++stats_.readCheckpointErrors;
     VELOX_FAIL("Failed to read eviction log: {}", e.what());
   }
-  std::unordered_set<uint32_t> evictedMap;
-  for (auto region : evicted) {
-    evictedMap.insert(region);
-  }
+  std::unordered_set<uint32_t> evictedMap{evicted.begin(), evicted.end()};
 
   std::vector<uint32_t> regionCacheSizes(numRegions_, 0);
   for (;;) {
@@ -1031,7 +1027,7 @@ void SsdFile::readCheckpoint() {
     const auto offset = readNumber<uint64_t>(stream.get());
     const auto fileBits = readNumber<uint64_t>(stream.get());
     uint32_t checksum = 0;
-    if (checkpoinHasChecksum) {
+    if (checkpointHasChecksum) {
       checksum = readNumber<uint32_t>(stream.get());
     }
     const auto run = SsdRun(fileBits, checksum);
@@ -1052,7 +1048,7 @@ void SsdFile::readCheckpoint() {
 
   // NOTE: we might erase entries from a region for TTL eviction, so we need to
   // set the region size to the max offset of the recovered cache entry from the
-  // region. Correspondingly, we substract the cached size from the region size
+  // region. Correspondingly, we subtract the cached size from the region size
   // to get the erased size.
   for (auto region = 0; region < numRegions_; ++region) {
     VELOX_CHECK_LE(regionSizes_[region], kRegionSize);
