@@ -76,7 +76,7 @@ void AsyncDataCacheEntry::setExclusiveToShared(bool ssdSavable) {
   }
 
   auto* ssdCache = shard_->cache()->ssdCache();
-  if ((ssdCache != nullptr) && (ssdFile_ == nullptr)) {
+  if (ssdCache != nullptr && ssdFile_ == nullptr) {
     if (ssdCache->groupStats().shouldSaveToSsd(groupId_, trackingId_)) {
       ssdSaveable_ = true;
       shard_->cache()->possibleSsdSave(size_);
@@ -709,8 +709,11 @@ void AsyncDataCache::shutdown() {
 }
 
 void CacheShard::shutdown() {
+  // TODO(lingbin): 这里是不是需要加锁？
   entries_.clear();
   freeEntries_.clear();
+  entryMap_.clear();
+  emptySlots_.clear();
 }
 
 CachePin AsyncDataCache::findOrCreate(
@@ -789,7 +792,7 @@ bool AsyncDataCache::makeSpace(
           << "Pause 0.5s after failed eviction waiting for SSD cache write to unpin memory";
       std::this_thread::sleep_for(std::chrono::milliseconds(500)); // NOLINT
     }
-    if (nthAttempt > kMaxAttempts / 2) {
+    if (nthAttempt >= kMaxAttempts / 2) {
       if (!isCounted) {
         rank = ++numThreadsInAllocate_;
         isCounted = true;
@@ -810,7 +813,7 @@ bool AsyncDataCache::makeSpace(
     // Evict from next shard. If we have gone through all shards once
     // and still have not made the allocation, we go to desperate mode
     // with 'evictAllUnpinned' set to true.
-    shards_[shardCounter_ & (kShardMask)]->evict(
+    shards_[shardCounter_ & kShardMask]->evict(
         memory::AllocationTraits::pageBytes(
             std::max<MachinePageCount>(kMinEvictPages, numPages) *
             sizeMultiplier),
@@ -873,7 +876,7 @@ bool AsyncDataCache::canTryAllocate(
     return true;
   }
   return numPages - acquired.numPages() <=
-      (memory::AllocationTraits::numPages(allocator_->capacity())) -
+      memory::AllocationTraits::numPages(allocator_->capacity()) -
       allocator_->numAllocated();
 }
 

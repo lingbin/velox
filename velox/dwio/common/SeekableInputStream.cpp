@@ -60,7 +60,7 @@ void SeekableInputStream::readFully(char* buffer, size_t bufferSize) {
     std::copy(bytes, bytes + bytesToCopy, buffer + pos);
     pos += bytesToCopy;
   }
-  // return remaining bytes back to stream
+  // Return remaining bytes back to stream.
   if (bytesToCopy < readLength) {
     BackUp(readLength - bytesToCopy);
   }
@@ -72,7 +72,6 @@ SeekableArrayInputStream::SeekableArrayInputStream(
     uint64_t blkSize)
     : data_(reinterpret_cast<const char*>(values)), dataRead_{nullptr} {
   length_ = size;
-  position_ = 0;
   blockSize_ = blkSize == 0 ? length_ : blkSize;
 }
 
@@ -82,7 +81,6 @@ SeekableArrayInputStream::SeekableArrayInputStream(
     uint64_t blkSize)
     : data_(values), dataRead_{nullptr} {
   length_ = size;
-  position_ = 0;
   blockSize_ = blkSize == 0 ? length_ : blkSize;
 }
 
@@ -94,7 +92,6 @@ SeekableArrayInputStream::SeekableArrayInputStream(
       data_(ownedData_.get()),
       dataRead_{nullptr} {
   length_ = size;
-  position_ = 0;
   blockSize_ = blkSize == 0 ? length_ : blkSize;
 }
 
@@ -102,7 +99,6 @@ SeekableArrayInputStream::SeekableArrayInputStream(
     std::function<std::tuple<const char*, uint64_t>()> read,
     uint64_t blkSize)
     : data_(nullptr), dataRead_{std::move(read)} {
-  position_ = 0;
   length_ = 0;
   blockSize_ = blkSize;
 }
@@ -119,7 +115,7 @@ void SeekableArrayInputStream::loadIfAvailable() {
   if (blockSize_ == 0) {
     blockSize_ = length_;
   }
-  // just load once
+  // Just load once.
   dataRead_ = nullptr;
 }
 
@@ -197,10 +193,7 @@ SeekableFileInputStream::SeekableFileInputStream(
       start_(offset),
       length_(byteCount),
       blockSize_(computeBlock(blockSize, length_)),
-      buffer_{pool} {
-  position_ = 0;
-  pushback_ = 0;
-}
+      buffer_{pool} {}
 
 bool SeekableFileInputStream::Next(const void** data, int32_t* size) {
   uint64_t bytesRead;

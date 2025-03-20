@@ -102,6 +102,7 @@ getAllConnectors() {
   return connectors();
 }
 
+// static
 folly::Synchronized<
     std::unordered_map<std::string_view, std::weak_ptr<cache::ScanTracker>>>
     Connector::trackers_;

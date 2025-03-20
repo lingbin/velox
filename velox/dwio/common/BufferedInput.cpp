@@ -189,19 +189,19 @@ void BufferedInput::mergeRegions() {
 }
 
 bool BufferedInput::tryMerge(Region& first, const Region& second) {
-  VELOX_CHECK_GE(second.offset, first.offset, "regions should be sorted.");
+  VELOX_CHECK_LE(first.offset, second.offset, "regions should be sorted.");
   const int64_t gap = second.offset - first.offset - first.length;
 
   // Duplicate regions (extension==0) is the only case allowed to merge for
-  // useVRead()
+  // useVRead().
   const int64_t extension = gap + second.length;
   if (useVRead()) {
     return extension == 0;
   }
 
-  // compare with 0 since it's comparison in different types
+  // Compare with 0 since it's comparison in different types.
   if (gap < 0 || gap <= maxMergeDistance_) {
-    // the second region is inside first one if extension is negative
+    // The second region is inside first one if 'extension' is negative.
     if (extension > 0) {
       first.length += extension;
       if ((input_->getStats() != nullptr) && gap > 0) {
@@ -228,7 +228,7 @@ std::tuple<const char*, uint64_t> BufferedInput::readInternal(
     uint64_t offset,
     uint64_t length,
     std::optional<size_t> i) const {
-  // return dummy one for zero length stream
+  // Return dummy one for zero length stream.
   if (length == 0) {
     return std::make_tuple(nullptr, 0);
   }

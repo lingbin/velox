@@ -156,7 +156,7 @@ class ScanTracker {
   std::string toString() const;
 
  private:
-  // Id of query + scan operator to track.
+  // Id of task + scan operator to track.
   const std::string id_;
   const std::function<void(ScanTracker*)> unregisterer_{nullptr};
   FileGroupStats* const fileGroupStats_;

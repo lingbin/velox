@@ -160,9 +160,9 @@ class AsyncDataCacheEntry {
   explicit AsyncDataCacheEntry(CacheShard* shard);
   ~AsyncDataCacheEntry();
 
-  /// Sets the key and allocates the entry's memory.  Resets
-  /// all other state. The entry must be held exclusively and must
-  /// hold no memory when calling this.
+  /// Sets the key and allocates the entry's memory. Resets all other state. The
+  /// entry must be held exclusively and must hold no memory when calling this.
+  /// Will throw if fails to allocate memory.
   void initialize(FileCacheKey key);
 
   memory::Allocation& data() {
@@ -924,7 +924,7 @@ class AsyncDataCache : public memory::Cache {
   // allocations, so use backoff.
   std::atomic<uint16_t> backoffCounter_{0};
 
-  // Counter of threads competing for allocation in makeSpace(). Used
+  // Counter of threads competing for allocation in 'makeSpace()'. Used
   // for setting staggered backoff. Mutexes are not allowed for this.
   std::atomic<int32_t> numThreadsInAllocate_{0};
 
