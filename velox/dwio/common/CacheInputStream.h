@@ -152,12 +152,11 @@ class CacheInputStream : public SeekableInputStream {
   // Handle of cache entry.
   cache::CachePin pin_;
 
-  // Offset of current run from start of 'entry_->data()'
+  // Offset of current run from start of 'entry_->data()'.
   uint64_t offsetOfRun_;
 
-  // Pointer  to start of  current run in 'entry->data()' or
-  // 'entry->tinyData()'.
-  uint8_t* run_{nullptr};
+  // Pointer to start of current run in 'entry->data()' or 'entry->tinyData()'.
+  const uint8_t* run_{nullptr};
   // Position of stream relative to 'run_'.
   int offsetInRun_{0};
   // Index of run in 'entry_->data()'
@@ -167,7 +166,7 @@ class CacheInputStream : public SeekableInputStream {
   // Position relative to 'region_.offset'.
   uint64_t position_ = 0;
 
-  // A restricted view over 'region'. offset is relative to 'region_'. A cloned
+  // A restricted view over 'region_'. offset is relative to 'region_'. A cloned
   // CacheInputStream can cover a sub-range of the range of the original.
   std::optional<velox::common::Region> window_;
 

@@ -82,7 +82,7 @@ class BufferedInput {
     return true;
   }
 
-  /// load all regions to be read in an optimized way (IO efficiency)
+  /// Load all regions to be read in an optimized way (IO efficiency).
   virtual void load(const LogType);
 
   virtual bool isBuffered(uint64_t offset, uint64_t length) const {
@@ -232,7 +232,7 @@ class BufferedInput {
       const LogType logType);
 
   folly::Range<char*> allocate(const velox::common::Region& region) {
-    // Save the file offset and the buffer to which we'll read it
+    // Save the file offset and the buffer to which we'll read it.
     offsets_.push_back(region.offset);
     buffers_.emplace_back(
         allocPool_->allocateFixed(region.length), region.length);
@@ -252,7 +252,7 @@ class BufferedInput {
   std::optional<bool> wsVRLoad_;
   std::unique_ptr<memory::AllocationPool> allocPool_;
 
-  // Regions enqueued for reading
+  // Regions enqueued for reading.
   std::vector<velox::common::Region> regions_;
 
   // Offsets in the file to which the corresponding Region belongs
