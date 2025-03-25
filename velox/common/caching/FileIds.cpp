@@ -17,8 +17,10 @@
 #include "velox/common/caching/FileIds.h"
 
 namespace facebook::velox {
+
 StringIdMap& fileIds() {
   static auto* ids = new StringIdMap();
   return *ids;
 }
+
 } // namespace facebook::velox
