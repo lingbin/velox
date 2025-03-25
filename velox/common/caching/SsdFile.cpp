@@ -231,7 +231,7 @@ CoalesceIoStats SsdFile::load(
 
   for (auto i = 0; i < ssdPins.size(); ++i) {
     pins[i].checkedEntry()->setSsdFile(this, ssdPins[i].run().offset());
-    auto* entry = pins[i].checkedEntry();
+    const auto* entry = pins[i].checkedEntry();
     auto ssdRun = ssdPins[i].run();
     maybeVerifyChecksum(*entry, ssdRun);
   }
@@ -347,7 +347,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
   // storage is likely adjacent on SSD.
   std::sort(pins.begin(), pins.end());
   for (const auto& pin : pins) {
-    auto* entry = pin.checkedEntry();
+    const auto* entry = pin.checkedEntry();
     VELOX_CHECK_NULL(entry->ssdFile());
   }
 
@@ -995,6 +995,7 @@ void SsdFile::readCheckpoint() {
   numRegions_ = readNumber<int32_t>(stream.get());
 
   const auto scores = readVector<double>(stream.get(), maxRegions_);
+  // fileNum => StringIdLease.
   std::unordered_map<uint64_t, StringIdLease> idMap;
   for (;;) {
     const auto id = readNumber<uint64_t>(stream.get());
@@ -1016,7 +1017,7 @@ void SsdFile::readCheckpoint() {
     ++stats_.readCheckpointErrors;
     VELOX_FAIL("Failed to read eviction log: {}", e.what());
   }
-  std::unordered_set<uint32_t> evictedMap{evicted.begin(), evicted.end()};
+  std::unordered_set<uint32_t> evictedSet{evicted.begin(), evicted.end()};
 
   std::vector<uint32_t> regionCacheSizes(numRegions_, 0);
   for (;;) {
@@ -1033,7 +1034,7 @@ void SsdFile::readCheckpoint() {
     const auto run = SsdRun(fileBits, checksum);
     const auto region = regionIndex(run.offset());
     // Check that the recovered entry does not fall in an evicted region.
-    if (evictedMap.find(region) != evictedMap.end()) {
+    if (evictedSet.find(region) != evictedSet.end()) {
       continue;
     }
     // The file may have a different id on restore.
@@ -1065,7 +1066,7 @@ void SsdFile::readCheckpoint() {
   VELOX_CHECK_EQ(scores.size(), tracker_.regionScores().size());
   // Set the writable regions by deduplicated evicted regions.
   writableRegions_.clear();
-  for (auto region : evictedMap) {
+  for (auto region : evictedSet) {
     writableRegions_.push_back(region);
   }
   tracker_.setRegionScores(scores);
