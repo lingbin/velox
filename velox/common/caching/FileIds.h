@@ -18,7 +18,7 @@
 
 namespace facebook::velox {
 
-// Returns a process-wide map of file path to id and id to file path.
+/// Returns a process-wide map of file path to id and id to file path.
 StringIdMap& fileIds();
 
 } // namespace facebook::velox

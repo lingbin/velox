@@ -315,8 +315,9 @@ class SsdFile {
   /// Finds an entry for 'key'. If no entry is found, the returned pin is empty.
   SsdPin find(RawFileCacheKey key);
 
-  /// Erases 'key'
+  /// Erases the entry for 'key'.
   bool erase(RawFileCacheKey key);
+
   /// Copies the data in 'ssdPins' into 'pins'. Coalesces IO for nearby
   /// entries if they are in ascending order and near enough.
   CoalesceIoStats load(
