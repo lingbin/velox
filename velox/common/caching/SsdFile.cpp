@@ -765,7 +765,6 @@ void SsdFile::checkpoint(bool force) {
       SCOPE_EXIT {
         freeCheckpointBuffer();
       };
-      const auto version = checkpointVersion();
       appendToCheckpointBuffer(checkpointVersion());
       appendToCheckpointBuffer(maxRegions_);
       appendToCheckpointBuffer(numRegions_);

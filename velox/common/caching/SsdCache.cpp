@@ -44,7 +44,7 @@ SsdCache::SsdCache(const Config& config)
   auto checksumReadVerificationEnabled = config.checksumReadVerificationEnabled;
   if (config.checksumReadVerificationEnabled && !config.checksumEnabled) {
     VELOX_SSD_CACHE_LOG(WARNING)
-        << "Checksum read has been disabled as checksum is not enabled.";
+        << "Checksum read verification has been disabled as checksum is not enabled.";
     checksumReadVerificationEnabled = false;
   }
   filesystems::getFileSystem(filePrefix_, nullptr)
@@ -68,11 +68,6 @@ SsdCache::SsdCache(const Config& config)
         executor_);
     files_.push_back(std::make_unique<SsdFile>(fileConfig));
   }
-}
-
-SsdFile& SsdCache::file(uint64_t fileId) {
-  const auto index = fileId % numShards_;
-  return *files_[index];
 }
 
 bool SsdCache::startWrite() {
