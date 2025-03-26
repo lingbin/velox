@@ -39,6 +39,11 @@ TEST(SsdFileTrackerTest, tracker) {
       }
     }
   }
+  auto scores = tracker.copyScores();
+  for (auto i = 0; i < kNumRegions - 1; ++i) {
+    EXPECT_LT(scores[i], scores[i + 1]) << i;
+  }
+
   std::vector<int32_t> pins(kNumRegions);
   pins[2] = 1;
   pins[3] = 2;
@@ -55,6 +60,10 @@ TEST(SsdFileTrackerTest, tracker) {
     tracker.regionRead(region, INT32_MAX);
     tracker.regionRead(region, region * 100'000'000);
   }
+  // 1.1 ^ 7448 = +INF.
+  // Each time 'regionFilled()' is called, 1.1 times the maximum score value is
+  // taken, so the final calculation will be 1.1 ^ (999 * 16), that is, the
+  // final score value of all regions will be '+INF'.
   for (int i = 0; i < 999; ++i) {
     for (auto region = 0; region < kNumRegions; ++region) {
       tracker.regionFilled(region);
