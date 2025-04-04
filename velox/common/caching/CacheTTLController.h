@@ -79,7 +79,6 @@ class CacheTTLController {
   /// A process-wide singleton instance of CacheTTLController.
   static std::unique_ptr<CacheTTLController> instance_;
 
- private:
   // Prevent creating a random instance of CacheTTLController.
   explicit CacheTTLController(AsyncDataCache& cache) : cache_(cache) {}
 

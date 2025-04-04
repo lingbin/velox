@@ -31,9 +31,9 @@ TEST(SsdFileTrackerTest, tracker) {
     for (auto i = 0; i < 2000; ++i) {
       for (auto region = std::max(lastRegion - 3, 0); region <= lastRegion;
            ++region) {
-        // fileTouched means a lookup. This decays scores so that new uses are
-        // more relevant than old ones. The actual read is tracked by
-        // regionRead()..
+        // 'fileTouched()' means a lookup. This decays scores so that new uses
+        // are more relevant than old ones. The actual read is tracked by
+        // 'regionRead()'.
         tracker.fileTouched(10000);
         tracker.regionRead(region, 100000);
       }
@@ -41,7 +41,7 @@ TEST(SsdFileTrackerTest, tracker) {
   }
   auto scores = tracker.copyScores();
   for (auto i = 0; i < kNumRegions - 1; ++i) {
-    EXPECT_LT(scores[i], scores[i + 1]) << i;
+    EXPECT_LT(scores[i], scores[i + 1]);
   }
 
   std::vector<int32_t> pins(kNumRegions);
@@ -61,9 +61,9 @@ TEST(SsdFileTrackerTest, tracker) {
     tracker.regionRead(region, region * 100'000'000);
   }
   // 1.1 ^ 7448 = +INF.
-  // Each time 'regionFilled()' is called, 1.1 times the maximum score value is
-  // taken, so the final calculation will be 1.1 ^ (999 * 16), that is, the
-  // final score value of all regions will be '+INF'.
+  // Each time 'regionFilled()' is called, the maximum score value of all
+  // regions will be multiplied by 1.1, so the score value will reach 1.1 ^
+  // (999 * 16), that is, the final score value of all regions will be '+INF'.
   for (int i = 0; i < 999; ++i) {
     for (auto region = 0; region < kNumRegions; ++region) {
       tracker.regionFilled(region);

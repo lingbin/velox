@@ -86,6 +86,11 @@ class SsdRun {
     return fileBits_;
   }
 
+  void clear() {
+    fileBits_ = 0;
+    checksum_ = 0;
+  }
+
  private:
   // Contains the file offset and size.
   uint64_t fileBits_;
@@ -106,20 +111,20 @@ class SsdPin {
 
   SsdPin(const SsdPin& other) = delete;
 
-  void operator=(const SsdPin& other) = delete;
-
   SsdPin(SsdPin&& other) noexcept {
     run_ = other.run_;
     file_ = other.file_;
     other.file_ = nullptr;
+    other.run_.clear();
   }
 
   ~SsdPin();
 
+  void operator=(const SsdPin& other) = delete;
+  void operator=(SsdPin&&);
+
   // Resets 'this' to default-constructed state.
   void clear();
-
-  void operator=(SsdPin&&);
 
   bool empty() const {
     return file_ == nullptr;
@@ -286,16 +291,16 @@ class SsdFile {
 
     /// Checkpoint after every 'checkpointIntervalBytes' written into this
     /// file. 0 means no checkpointing. This is set to 0 if checkpointing fails.
-    uint64_t checkpointIntervalBytes;
+    const uint64_t checkpointIntervalBytes;
 
     /// True if copy on write should be disabled.
-    bool disableFileCow;
+    const bool disableFileCow;
 
     /// If true, checksum write to SSD is enabled.
-    bool checksumEnabled;
+    const bool checksumEnabled;
 
     /// If true, checksum read verification from SSD is enabled.
-    bool checksumReadVerificationEnabled;
+    const bool checksumReadVerificationEnabled;
 
     /// Executor for async fsync in checkpoint.
     folly::Executor* executor;

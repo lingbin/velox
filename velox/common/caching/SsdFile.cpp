@@ -82,6 +82,7 @@ void SsdPin::clear() {
     file_->unpinRegion(run_.offset());
   }
   file_ = nullptr;
+  run_.clear();
 }
 
 void SsdPin::operator=(SsdPin&& other) {
@@ -89,8 +90,9 @@ void SsdPin::operator=(SsdPin&& other) {
     file_->unpinRegion(run_.offset());
   }
   file_ = other.file_;
-  other.file_ = nullptr;
   run_ = other.run_;
+  other.file_ = nullptr;
+  other.run_.clear();
 }
 
 std::string SsdPin::toString() const {
@@ -335,6 +337,7 @@ void SsdFile::clearRegionEntriesLocked(const std::vector<int32_t>& regions) {
   for (const auto region : regions) {
     // While the region is being filled, it may get score from hits. When it is
     // full, it will get a score boost to be a little ahead of the best.
+    VELOX_DCHECK_EQ(regionPins_[region], 0);
     tracker_.regionCleared(region);
     regionSizes_[region] = 0;
     erasedRegionSizes_[region] = 0;
@@ -370,7 +373,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
       const auto entrySize = entry->size();
       const auto numIovecs = numIoVectorsFromEntry(*entry);
       VELOX_CHECK_LE(numIovecs, IOV_MAX);
-      if (writeIovecs.size() + numIovecs > IOV_MAX) {
+      if (writeIovecs.size() + numIovecs > IOV_MAX && writeLength > 0) {
         // Writes out the accumulated iovecs if it exceeds IOV_MAX limit.
         if (!write(writeOffset, writeLength, writeIovecs)) {
           // If write fails, we return without adding the pins to the cache. The
@@ -408,8 +411,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
         VELOX_CHECK_NULL(entry->ssdFile());
         entry->setSsdFile(this, offset);
         const auto size = entry->size();
-        FileCacheKey key = {
-            entry->key().fileNum, static_cast<uint64_t>(entry->offset())};
+        FileCacheKey key = entry->key();
         uint32_t checksum = 0;
         if (checksumEnabled_) {
           checksum = checksumEntry(*entry);
@@ -1009,11 +1011,13 @@ void SsdFile::readCheckpoint() {
   try {
     evictLogReadFile->pread(0, logSize, evicted.data());
   } catch (const std::exception& e) {
+    // TODO(lingbin):
+    // 应该删除掉这里的指标更新，因为调用本函数的地方，在catch异常后，已经会累加被指标。
     ++stats_.readCheckpointErrors;
     VELOX_FAIL("Failed to read eviction log: {}", e.what());
   }
-  std::unordered_set<uint32_t> evictedSet{evicted.begin(), evicted.end()};
 
+  std::unordered_set<uint32_t> evictedSet{evicted.begin(), evicted.end()};
   std::vector<uint32_t> regionCacheSizes(numRegions_, 0);
   for (;;) {
     const auto fileNum = readNumber<uint64_t>(stream.get());
