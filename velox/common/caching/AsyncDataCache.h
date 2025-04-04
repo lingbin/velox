@@ -373,7 +373,6 @@ class CachePin {
 
   void clear() {
     release();
-    entry_ = nullptr;
   }
 
   AsyncDataCacheEntry* entry() const {
@@ -381,7 +380,7 @@ class CachePin {
   }
 
   AsyncDataCacheEntry* checkedEntry() const {
-    assert(entry_);
+    VELOX_DCHECK_NOT_NULL(entry_);
     return entry_;
   }
 
@@ -478,8 +477,8 @@ class CoalescedLoad {
   // Allows waiting for load or cancellation.
   std::unique_ptr<folly::SharedPromise<bool>> promise_;
 
-  std::vector<RawFileCacheKey> keys_;
-  std::vector<int32_t> sizes_;
+  const std::vector<RawFileCacheKey> keys_;
+  const std::vector<int32_t> sizes_;
 };
 
 /// Struct for CacheShard stats. Stats from all shards are added into
@@ -667,6 +666,7 @@ class CacheShard {
   uint32_t eventCounter_{0};
   // Maximum retainable entry score(). Anything above this is evictable.
   int32_t evictionThreshold_{kNoThreshold};
+
   // Cumulative count of cache hits.
   uint64_t numHit_{0};
   // Cumulative Sum of bytes in cache hits.
@@ -880,6 +880,8 @@ class AsyncDataCache : public memory::Cache {
  private:
   static constexpr int32_t kNumShards = 4; // Must be power of 2.
   static constexpr int32_t kShardMask = kNumShards - 1;
+
+  static_assert((kNumShards & (kNumShards - 1)) == 0);
 
   // True if 'acquired' has more pages than 'numPages' or allocator has space
   // for numPages - acquired pages of more allocation.

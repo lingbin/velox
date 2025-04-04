@@ -20,6 +20,7 @@
 
 namespace facebook::velox::cache {
 
+// static
 std::unique_ptr<CacheTTLController> CacheTTLController::instance_ = nullptr;
 
 bool CacheTTLController::addOpenFileInfo(
@@ -44,8 +45,8 @@ CacheAgeStats CacheTTLController::getCacheAgeStats() const {
   // Use the oldest file open time to calculate the max possible age of cache
   // entries loaded from the files.
   int64_t minOpenTime = std::numeric_limits<int64_t>::max();
-  for (auto it = lockedFileMap->cbegin(); it != lockedFileMap->cend(); it++) {
-    minOpenTime = std::min<int64_t>(minOpenTime, it->second.openTimeSec);
+  for (const auto& iter : *lockedFileMap) {
+    minOpenTime = std::min<int64_t>(minOpenTime, iter.second.openTimeSec);
   }
 
   int64_t maxAge = getCurrentTimeSec() - minOpenTime;
@@ -80,16 +81,13 @@ void CacheTTLController::applyTTL(int64_t ttlSecs) {
 folly::F14FastSet<uint64_t> CacheTTLController::getAndMarkAgedOutFiles(
     int64_t maxOpenTimeSecs) {
   auto lockedFileMap = fileInfoMap_.wlock();
-
   folly::F14FastSet<uint64_t> fileNums;
-
   for (auto& [fileNum, fileInfo] : *lockedFileMap) {
     if (fileInfo.removeInProgress || fileInfo.openTimeSec < maxOpenTimeSecs) {
       fileNums.insert(fileNum);
       fileInfo.removeInProgress = true;
     }
   }
-
   return fileNums;
 }
 
