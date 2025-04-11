@@ -266,7 +266,7 @@ class AsyncDataCacheEntry {
   /// Moves the promise out of 'this'. Used in order to handle the
   /// promise within the lock of the cache shard, so not within private
   /// methods of 'this'.
-  std::unique_ptr<folly::SharedPromise<bool>> movePromise() {
+  std::unique_ptr<folly::SharedPromise<bool>> movePromiseLocked() {
     return std::move(promise_);
   }
 
@@ -278,7 +278,7 @@ class AsyncDataCacheEntry {
 
   // Returns a future that will be realized when a caller can retry getting
   // 'this'. Must be called inside the mutex of 'shard_'.
-  folly::SemiFuture<bool> getFuture() {
+  folly::SemiFuture<bool> getFutureLocked() {
     if (promise_ == nullptr) {
       promise_ = std::make_unique<folly::SharedPromise<bool>>();
     }
@@ -650,9 +650,9 @@ class CacheShard {
   const double maxWriteRatio_;
 
   mutable std::mutex mutex_;
-  folly::F14FastMap<RawFileCacheKey, AsyncDataCacheEntry*> entryMap_;
-  // Entries associated to a key.
   std::deque<std::unique_ptr<AsyncDataCacheEntry>> entries_;
+  // Entries associated to a key.
+  folly::F14FastMap<RawFileCacheKey, AsyncDataCacheEntry*> entryMap_;
   // Unused indices in 'entries_'.
   std::vector<int32_t> emptySlots_;
   // A reserve of entries that are not associated to a key. Keeps a
@@ -899,6 +899,7 @@ class AsyncDataCache : public memory::Cache {
   std::unique_ptr<SsdCache> ssdCache_;
   std::vector<std::unique_ptr<CacheShard>> shards_;
   std::atomic<int32_t> shardCounter_{0};
+
   std::atomic<memory::MachinePageCount> cachedPages_{0};
   // Number of pages that are allocated and not yet loaded or loaded
   // but not yet hit for the first time.

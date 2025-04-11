@@ -178,7 +178,7 @@ CachePin CacheShard::findOrCreate(
       if (foundEntry->isExclusive()) {
         ++numWaitExclusive_;
         if (wait != nullptr) {
-          *wait = foundEntry->getFuture();
+          *wait = foundEntry->getFutureLocked();
         }
         return CachePin();
       }
@@ -338,7 +338,7 @@ std::unique_ptr<folly::SharedPromise<bool>> CacheShard::removeEntry(
   removeEntryLocked(entry);
   // After the entry is removed from the hash table, a promise can no longer
   // be made. It is safe to move the promise and realize it.
-  return entry->movePromise();
+  return entry->movePromiseLocked();
 }
 
 void CacheShard::removeEntryLocked(AsyncDataCacheEntry* entry) {
@@ -601,7 +601,7 @@ bool CacheShard::removeFileEntries(
     auto entryIndex = -1;
     for (auto& cacheEntry : entries_) {
       entryIndex++;
-      if (!cacheEntry || !cacheEntry->key_.fileNum.hasValue()) {
+      if (cacheEntry == nullptr || !cacheEntry->key_.fileNum.hasValue()) {
         continue;
       }
       if (filesToRemove.count(cacheEntry->key_.fileNum.id()) == 0) {
@@ -677,6 +677,7 @@ std::shared_ptr<AsyncDataCache> AsyncDataCache::create(
     memory::MemoryAllocator* allocator,
     std::unique_ptr<SsdCache> ssdCache,
     const AsyncDataCache::Options& options) {
+  VELOX_DCHECK_NOT_NULL(allocator);
   auto cache =
       std::make_shared<AsyncDataCache>(options, allocator, std::move(ssdCache));
   allocator->registerCache(cache);
