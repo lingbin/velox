@@ -289,7 +289,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Rounds up to a power of 2 >= size, or to a size halfway between
   /// two consecutive powers of two, i.e 8, 12, 16, 24, 32, .... This
   /// coincides with JEMalloc size classes.
-  static size_t preferredSize(size_t size);
+  size_t preferredSize(size_t size);
 
   /// Returns the memory allocation alignment size applied internally by this
   /// memory pool object.  Must be a power of two.

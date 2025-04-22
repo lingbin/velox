@@ -364,6 +364,7 @@ void DecodedVector::setBaseData(
       data_ = vector->valuesAsVoid();
       setFlatNulls(*vector, rows);
       break;
+    }
     case VectorEncoding::Simple::ROW:
     case VectorEncoding::Simple::ARRAY:
     case VectorEncoding::Simple::MAP:
@@ -382,7 +383,7 @@ void DecodedVector::setBaseDataForConstant(
     const T& vector,
     const SelectivityVector* rows,
     VectorPtr& sharedBase) {
-  VELOX_DCHECK(vector.isConstantEncoding());
+  VELOX_DCHECK(vector->isConstantEncoding());
   if (!vector->isScalar()) {
     if constexpr (std::is_same_v<T, VectorPtr>) {
       sharedBase = BaseVector::wrappedVectorShared(vector);

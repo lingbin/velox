@@ -402,7 +402,6 @@ std::exception_ptr MemoryPool::abortError() const {
   return abortError_;
 }
 
-// static
 size_t MemoryPool::preferredSize(size_t size) {
   const auto preferredSize = getPreferredSize_(size);
   VELOX_CHECK_GE(preferredSize, size);

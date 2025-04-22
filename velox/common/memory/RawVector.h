@@ -56,10 +56,7 @@ class raw_vector {
     *this = std::move(other);
   }
 
-<<<<<<< HEAD:velox/common/memory/RawVector.h
   // Copies 'other' to this, leaves 'other' unchanged.
-=======
->>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   void operator=(const raw_vector<T>& other) {
     if (this == &other) {
       return;
@@ -77,12 +74,7 @@ class raw_vector {
     }
   }
 
-<<<<<<< HEAD:velox/common/memory/RawVector.h
-  // Moves 'other' to this, leaves 'other' empty, as after default
-  // construction.
-=======
   // Moves 'other' to this, leaves 'other' empty, as after default construction.
->>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   void operator=(raw_vector<T>&& other) noexcept {
     free();
     data_ = other.data_;
@@ -170,7 +162,6 @@ class raw_vector {
   }
 
  private:
-<<<<<<< HEAD:velox/common/memory/RawVector.h
   // Returns the raw pointer that points to the start of the allocated raw
   // buffer that accommodates both paddings and 'data'.
   static inline uint8_t* getBufferFromData(T* data) {
@@ -192,11 +183,6 @@ class raw_vector {
   // container.
   static inline int32_t calculateCapacity(int32_t size) {
     return (paddedSize(sizeof(T) * size) - 2 * simd::kPadding) / sizeof(T);
-=======
-  // Adds 'bytes' to the address 'pointer'.
-  inline T* addBytes(T* pointer, int32_t bytes) {
-    return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(pointer) + bytes);
->>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106):velox/common/base/RawVector.h
   }
 
   // Size with one full width SIMD load worth data above and below, rounded to

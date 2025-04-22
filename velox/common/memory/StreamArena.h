@@ -49,16 +49,6 @@ class StreamArena {
   /// it is caller's responsibility to check.
   virtual void newRange(int32_t bytes, ByteRange* lastRange, ByteRange* range);
 
-<<<<<<< HEAD
-=======
-  /// Sets 'range' to point to a small piece of memory owned by this. These
-  /// always come from the heap. The use case is for headers that may change
-  /// length based on data properties, not for bulk data. See 'newRange' for the
-  /// meaning of 'lastRange'.
-  virtual void
-  newTinyRange(int32_t bytes, ByteRange* lastRange, ByteRange* range);
-
->>>>>>> f811c78b2 (lingbin-temp-update: temp-commit-at-20240106)
   /// Returns the Total size in bytes held by all Allocations.
   virtual size_t size() const {
     return size_;
