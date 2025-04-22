@@ -96,6 +96,7 @@ std::string mapTypeKindToName(const TypeKind& typeKind);
 
 std::ostream& operator<<(std::ostream& os, const TypeKind& kind);
 
+// Forward declaration.
 template <TypeKind KIND>
 class ScalarType;
 class ShortDecimalType;
@@ -321,7 +322,7 @@ struct TypeTraits<TypeKind::ROW> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::ROW;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -360,7 +361,7 @@ struct TypeTraits<TypeKind::FUNCTION> {
   using NativeType = void;
   using DeepCopiedType = void;
   static constexpr uint32_t minSubTypes = 1;
-  static constexpr uint32_t maxSubTypes = std::numeric_limits<char16_t>::max();
+  static constexpr uint32_t maxSubTypes = std::numeric_limits<int16_t>::max();
   static constexpr TypeKind typeKind = TypeKind::FUNCTION;
   static constexpr bool isPrimitiveType = false;
   static constexpr bool isFixedWidth = false;
@@ -380,6 +381,7 @@ struct TypeTraits<TypeKind::OPAQUE> {
   static constexpr const char* name = "OPAQUE";
 };
 
+// Forward declaration.
 template <TypeKind KIND>
 struct TypeFactory;
 
@@ -469,13 +471,13 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   /// Returns true if equality relationship is defined for the values of this
   /// type, i.e. a == b is defined and returns true, false or null. For example,
   /// scalar types are usually comparable and complex types are comparable if
-  /// their nested types are.
+  /// their nested types are comparable.
   virtual bool isComparable() const = 0;
 
   /// Returns true if less than relationship is defined for the values of this
   /// type, i.e. a <= b returns true or false. For example, scalar types are
   /// usually orderable, arrays and structs are orderable if their nested types
-  /// are, while map types are not orderable.
+  /// are orderable, while map types are not orderable.
   virtual bool isOrderable() const = 0;
 
   /// Returns true if values of this type implements custom comparison and hash
@@ -566,9 +568,9 @@ class Type : public Tree<const TypePtr>, public velox::ISerializable {
   VELOX_FLUENT_CAST(Array, ARRAY)
   VELOX_FLUENT_CAST(Map, MAP)
   VELOX_FLUENT_CAST(Row, ROW)
-  VELOX_FLUENT_CAST(Opaque, OPAQUE)
   VELOX_FLUENT_CAST(UnKnown, UNKNOWN)
   VELOX_FLUENT_CAST(Function, FUNCTION)
+  VELOX_FLUENT_CAST(Opaque, OPAQUE)
 
   const ShortDecimalType& asShortDecimal() const;
   const LongDecimalType& asLongDecimal() const;
@@ -1319,6 +1321,7 @@ FOLLY_ALWAYS_INLINE bool Type::isIntervalDayTime() const {
 }
 
 constexpr long kMonthInYear = 12;
+
 /// Time interval in months.
 class IntervalYearMonthType : public IntegerType {
  private:
@@ -1797,9 +1800,6 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
     }                                                                       \
   }()
 
-#define VELOX_SCALAR_ACCESSOR(KIND) \
-  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
-
 #define VELOX_STATIC_FIELD_DYNAMIC_DISPATCH(CLASS, FIELD, typeKind)           \
   [&]() {                                                                     \
     switch (typeKind) {                                                       \
@@ -1862,6 +1862,9 @@ std::shared_ptr<const OpaqueType> OPAQUE() {
 
 // todo: union convenience creators
 
+#define VELOX_SCALAR_ACCESSOR(KIND) \
+  std::shared_ptr<const ScalarType<TypeKind::KIND>> KIND()
+
 VELOX_SCALAR_ACCESSOR(INTEGER);
 VELOX_SCALAR_ACCESSOR(BOOLEAN);
 VELOX_SCALAR_ACCESSOR(TINYINT);
@@ -1874,6 +1877,10 @@ VELOX_SCALAR_ACCESSOR(TIMESTAMP);
 VELOX_SCALAR_ACCESSOR(VARCHAR);
 VELOX_SCALAR_ACCESSOR(VARBINARY);
 
+#undef VELOX_SCALAR_ACCESSOR
+
+// TODO(lingbin):添加注释说明为什么不使用上面的 宏 来创建。因为 UnknownType
+// 没有继承自 ScalarType. 可以在 `ScalarType`的 模板参数中，在声明时显式禁止掉。
 TypePtr UNKNOWN();
 
 template <TypeKind KIND>
@@ -1923,8 +1930,6 @@ std::shared_ptr<const Type> createType<TypeKind::MAP>(
 template <>
 std::shared_ptr<const Type> createType<TypeKind::OPAQUE>(
     std::vector<std::shared_ptr<const Type>>&& children);
-
-#undef VELOX_SCALAR_ACCESSOR
 
 template <typename T>
 struct SimpleTypeTrait {};
@@ -2154,9 +2159,7 @@ AbstractInputGeneratorPtr getCustomTypeInputGenerator(
 
 // Allows us to transparently use folly::toAppend(), folly::join(), etc.
 template <class TString>
-void toAppend(
-    const std::shared_ptr<const facebook::velox::Type>& type,
-    TString* result) {
+void toAppend(const std::shared_ptr<const Type>& type, TString* result) {
   result->append(type->toString());
 }
 

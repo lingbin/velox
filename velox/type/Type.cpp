@@ -119,6 +119,11 @@ std::string mapTypeKindToName(const TypeKind& typeKind) {
   return found->second;
 }
 
+std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
+  os << mapTypeKindToName(kind);
+  return os;
+}
+
 std::pair<uint8_t, uint8_t> getDecimalPrecisionScale(const Type& type) {
   if (type.isShortDecimal()) {
     const auto& decimalType = static_cast<const ShortDecimalType&>(type);
@@ -128,11 +133,6 @@ std::pair<uint8_t, uint8_t> getDecimalPrecisionScale(const Type& type) {
     return {decimalType.precision(), decimalType.scale()};
   }
   VELOX_FAIL("Type is not Decimal");
-}
-
-std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
-  os << mapTypeKindToName(kind);
-  return os;
 }
 
 namespace {
