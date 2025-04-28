@@ -140,10 +140,12 @@ TEST(StringView, implicitConstructionAndConversion) {
   std::optional<StringView> sv4 = "literal";
   EXPECT_TRUE(sv4.has_value());
   EXPECT_EQ(*sv4, "literal");
+  EXPECT_EQ(sv4, "literal");
 
   std::optional<StringView> sv5("literal");
   EXPECT_TRUE(sv5.has_value());
   EXPECT_EQ(*sv5, "literal");
+  EXPECT_EQ(sv5, "literal");
 
   auto testRegularConversion = [](StringView sv) { EXPECT_EQ(sv, "literal"); };
   testRegularConversion("literal");
@@ -151,12 +153,14 @@ TEST(StringView, implicitConstructionAndConversion) {
   auto testOptionalConversion = [](std::optional<StringView> sv) {
     EXPECT_TRUE(sv.has_value());
     EXPECT_EQ(sv, "literal");
+    EXPECT_EQ(*sv, "literal");
   };
   testOptionalConversion("literal");
 }
 
 TEST(StringView, negativeSizes) {
   EXPECT_THROW(StringView("abc", -10), VeloxException);
+  EXPECT_THROW(StringView(nullptr, 1), VeloxException);
   EXPECT_NO_THROW(StringView(nullptr, 0));
 }
 

@@ -158,8 +158,8 @@ struct StringView {
   //       > 0, if this > other
   int32_t compare(const StringView& other) const {
     if (prefixAsInt() != other.prefixAsInt()) {
-      // The result is decided on prefix. The shorter will be less
-      // because the prefix is padded with zeros.
+      // The result is decided on prefix. The shorter will be less because the
+      // prefix is padded with zeros.
       return memcmp(prefix_, other.prefix_, kPrefixSize);
     }
     int32_t size = std::min(size_, other.size_) - kPrefixSize;
