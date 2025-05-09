@@ -156,7 +156,7 @@ struct VariantTypeTraits<TypeKind::OPAQUE, usesCustomComparison> {
 
 class variant {
  private:
-  variant(TypeKind kind, void* ptr, bool usesCustomComparison = false)
+  variant(TypeKind kind, const void* ptr, bool usesCustomComparison = false)
       : ptr_{ptr}, kind_{kind}, usesCustomComparison_(usesCustomComparison) {}
 
   template <TypeKind KIND>
@@ -210,7 +210,7 @@ class variant {
 
  public:
   struct Hasher {
-    size_t operator()(variant const& input) const noexcept {
+    size_t operator()(const variant& input) const noexcept {
       return input.hash();
     }
   };
@@ -358,8 +358,7 @@ class variant {
       : ptr_{nullptr},
         kind_{other.kind_},
         usesCustomComparison_(other.usesCustomComparison_) {
-    auto op = other.ptr_;
-    if (op != nullptr) {
+    if (other.ptr_ != nullptr) {
       dynamicCopy(other.ptr_, other.kind_);
     }
   }
@@ -396,9 +395,9 @@ class variant {
   }
 
   template <typename T>
-  static variant create(const typename detail::VariantTypeTraits<
-                        CppToType<T>::typeKind,
-                        false>::value_type& v) {
+  static variant create(
+      const typename detail::VariantTypeTraits<CppToType<T>::typeKind, false>::
+          value_type& v) {
     return create<CppToType<T>::typeKind>(v);
   }
 
@@ -537,11 +536,10 @@ class variant {
       return static_cast<
           const typename detail::VariantTypeTraits<KIND, true>::stored_type*>(
           ptr_);
-    } else {
-      return static_cast<
-          const typename detail::VariantTypeTraits<KIND, false>::stored_type*>(
-          ptr_);
     }
+    return static_cast<
+        const typename detail::VariantTypeTraits<KIND, false>::stored_type*>(
+        ptr_);
   }
 
   template <typename T>
