@@ -199,7 +199,8 @@ std::string variant::toString(const TypePtr& type) const {
 
   VELOX_CHECK(type);
 
-  VELOX_CHECK_EQ(this->kind(), type->kind(), "Wrong type in variant::toString");
+  VELOX_CHECK_EQ(
+      this->kind(), type->kind(), "Wrong type in variant::toString()");
 
   switch (type->kind()) {
     case TypeKind::VARBINARY: {
@@ -271,12 +272,12 @@ std::string variant::toJson(const TypePtr& type) const {
 
   VELOX_CHECK(type);
 
-  VELOX_CHECK_EQ(this->kind(), type->kind(), "Wrong type in variant::toJson");
+  VELOX_CHECK_EQ(this->kind(), type->kind(), "Wrong type in variant::toJson()");
 
   switch (kind_) {
     case TypeKind::MAP: {
       auto& map = value<TypeKind::MAP>();
-      std::string b{};
+      std::string b;
       b += "[";
       bool first = true;
       for (auto& pair : map) {
@@ -295,14 +296,14 @@ std::string variant::toJson(const TypePtr& type) const {
     }
     case TypeKind::ROW: {
       auto& row = value<TypeKind::ROW>();
-      std::string b{};
-      b += "[";
-      bool first = true;
-      uint32_t idx = 0;
       VELOX_CHECK_EQ(
           row.size(),
           type->size(),
-          "Wrong number of fields in a struct in variant::toJson");
+          "Wrong number of fields in a struct in variant::toJson()");
+      std::string b;
+      b += "[";
+      bool first = true;
+      uint32_t idx = 0;
       for (auto& v : row) {
         if (!first) {
           b += ",";
@@ -315,7 +316,7 @@ std::string variant::toJson(const TypePtr& type) const {
     }
     case TypeKind::ARRAY: {
       auto& array = value<TypeKind::ARRAY>();
-      std::string b{};
+      std::string b;
       b += "[";
       bool first = true;
       auto arrayElementType = type->childAt(0);
@@ -407,7 +408,7 @@ std::string variant::toJsonUnsafe(const TypePtr& type) const {
   switch (kind_) {
     case TypeKind::MAP: {
       auto& map = value<TypeKind::MAP>();
-      std::string b{};
+      std::string b;
       b += "[";
       bool first = true;
       for (auto& pair : map) {
@@ -426,7 +427,7 @@ std::string variant::toJsonUnsafe(const TypePtr& type) const {
     }
     case TypeKind::ROW: {
       auto& row = value<TypeKind::ROW>();
-      std::string b{};
+      std::string b;
       b += "[";
       bool first = true;
       for (auto& v : row) {
@@ -434,7 +435,6 @@ std::string variant::toJsonUnsafe(const TypePtr& type) const {
           b += ",";
         }
         b += v.toJsonUnsafe();
-
         first = false;
       }
       b += "]";
@@ -442,7 +442,7 @@ std::string variant::toJsonUnsafe(const TypePtr& type) const {
     }
     case TypeKind::ARRAY: {
       auto& array = value<TypeKind::ARRAY>();
-      std::string b{};
+      std::string b;
       b += "[";
       bool first = true;
       for (auto& v : array) {
@@ -523,6 +523,8 @@ std::string variant::toJsonUnsafe(const TypePtr& type) const {
       "Unsupported: given type {} is not json-ready", mapTypeKindToName(kind_));
 }
 
+namespace {
+
 void serializeOpaque(
     folly::dynamic& variantObj,
     const detail::OpaqueCapsule& opaqueValue) {
@@ -538,6 +540,8 @@ void serializeOpaque(
     VELOX_NYI(ex.message());
   }
 }
+
+} // namespace
 
 folly::dynamic variant::serialize() const {
   folly::dynamic variantObj = folly::dynamic::object;
@@ -628,13 +632,13 @@ folly::dynamic variant::serialize() const {
     }
     case TypeKind::INVALID:
       VELOX_NYI();
-
     default:
       VELOX_NYI();
   }
 
   return variantObj;
 }
+namespace {
 
 variant deserializeOpaque(const folly::dynamic& variantobj) {
   auto typ = folly::parseJson(variantobj["opaque_type"].asString());
@@ -652,13 +656,18 @@ variant deserializeOpaque(const folly::dynamic& variantobj) {
     VELOX_NYI(ex.message());
   }
 }
-variant variant::create(const folly::dynamic& variantobj) {
-  TypeKind kind = mapNameToTypeKind(variantobj["type"].asString());
-  const folly::dynamic& obj = variantobj["value"];
+
+} // namespace
+
+// static
+variant variant::create(const folly::dynamic& variantObj) {
+  TypeKind kind = mapNameToTypeKind(variantObj["type"].asString());
+  const folly::dynamic& obj = variantObj["value"];
 
   if (obj.isNull()) {
     return variant::null(kind);
   }
+
   switch (kind) {
     case TypeKind::MAP: {
       std::map<variant, variant> map;
@@ -721,19 +730,18 @@ variant variant::create(const folly::dynamic& variantobj) {
       return variant::create<TypeKind::DOUBLE>(obj.asDouble());
     }
     case TypeKind::OPAQUE: {
-      return deserializeOpaque(variantobj);
+      return deserializeOpaque(variantObj);
     }
     case TypeKind::TIMESTAMP: {
       return variant::create<TypeKind::TIMESTAMP>(Timestamp(
-          variantobj["seconds"].asInt(), variantobj["nanos"].asInt()));
+          variantObj["seconds"].asInt(), variantObj["nanos"].asInt()));
     }
     case TypeKind::INVALID:
       VELOX_NYI();
-
     default:
       VELOX_UNSUPPORTED(
           "specified object can not be converted to variant ",
-          variantobj["type"].asString());
+          variantObj["type"].asString());
   }
 }
 
@@ -907,7 +915,7 @@ bool equalsFloatingPointWithEpsilonTyped(const variant& a, const variant& b) {
 }
 
 bool equalsFloatingPointWithEpsilon(const variant& a, const variant& b) {
-  if (a.isNull() or b.isNull()) {
+  if (a.isNull() || b.isNull()) {
     return false;
   }
 
@@ -924,7 +932,8 @@ bool variant::lessThanWithEpsilon(const variant& other) const {
   if (other.kind_ != this->kind_) {
     return other.kind_ < this->kind_;
   }
-  if ((kind_ == TypeKind::REAL) or (kind_ == TypeKind::DOUBLE)) {
+
+  if (kind_ == TypeKind::REAL || kind_ == TypeKind::DOUBLE) {
     if (isNull() && !other.isNull()) {
       return true;
     }
@@ -992,7 +1001,7 @@ bool variant::equalsWithEpsilon(const variant& other) const {
   if (other.isNull() || this->isNull()) {
     return other.isNull() && this->isNull();
   }
-  if ((kind_ == TypeKind::REAL) or (kind_ == TypeKind::DOUBLE)) {
+  if (kind_ == TypeKind::REAL || kind_ == TypeKind::DOUBLE) {
     return equalsFloatingPointWithEpsilon(*this, other);
   }
 
