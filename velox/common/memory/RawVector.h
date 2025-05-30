@@ -187,8 +187,8 @@ class raw_vector {
 
   // Size with one full width SIMD load worth data above and below, rounded to
   // power of 2.
-  static inline int64_t paddedSize(int64_t size) {
-    return bits::nextPowerOfTwo(size + (2 * simd::kPadding));
+  static inline int32_t paddedSize(int64_t byteSize) {
+    return bits::nextPowerOfTwo(byteSize + (2 * simd::kPadding));
   }
 
   T* allocateData(int64_t size) {
