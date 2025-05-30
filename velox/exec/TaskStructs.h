@@ -65,7 +65,7 @@ struct SplitsStore {
   std::vector<ContinuePromise> splitPromises;
 };
 
-/// Structure contains the current info on splits for a particular plan node.
+/// Structure contains the current info on splits for a leaf plan node.
 struct SplitsState {
   /// True if the source node is a table scan.
   bool sourceIsTableScan{false};

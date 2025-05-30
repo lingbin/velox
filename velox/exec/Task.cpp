@@ -342,6 +342,7 @@ Task::~Task() {
 #define CLEAR(_action_)   \
   clearStage = #_action_; \
   _action_;
+
   CLEAR(threadFinishPromises_.clear());
   CLEAR(splitGroupStates_.clear());
   CLEAR(taskStats_ = TaskStats());
@@ -359,6 +360,9 @@ Task::~Task() {
   CLEAR(pool_.reset());
   CLEAR(planFragment_ = core::PlanFragment());
   CLEAR(queryCtx_.reset());
+
+#undef CLEAR
+
   clearStage = "exiting ~Task()";
 
   // Ful-fill the task deletion promises at the end.
@@ -368,21 +372,25 @@ Task::~Task() {
   }
 }
 
+// static
 Task::TaskList& Task::taskList() {
   static TaskList taskList;
   return taskList;
 }
 
+// static
 folly::SharedMutex& Task::taskListLock() {
   static folly::SharedMutex lock;
   return lock;
 }
 
+// static
 size_t Task::numRunningTasks() {
   std::shared_lock guard{taskListLock()};
   return taskList().size();
 }
 
+// static
 std::vector<std::shared_ptr<Task>> Task::getRunningTasks() {
   std::vector<std::shared_ptr<Task>> tasks;
   std::shared_lock guard(taskListLock());
@@ -442,7 +450,7 @@ bool Task::allNodesReceivedNoMoreSplitsMessageLocked() const {
 const std::string& Task::getOrCreateSpillDirectory() {
   VELOX_CHECK(
       !spillDirectory_.empty() || spillDirectoryCallback_,
-      "Spill directory or spill directory callback must be set ");
+      "Spill directory or spill directory callback must be set");
   if (spillDirectoryCreated_) {
     return spillDirectory_;
   }
@@ -852,7 +860,7 @@ std::shared_ptr<Driver> Task::getDriver(uint32_t driverId) const {
   return drivers_[driverId];
 }
 
-void Task::checkExecutionMode(ExecutionMode mode) {
+void Task::checkExecutionMode(ExecutionMode mode) const {
   VELOX_CHECK_EQ(mode, mode_, "Inconsistent task execution mode.");
 }
 
@@ -964,8 +972,7 @@ void Task::initializePartitionOutput() {
   VELOX_CHECK_NOT_NULL(
       bufferManager,
       "Unable to initialize task. OutputBufferManager was already destructed");
-  std::shared_ptr<const core::PartitionedOutputNode> partitionedOutputNode{
-      nullptr};
+  std::shared_ptr<const core::PartitionedOutputNode> partitionedOutputNode;
   int numOutputDrivers{0};
   {
     std::unique_lock<std::timed_mutex> l(mutex_);
@@ -993,7 +1000,7 @@ void Task::initializePartitionOutput() {
       }
       // NOTE: MergeExchangeNode doesn't use the exchange client created here
       // to fetch data from the merge source but only uses it to send
-      // abortResults to the merge source of the split which is added after
+      // 'abortResults' to the merge source of the split which is added after
       // the task has failed. Correspondingly, MergeExchangeNode creates one
       // exchange client for each merge source to fetch data as we can't mix
       // the data from different sources for merging.
@@ -1033,7 +1040,7 @@ void Task::resume(std::shared_ptr<Task> self) {
   };
 
   std::lock_guard<std::timed_mutex> l(self->mutex_);
-  // Setting pause requested must be atomic with the resuming so that
+  // Setting 'pauseRequested_' must be atomic with the resuming so that
   // suspended sections do not go back on thread during resume.
   self->pauseRequested_ = false;
   if (self->isRunningLocked()) {
@@ -1094,7 +1101,7 @@ void Task::resume(std::shared_ptr<Task> self) {
   resumePromises.swap(self->resumePromises_);
 }
 
-void Task::validateGroupedExecutionLeafNodes() {
+void Task::validateGroupedExecutionLeafNodes() const {
   if (isGroupedExecution()) {
     VELOX_USER_CHECK(
         !planFragment_.groupedExecutionLeafNodeIds.empty(),
@@ -1117,8 +1124,7 @@ void Task::validateGroupedExecutionLeafNodes() {
       }
       VELOX_USER_CHECK(
           found,
-          "Grouped execution leaf node {} is not a leaf node in "
-          "any pipeline",
+          "Grouped execution leaf node {} is not a leaf node in any pipeline",
           leafNodeId);
     }
   } else {
@@ -1141,11 +1147,11 @@ void Task::createSplitGroupStateLocked(uint32_t splitGroupId) {
       continue;
     }
 
-    core::PlanNodePtr partitionNode;
-    if (factory->needsLocalExchange(partitionNode)) {
-      VELOX_CHECK_NOT_NULL(partitionNode);
+    core::PlanNodePtr localPartitionNode;
+    if (factory->needsLocalExchange(localPartitionNode)) {
+      VELOX_CHECK_NOT_NULL(localPartitionNode);
       createLocalExchangeQueuesLocked(
-          splitGroupId, partitionNode, factory->numDrivers);
+          splitGroupId, localPartitionNode, factory->numDrivers);
     }
     addHashJoinBridgesLocked(splitGroupId, factory->needsHashJoinBridges());
     addNestedLoopJoinBridgesLocked(
@@ -1205,7 +1211,7 @@ std::vector<std::shared_ptr<Driver>> Task::createDriversLocked(
     ++numRunningSplitGroups_;
   }
 
-  // Initialize operator stats using the 1st driver of each operator.
+  // Initialize operator stats using the 1st Driver of each pipeline.
   // We create drivers for grouped and ungrouped execution separately, so we
   // need to track down initialization of operator stats separately as well.
   if ((groupedExecutionDrivers & !initializedGroupedOpStats_) ||
@@ -1452,7 +1458,7 @@ std::unique_ptr<ContinuePromise> Task::addSplitLocked(
 std::unique_ptr<ContinuePromise> Task::addSplitToStoreLocked(
     SplitsStore& splitsStore,
     exec::Split&& split) {
-  splitsStore.splits.push_back(split);
+  splitsStore.splits.push_back(std::move(split));
   if (splitsStore.splitPromises.empty()) {
     return nullptr;
   }
@@ -1509,8 +1515,7 @@ void Task::noMoreSplits(const core::PlanNodeId& planNodeId) {
         VELOX_CHECK_EQ(
             splitsState.groupSplitsStores.size(),
             1,
-            "Expect 1 split store in a plan node in ungrouped execution mode, has {}",
-            splitsState.groupSplitsStores.size());
+            "Expect 1 split store in a plan node in ungrouped execution mode");
         auto it = splitsState.groupSplitsStores.begin();
         it->second.noMoreSplits = true;
         splitPromises.swap(it->second.splitPromises);
@@ -1629,6 +1634,7 @@ exec::Split Task::getSplitLocked(
     SplitsStore& splitsStore,
     int32_t maxPreloadSplits,
     const ConnectorSplitPreloadFunc& preload) {
+  VELOX_CHECK(!splitsStore.splits.empty());
   int32_t readySplitIndex = -1;
   if (maxPreloadSplits > 0) {
     for (auto i = 0; i < splitsStore.splits.size() && i < maxPreloadSplits;
@@ -1639,7 +1645,7 @@ exec::Split Task::getSplitLocked(
         preload(connectorSplit);
         preloadingSplits_.emplace(connectorSplit);
       } else if (
-          (readySplitIndex == -1) && (connectorSplit->dataSource->hasValue())) {
+          readySplitIndex == -1 && connectorSplit->dataSource->hasValue()) {
         readySplitIndex = i;
         preloadingSplits_.erase(connectorSplit);
       }
@@ -1648,7 +1654,6 @@ exec::Split Task::getSplitLocked(
   if (readySplitIndex == -1) {
     readySplitIndex = 0;
   }
-  VELOX_CHECK(!splitsStore.splits.empty());
   auto split = std::move(splitsStore.splits[readySplitIndex]);
   splitsStore.splits.erase(splitsStore.splits.begin() + readySplitIndex);
 
@@ -1729,21 +1734,6 @@ void Task::multipleSplitsFinished(
   }
 }
 
-bool Task::isGroupedExecution() const {
-  return planFragment_.isGroupedExecution();
-}
-
-bool Task::isUngroupedExecution() const {
-  return not isGroupedExecution();
-}
-
-bool Task::hasMixedExecutionGroup() const {
-  if (!isGroupedExecution()) {
-    return false;
-  }
-  return numDriversUngrouped_ > 0;
-}
-
 bool Task::isRunning() const {
   std::lock_guard<std::timed_mutex> l(mutex_);
   return isRunningLocked();
@@ -1755,11 +1745,11 @@ bool Task::isFinished() const {
 }
 
 bool Task::isRunningLocked() const {
-  return (state_ == TaskState::kRunning);
+  return state_ == TaskState::kRunning;
 }
 
 bool Task::isFinishedLocked() const {
-  return (state_ == TaskState::kFinished);
+  return state_ == TaskState::kFinished;
 }
 
 bool Task::updateOutputBuffers(int numBuffers, bool noMoreBuffers) {
@@ -2642,8 +2632,9 @@ void Task::createLocalExchangeQueuesLocked(
       queryCtx_->queryConfig().maxLocalExchangeBufferSize());
   exchange.queues.reserve(numPartitions);
   for (auto i = 0; i < numPartitions; ++i) {
-    exchange.queues.emplace_back(std::make_shared<LocalExchangeQueue>(
-        exchange.memoryManager, exchange.vectorPool, i));
+    exchange.queues.emplace_back(
+        std::make_shared<LocalExchangeQueue>(
+            exchange.memoryManager, exchange.vectorPool, i));
   }
 
   const auto partitionNode =
@@ -2740,7 +2731,7 @@ void Task::setError(const std::exception_ptr& exception) {
   TestValue::adjust("facebook::velox::exec::Task::setError", this);
   {
     std::lock_guard<std::timed_mutex> l(mutex_);
-    if (not isRunningLocked()) {
+    if (!isRunningLocked()) {
       return;
     }
     if (exception_ != nullptr) {
@@ -3089,7 +3080,7 @@ std::optional<trace::TraceConfig> Task::maybeMakeTraceConfig() const {
   for (const auto& traceNodeId : traceNodeIds) {
     if (core::PlanNode::findFirstNode(
             planFragment_.planNode.get(),
-            [traceNodeId](const core::PlanNode* node) -> bool {
+            [&traceNodeId](const core::PlanNode* node) -> bool {
               return node->id() == traceNodeId;
             })) {
       foundTraceNode = true;

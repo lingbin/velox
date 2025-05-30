@@ -125,7 +125,7 @@ TEST_P(RawVectorTest, copyAndMove) {
 
 TEST_P(RawVectorTest, iota) {
   raw_vector<int32_t> storage(pool_.get());
-  // Small sizes are preallocated.
+  // Small sizes are pre-allocated.
   EXPECT_EQ(11, iota(12, storage)[11]);
   EXPECT_TRUE(storage.empty());
   EXPECT_EQ(110000, iota(110001, storage)[110000]);
