@@ -343,7 +343,10 @@ std::unordered_map<V, K> invertMap(const std::unordered_map<K, V>& mapping) {
 const char* AggregationNode::stepName(AggregationNode::Step step) {
   static const auto kSteps = stepNames();
   auto it = kSteps.find(step);
-  VELOX_CHECK(it != kSteps.end(), "Invalid step {}", static_cast<int>(step));
+  VELOX_CHECK(
+      it != kSteps.end(),
+      "Invalid aggregation step {}",
+      static_cast<int>(step));
   return it->second.c_str();
 }
 
@@ -351,7 +354,7 @@ const char* AggregationNode::stepName(AggregationNode::Step step) {
 AggregationNode::Step AggregationNode::stepFromName(const std::string& name) {
   static const auto kSteps = invertMap(stepNames());
   auto it = kSteps.find(name);
-  VELOX_CHECK(it != kSteps.end(), "Invalid step " + name);
+  VELOX_CHECK(it != kSteps.end(), "Invalid aggregation step {}", name);
   return it->second;
 }
 
@@ -2934,7 +2937,7 @@ void PlanNode::toString(
     stream << " -> ";
     outputType()->printChildren(stream, ", ");
   }
-  stream << std::endl;
+  stream << "\n";
 
   if (addContext) {
     auto contextIndentation = indentation + "   ";

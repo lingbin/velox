@@ -524,6 +524,7 @@ struct AggregateFunctionMetadata {
   /// Indicates if this is a companion function.
   bool companionFunction{false};
 };
+
 /// Register an aggregate function with the specified name and signatures. If
 /// registerCompanionFunctions is true, also register companion aggregate and
 /// scalar functions with it. When functions with `name` already exist, if

@@ -598,7 +598,7 @@ void VectorHasher::analyze(
 template <>
 void VectorHasher::analyzeValue(StringView value) {
   size_t size = value.size();
-  auto data = value.data();
+  const auto* data = value.data();
   if (!rangeOverflow_) {
     if (size > kStringASRangeMaxSize) {
       setRangeOverflow();
@@ -635,7 +635,7 @@ void VectorHasher::copyStringToLocal(const UniqueValue* unique) {
     uniqueValuesStorage_.back().reserve(std::max(kStringBufferUnitSize, size));
     distinctStringsBytes_ += uniqueValuesStorage_.back().capacity();
   }
-  auto str = &uniqueValuesStorage_.back();
+  auto* str = &uniqueValuesStorage_.back();
   if (str->size() + size > str->capacity()) {
     uniqueValuesStorage_.emplace_back();
     uniqueValuesStorage_.back().reserve(std::max(kStringBufferUnitSize, size));
@@ -766,13 +766,17 @@ void VectorHasher::cardinality(
     asDistincts = 3;
     return;
   }
+
   int64_t signedRange;
   if (!hasRange_ || rangeOverflow_) {
     asRange = kRangeTooLarge;
   } else if (__builtin_sub_overflow(max_, min_, &signedRange)) {
     setRangeOverflow();
     asRange = kRangeTooLarge;
-  } else if (signedRange < kMaxRange) {
+  } else if (signedRange >= kMaxRange) {
+    setRangeOverflow();
+    asRange = kRangeTooLarge;
+  } else {
     // We check that after the extension by reservePct the range of max - min
     // will still be in int64_t bounds.
     VELOX_CHECK_GE(100, reservePct);
@@ -784,10 +788,8 @@ void VectorHasher::cardinality(
     int64_t max = max_;
     extendRange(type_->kind(), reservePct, min, max);
     asRange = (max - min) + 2;
-  } else {
-    setRangeOverflow();
-    asRange = kRangeTooLarge;
   }
+
   if (distinctOverflow_) {
     asDistincts = kRangeTooLarge;
     return;
@@ -907,7 +909,7 @@ std::vector<std::unique_ptr<VectorHasher>> createVectorHashers(
   const auto numKeys = keyChannels.size();
   std::vector<std::unique_ptr<VectorHasher>> hashers;
   hashers.reserve(numKeys);
-  for (const auto& keyChannel : keyChannels) {
+  for (const auto keyChannel : keyChannels) {
     hashers.push_back(
         VectorHasher::create(rowType->childAt(keyChannel), keyChannel));
   }

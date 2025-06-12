@@ -79,7 +79,7 @@ struct UniqueValueHasher {
     }
 
     uint32_t hash = 0;
-    auto data = reinterpret_cast<const uint64_t*>(value.data());
+    const auto* data = reinterpret_cast<const uint64_t*>(value.data());
 
     size_t wordIndex = 0;
     auto numFullWords = size / 8;
@@ -177,7 +177,7 @@ class VectorHasher {
     return decoded_;
   }
 
-  // Computes a hash for 'rows' in the vector previously decoded via decode()
+  // Computes a hash for 'rows' in the vector previously decoded via 'decode()'
   // call and stores it in 'result'. If 'mix' is true, mixes the hash with
   // existing value in 'result'.
   void
@@ -257,7 +257,7 @@ class VectorHasher {
   // produce. Does not accept kNoLimit for 'reservePct'.
   uint64_t enableValueRange(uint64_t multiplier, int32_t reservePct);
 
-  // Sets this to 'value ids' mode, where each distinct value has an
+  // Sets 'this' to 'value ids' mode, where each distinct value has an
   // integer id times 'multiplier'. Leaves 'reservePct' % values at
   // the end of the distinct ids range. Returns 'multiplier' times the
   // number of distinct values reserved. 'reservePct' = kNoLimit means
@@ -303,7 +303,7 @@ class VectorHasher {
   // and distinct values are unioned.
   void merge(const VectorHasher& other);
 
-  // true if no values have been added.
+  // True if no values have been added.
   bool empty() const {
     return !hasRange_ && uniqueValues_.empty();
   }
@@ -322,9 +322,10 @@ class VectorHasher {
   // Maps a binary string of up to 7 bytes to int64_t. Each size maps
   // to a different numeric range, so leading zeros are considered.
   static inline int64_t stringAsNumber(const char* data, int32_t size) {
+    VELOX_DCHECK_LE(size, kStringASRangeMaxSize);
     int64_t word =
         bits::loadPartialWord(reinterpret_cast<const uint8_t*>(data), size);
-    return size == 0 ? word : word + (1L << (size * 8));
+    return size == 0 ? 0 : word + (1L << (size * 8));
   }
 
   template <typename T>
@@ -503,6 +504,7 @@ class VectorHasher {
       }
       return int64Value - min_ + 1;
     }
+
     UniqueValue unique(value);
     auto iter = uniqueValues_.find(unique);
     if (iter != uniqueValues_.end()) {
@@ -677,12 +679,6 @@ inline bool VectorHasher::tryMapToRange(
   });
   return true;
 }
-
-template <>
-bool VectorHasher::tryMapToRange(
-    const StringView* /*values*/,
-    const SelectivityVector& /*rows*/,
-    uint64_t* /*result*/);
 
 template <>
 bool VectorHasher::makeValueIdsFlatNoNulls<bool>(
