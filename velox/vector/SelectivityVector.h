@@ -30,22 +30,23 @@
 
 namespace facebook::velox {
 
-// A selectivityVector is used to logically filter / select data in place.
-// The goal here is to be able to pass this vector between filter stages on
-// different vectors while only maintaining a single copy of state and more
-// importantly not ever having to re-layout the physical data. Further the
-// SelectivityVector can be used to optimize filtering by skipping elements
-// that where previously filtered by another filter / column.
+/// A selectivityVector is used to logically filter / select data in place.
+/// The goal here is to be able to pass 'this' between filter stages on
+/// different vectors while only maintaining a single copy of state and more
+/// importantly not ever having to re-layout the physical data. Further the
+/// SelectivityVector can be used to optimize filtering by skipping elements
+/// that where previously filtered by another filter / column.
 class SelectivityVector {
  public:
   SelectivityVector() = default;
 
-  explicit SelectivityVector(vector_size_t length, bool allSelected = true) {
+  // TODO(lingbin): 使用“初始化列表”(member initializer list)，避免一次赋值。
+  explicit SelectivityVector(vector_size_t length, bool allSelected = true)
+      : size_(length),
+        begin_(0),
+        end_(allSelected ? size_ : 0),
+        allSelected_(allSelected) {
     bits_.resize(bits::nwords(length), allSelected ? ~0ULL : 0);
-    size_ = length;
-    begin_ = 0;
-    end_ = allSelected ? size_ : 0;
-    allSelected_ = allSelected;
   }
 
   // Returns a statically allocated reference to an empty selectivity vector
@@ -90,24 +91,20 @@ class SelectivityVector {
     allSelected_ = value;
   }
 
-  /**
-   * Set whether given index is selected. updateBounds() need to be called
-   * explicitly after setValid() call, it can be called only once after multiple
-   * setValid() calls in a row.
-   */
+  /// Set whether given index is selected. updateBounds() need to be called
+  /// explicitly after setValid() call, it can be called only once after
+  /// multiple setValid() calls in a row.
   void setValid(vector_size_t idx, bool valid) {
     VELOX_DCHECK_LT(idx, bits_.size() * sizeof(bits_[0]) * 8);
     bits::setBit(bits_.data(), idx, valid);
     allSelected_.reset();
   }
 
-  /**
-   * If range is not empty, set a range of values to valid from [start, end).
-   * updateBounds() need to be called explicitly after setValidRange() call, it
-   * can be called only once after multiple setValidRange() calls in a row.
-   */
+  /// If range is not empty, set a range of values to valid from [start, end).
+  /// updateBounds() need to be called explicitly after setValidRange() call, it
+  /// can be called only once after multiple setValidRange() calls in a row.
   void setValidRange(vector_size_t begin, vector_size_t end, bool valid) {
-    VELOX_DCHECK_GE(end, begin);
+    VELOX_DCHECK_LE(begin, end);
     if (begin == end) {
       return;
     }
@@ -116,20 +113,18 @@ class SelectivityVector {
     allSelected_.reset();
   }
 
-  /**
-   * @return true if given index is selected, false if not
-   */
+  /// @return true if given index is selected, false if not.
   bool isValid(vector_size_t idx) const {
     return bits::isBitSet(bits_.data(), idx);
   }
 
-  const Range<bool> asRange() const {
+  // TODO(lingbin): Function returns by const value. Consider returning by
+  // non-const value instead.
+  Range<bool> asRange() const {
     return Range<bool>(bits_.data(), begin_, end_);
   }
 
-  /**
-   * updateBounds() need to be called explicitly if data is modified.
-   */
+  /// updateBounds() need to be called explicitly if data is modified.
   MutableRange<bool> asMutableRange() {
     return MutableRange<bool>(bits_.data(), begin_, end_);
   }
@@ -146,9 +141,7 @@ class SelectivityVector {
     return end_;
   }
 
-  /**
-   * @return true if the vector has anything selected, false otherwise
-   */
+  /// @return true if the vector has anything selected, false otherwise.
   bool hasSelections() const {
     return begin_ < end_;
   }
@@ -178,7 +171,8 @@ class SelectivityVector {
     }
     memcpy(bits_.data(), bits, numWords * 8);
     size_ = size;
-    end_ = size;
+    // TODO(lingbin): Remove it. it will be updated in updateBounds().
+    // end_ = size;
     // No need, updateBounds() will update 'begin_';
     // begin_ = 0;
     updateBounds();
@@ -235,7 +229,7 @@ class SelectivityVector {
   }
 
   void clearNulls(uint64_t* rawNulls) const {
-    if (rawNulls) {
+    if (rawNulls != nullptr) {
       bits::orBits(rawNulls, bits_.data(), begin_, end_);
     }
   }
@@ -276,9 +270,9 @@ class SelectivityVector {
     return false;
   }
 
-  /// Updates the begin_ and end_ values to match the
-  /// current bounds of the minimum selected index and the maximum selected
-  /// index (noting that the range in between may contain not selected indices).
+  /// Updates the 'begin_' and 'end_' values to match the current bounds of the
+  /// minimum selected index and the maximum selected index (noting that the
+  /// range in between may contain not selected indices).
   void updateBounds() {
     begin_ = bits::findFirstBit(bits_.data(), 0, size_);
     if (begin_ == -1) {

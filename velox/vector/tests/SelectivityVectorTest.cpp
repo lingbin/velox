@@ -389,7 +389,7 @@ TEST(SelectivityVectorTest, resize) {
   assertIsValid(0, 656, larger, true);
   ASSERT_TRUE(larger.isAllSelected());
 
-  // Check for word length reduction
+  // Check for word length reduction.
   larger.resize(53);
   assertIsValid(0, 53, larger, true);
   // Check if all selected is true
