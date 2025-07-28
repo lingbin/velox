@@ -39,7 +39,6 @@ bool evaluateNullEquality(const Variant& a, const Variant& b) {
   }
   return false;
 }
-} // namespace
 
 template <TypeKind KIND>
 struct VariantEquality;
