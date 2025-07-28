@@ -71,7 +71,7 @@ folly::F14FastMap<TypeKind, std::string> typeKindNames() {
 VELOX_DEFINE_ENUM_NAME(TypeKind, typeKindNames);
 
 std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
-  os << mapTypeKindToName(kind);
+  os << TypeKindName::toName(kind);
   return os;
 }
 
@@ -103,12 +103,6 @@ struct OpaqueSerdeRegistry {
   }
 };
 
-std::ostream& operator<<(std::ostream& os, const TypeKind& kind) {
-  os << TypeKindName::toName(kind);
-  return os;
-}
-
-namespace {
 std::vector<TypePtr> deserializeChildTypes(const folly::dynamic& obj) {
   return velox::ISerializable::deserialize<std::vector<Type>>(obj["cTypes"]);
 }
