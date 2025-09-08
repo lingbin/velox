@@ -32,13 +32,15 @@ class SsdFileTestHelper;
 class SsdCacheTestHelper;
 } // namespace test
 
-/// A 64 bit word describing a SSD cache entry in an SsdFile. The low 23 bits
-/// are the size, for a maximum entry size of 8MB. The high bits are the offset.
+/// The 'fileBits_' field is a 64 bit word describing a SSD cache entry in an
+/// SsdFile. The low 23 bits are the size, for a maximum entry size of 8MB. The
+/// high 41 bits are the offset. The 'checksum_' field is optional and is used
+/// only when the checksum feature is enabled, otherwise, its value is always 0.
 class SsdRun {
  public:
   static constexpr int32_t kSizeBits = 23;
 
-  SsdRun() : fileBits_(0) {}
+  SsdRun() = default;
 
   SsdRun(uint64_t offset, uint32_t size, uint32_t checksum)
       : fileBits_((offset << kSizeBits) | (size - 1)), checksum_(checksum) {
@@ -90,8 +92,8 @@ class SsdRun {
 
  private:
   // Contains the file offset and size.
-  uint64_t fileBits_;
-  uint32_t checksum_;
+  uint64_t fileBits_{0};
+  uint32_t checksum_{0};
 };
 
 /// Represents an SsdFile entry that is planned for load or being loaded. This
@@ -144,7 +146,7 @@ class SsdPin {
 
 /// Metrics for SSD cache. Maintained by SsdFile and aggregated by SsdCache.
 struct SsdCacheStats {
-  SsdCacheStats() {}
+  SsdCacheStats() = default;
 
   SsdCacheStats(const SsdCacheStats& other) {
     *this = other;
@@ -254,7 +256,7 @@ struct SsdCacheStats {
 /// Each file consists of an integer number of 64MB regions. Each region has a
 /// pin count and a read count. Cache replacement takes place region by region,
 /// preferring regions with a smaller read count. Entries do not span regions.
-/// Otherwise entries are consecutive byte ranges inside their region.
+/// Instead, entries are consecutive byte ranges inside their region.
 class SsdFile {
  public:
   struct Config {
@@ -300,7 +302,7 @@ class SsdFile {
     const bool checksumReadVerificationEnabled;
 
     /// Executor for async fsync in checkpoint.
-    folly::Executor* executor;
+    folly::Executor* const executor;
   };
 
   static constexpr uint64_t kRegionSize = 1 << 26; // 64MB
@@ -614,7 +616,7 @@ class SsdFile {
   int64_t checkpointIntervalBytes_{0};
 
   // Executor for async fsync in checkpoint.
-  folly::Executor* executor_;
+  folly::Executor* const executor_;
 
   // Count of bytes written after last checkpoint.
   std::atomic<uint64_t> bytesAfterCheckpoint_{0};

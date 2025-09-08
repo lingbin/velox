@@ -84,7 +84,7 @@ class SsdCache {
     }
   };
 
-  /// Constructs a cache with backing files at path 'filePrefix'.<ordinal>.
+  /// Constructs a cache with backing files at path 'filePrefix'<ordinal>.
   /// <ordinal> ranges from 0 to 'numShards' - 1.
   /// 'maxBytes' is the total capacity of the cache. This is rounded up to the
   /// next multiple of kRegionSize * 'numShards'. This means that all the shards
@@ -125,7 +125,7 @@ class SsdCache {
   /// for the successfully stored entries. May evict existing entries from
   /// unpinned regions.
   ///
-  /// NOTE: startWrite() must have been called first and it must have returned
+  /// NOTE: startWrite() must have been called first, and it must have returned
   /// true.
   void write(std::vector<CachePin> pins);
 
@@ -170,10 +170,10 @@ class SsdCache {
 
   /// Waits until the pending ssd cache writes or checkpoints to finish. Used by
   /// test and Prestissimo worker operation.
-  void waitForWriteToFinish();
+  void waitForWriteToFinish() const;
 
  private:
-  void checkNotShutdownLocked() {
+  void checkNotShutdownLocked() const {
     VELOX_CHECK(
         !shutdown_, "Unexpected write after SSD cache has been shutdown");
   }

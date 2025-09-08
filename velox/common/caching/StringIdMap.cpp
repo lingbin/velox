@@ -80,7 +80,7 @@ uint64_t StringIdMap::makeId(std::string_view string) {
   const auto id = entry.id;
   idToEntry_[id] = std::move(entry);
   stringToId_[string] = id;
-  return lastId_;
+  return id;
 }
 
 uint64_t StringIdMap::recoverId(uint64_t id, std::string_view string) {
@@ -91,7 +91,6 @@ uint64_t StringIdMap::recoverId(uint64_t id, std::string_view string) {
         id, it->second, "Multiple recover ids assigned to {}", string);
     auto entry = idToEntry_.find(it->second);
     VELOX_CHECK(entry != idToEntry_.end());
-    VELOX_CHECK_GE(entry->second.numInUse, 1);
     VELOX_CHECK_GE(entry->second.numInUse, 1);
     return id;
   }

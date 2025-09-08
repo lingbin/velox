@@ -131,6 +131,8 @@ SsdFile::SsdFile(const Config& config)
     writeFile_->truncate(fileSize_);
   }
   // The existing regions in the file are writable.
+  // 这一步是多余的：writableRegions_的 元素个数，标识的 空闲region 的个数。 这里全部赋值为0，是不对的。
+  // 在 writableRegions_ 中，所有元素 的值 应该都不相同。
   writableRegions_.resize(numRegions_, 0);
   tracker_.resize(maxRegions_);
   regionSizes_.resize(maxRegions_, 0);
@@ -503,7 +505,7 @@ void SsdFile::updateStats(SsdCacheStats& stats) const {
   stats.bytesRead += stats_.bytesRead;
   stats.checkpointsRead += stats_.checkpointsRead;
   stats.entriesCached += entries_.size();
-  stats.regionsCached += numRegions_;
+  stats.regionsCached += numRegions_ - writableRegions_.size();
   for (auto i = 0; i < numRegions_; i++) {
     stats.bytesCached += (regionSizes_[i] - erasedRegionSizes_[i]);
   }

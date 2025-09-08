@@ -312,7 +312,7 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
       payload += request.size;
     }
     return fmt::format(
-        "<CoalescedLoad: {} entries, {} total {} extra>",
+        "<DwioCoalescedLoadBase: {} entries, {} total {} extra>",
         requests_.size(),
         succinctBytes(total),
         succinctBytes(total - payload));
@@ -381,6 +381,7 @@ class DwioCoalescedLoad : public DwioCoalescedLoadBase {
         input_(std::move(input)),
         maxCoalesceDistance_(maxCoalesceDistance) {}
 
+ private:
   std::vector<CachePin> loadData(bool prefetch) override {
     std::vector<CachePin> pins;
     pins.reserve(keys_.size());
@@ -432,6 +433,7 @@ class SsdLoad : public DwioCoalescedLoadBase {
             groupId,
             std::move(requests)) {}
 
+ private:
   std::vector<CachePin> loadData(bool prefetch) override {
     std::vector<SsdPin> ssdPins;
     std::vector<CachePin> pins;

@@ -124,7 +124,8 @@ struct RawFileCacheKey {
 namespace std {
 template <>
 struct hash<::facebook::velox::cache::FileCacheKey> {
-  size_t operator()(const ::facebook::velox::cache::FileCacheKey& key) const {
+  size_t operator()(
+      const ::facebook::velox::cache::FileCacheKey& key) const noexcept {
     return facebook::velox::bits::hashMix(key.fileNum.id(), key.offset);
   }
 };
@@ -132,7 +133,7 @@ struct hash<::facebook::velox::cache::FileCacheKey> {
 template <>
 struct hash<::facebook::velox::cache::RawFileCacheKey> {
   size_t operator()(
-      const ::facebook::velox::cache::RawFileCacheKey& key) const {
+      const ::facebook::velox::cache::RawFileCacheKey& key) const noexcept {
     return facebook::velox::bits::hashMix(key.fileNum, key.offset);
   }
 };
@@ -438,7 +439,7 @@ class CoalescedLoad {
   /// process of doing this and 'wait' is null, returns immediately. If another
   /// thread is in the process of doing this and 'wait' is not null, waits for
   /// the other thread to be done. If 'ssdSavable' is true, marks the loaded
-  /// entries as ssdsavable.
+  /// entries as ssd-savable.
   bool loadOrFuture(folly::SemiFuture<bool>* wait, bool ssdSavable = true);
 
   State state() const {
@@ -630,7 +631,7 @@ class CacheShard {
   static constexpr uint32_t kMaxFreeEntries = 1 << 10;
   static constexpr int32_t kNoThreshold = std::numeric_limits<int32_t>::max();
 
-  void calibrateThreshold();
+  void calibrateThresholdLocked();
 
   void removeEntryLocked(AsyncDataCacheEntry* entry);
 
@@ -667,7 +668,8 @@ class CacheShard {
   // Maximum retainable entry score(). Anything above this is evictable.
   int32_t evictionThreshold_{kNoThreshold};
 
-  // Cumulative count of cache hits.
+  // Cumulative count of cache hits(saved IO). The first hit to a prefetched
+  // entry does not count.
   uint64_t numHit_{0};
   // Cumulative Sum of bytes in cache hits.
   uint64_t hitBytes_{0};

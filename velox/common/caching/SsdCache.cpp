@@ -37,6 +37,7 @@ SsdCache::SsdCache(const Config& config)
       filePrefix_.find('/') == 0 || filePrefix_.find("faulty:/") == 0,
       "Ssd path '{}' does not start with '/' that points to local file system.",
       filePrefix_);
+  VELOX_CHECK_GT(numShards_, 0);
   VELOX_CHECK_NOT_NULL(executor_);
 
   VELOX_SSD_CACHE_LOG(INFO) << "SSD cache config: " << config.toString();
@@ -128,10 +129,13 @@ void SsdCache::write(std::vector<CachePin> pins) {
       if (--writesInProgress_ == 0) {
         // Typically occurs every few GB. Allows detecting unusually slow rates
         // from failing devices.
+        // TODO(lingbin):
+        // 上面的write并不一定真正被写下去了，所以这里至少要有一个提示（有一些是失败的）？
         VELOX_SSD_CACHE_LOG(INFO) << fmt::format(
-            "Wrote {}, {} bytes/s",
+            "Wrote {} to SSD, {} bytes/s",
             succinctBytes(bytes),
-            static_cast<float>(bytes) / (getCurrentTimeMicro() - startTimeUs));
+            static_cast<double>(bytes) * 1000'000 /
+                (getCurrentTimeMicro() - startTimeUs));
       }
     });
   }
@@ -195,6 +199,7 @@ void SsdCache::shutdown() {
     std::lock_guard<std::mutex> l(mutex_);
     if (shutdown_) {
       VELOX_SSD_CACHE_LOG(INFO) << "SSD cache has already been shutdown";
+      return;
     }
     shutdown_ = true;
   }
@@ -215,7 +220,7 @@ void SsdCache::clear() {
   }
 }
 
-void SsdCache::waitForWriteToFinish() {
+void SsdCache::waitForWriteToFinish() const {
   while (writesInProgress_ != 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); // NOLINT
   }

@@ -183,6 +183,7 @@ CachePin CacheShard::findOrCreate(
         return CachePin();
       }
 
+      VELOX_DCHECK_GE(foundEntry->numPins(), 0);
       if (foundEntry->size() >= size) {
         foundEntry->touch();
         // The entry is in a readable state. Add a pin.
@@ -266,6 +267,7 @@ CachePin CacheShard::initEntry(
   entry->initialize(
       FileCacheKey{StringIdLease(fileIds(), key.fileNum), key.offset});
   cache_->incrementNew(entry->size());
+
   CachePin pin;
   pin.setEntry(entry);
   return pin;
@@ -411,7 +413,7 @@ uint64_t CacheShard::evict(
           eventCounter_ > entries_.size() / 4 ||
           numChecked > entries_.size() / 8) {
         now = accessTime();
-        calibrateThreshold();
+        calibrateThresholdLocked();
         numChecked = 0;
         eventCounter_ = 0;
       }
@@ -492,10 +494,10 @@ void CacheShard::freeAllocations(std::vector<memory::Allocation>& allocations) {
   allocations.clear();
 }
 
-void CacheShard::calibrateThreshold() {
+void CacheShard::calibrateThresholdLocked() {
   auto numSamples = std::min<int32_t>(10, entries_.size());
   auto now = accessTime();
-  auto entryIndex = (clockHand_ % entries_.size());
+  auto entryIndex = clockHand_ % entries_.size();
   const auto step = entries_.size() / numSamples;
   auto iter = entries_.begin() + entryIndex;
   evictionThreshold_ = percentile<int32_t>(
@@ -533,7 +535,7 @@ void CacheShard::updateStats(CacheStats& stats) {
       ++stats.numShared;
     }
 
-    if (entry->isPrefetch_) {
+    if (entry->isPrefetch()) {
       ++stats.numPrefetch;
       stats.prefetchBytes += entry->size();
     }
@@ -570,7 +572,7 @@ void CacheShard::appendSsdSaveable(bool saveAll, std::vector<CachePin>& pins) {
             static_cast<double>(entries_.size()) * maxWriteRatio_);
   VELOX_CHECK(cache_->ssdCache()->writeInProgress());
   for (auto& entry : entries_) {
-    if (entry && (entry->ssdFile_ == nullptr) && !entry->isExclusive() &&
+    if (entry && entry->ssdFile_ == nullptr && !entry->isExclusive() &&
         entry->ssdSaveable()) {
       ++entry->numPins_;
       CachePin pin;
@@ -757,6 +759,7 @@ bool AsyncDataCache::makeSpace(
   // If requesting less than kSmallSizePages try up to 4x more if
   // first try failed.
   constexpr MachinePageCount kSmallSizePages = 2048; // 8MB
+
   float sizeMultiplier = 1.2;
   // True if this thread is counted in 'numThreadsInAllocate_'.
   bool isCounted = false;
@@ -794,7 +797,7 @@ bool AsyncDataCache::makeSpace(
       std::this_thread::sleep_for(std::chrono::milliseconds(500)); // NOLINT
     }
     if (nthAttempt >= kMaxAttempts / 2) {
-      if (!isCounted) {
+      if (isCounted == false) {
         rank = ++numThreadsInAllocate_;
         isCounted = true;
       }
@@ -837,15 +840,16 @@ uint64_t AsyncDataCache::shrink(uint64_t targetBytes) {
   LOG(INFO) << "Try to shrink cache to free up "
             << velox::succinctBytes(targetBytes) << " memory";
 
-  constexpr uint64_t minBytesToEvict = 8UL << 20; // 8MB
+  constexpr uint64_t kMinBytesToEvict = 8UL << 20; // 8MB
+
   uint64_t evictedBytes{0};
   uint64_t shrinkTimeUs{0};
   {
     MicrosecondTimer timer(&shrinkTimeUs);
-    for (int shard = 0; shard < shards_.size(); ++shard) {
+    for (int shard = 0; shard < kNumShards; ++shard) {
       memory::Allocation unused;
       evictedBytes += shards_[shardCounter_++ & (kShardMask)]->evict(
-          std::max<uint64_t>(minBytesToEvict, targetBytes - evictedBytes),
+          std::max<uint64_t>(kMinBytesToEvict, targetBytes - evictedBytes),
           // Cache shrink is triggered when server is under low memory pressure
           // so need to free up memory as soon as possible. So we always avoid
           // triggering ssd save to accelerate the cache evictions.
