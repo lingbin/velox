@@ -36,16 +36,6 @@ void printBuffer(std::ostream& out, const char* buffer, uint64_t length) {
   out << std::dec;
 }
 
-uint64_t PositionProvider::next() {
-  const uint64_t result = *position_;
-  ++position_;
-  return result;
-}
-
-bool PositionProvider::hasNext() const {
-  return position_ != end_;
-}
-
 void SeekableInputStream::readFully(char* buffer, size_t bufferSize) {
   size_t pos = 0;
   size_t readLength = 0;

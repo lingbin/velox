@@ -23,11 +23,17 @@ namespace facebook::velox::dwio::common {
 class PositionProvider {
  public:
   explicit PositionProvider(const std::vector<uint64_t>& positions)
-      : position_{positions.begin()}, end_{positions.end()} {}
+      : position_{positions.cbegin()}, end_{positions.cend()} {}
 
-  uint64_t next();
+  uint64_t next() {
+    const uint64_t result = *position_;
+    ++position_;
+    return result;
+  }
 
-  bool hasNext() const;
+  bool hasNext() const {
+    return position_ != end_;
+  }
 
  private:
   std::vector<uint64_t>::const_iterator position_;
