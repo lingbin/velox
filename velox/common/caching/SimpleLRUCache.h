@@ -128,14 +128,14 @@ class SimpleLRUCache {
   /// whenever you add a new value to the cache. If 'expireDurationMs' is not
   /// zero, then a cache value will be evicted out of cache after
   /// 'expireDurationMs' time passed since its insertion into the cache no
-  /// matter if it been accessed or not.
+  /// matter if it has been accessed or not.
   explicit SimpleLRUCache(size_t maxSize, size_t expireDurationMs = 0);
 
   /// Frees all owned data. Check-fails if any element remains pinned.
   ~SimpleLRUCache();
 
   /// Adds a key-value pair that will occupy the provided size, evicting
-  /// older elements repeatedly until enough room is avialable in the cache.
+  /// older elements repeatedly until enough room is available in the cache.
   /// Returns whether insertion succeeded. If it did, the cache takes
   /// ownership of |value|. Insertion will fail in two cases:
   ///   1) There isn't enough room in the cache even after all unpinned
@@ -151,16 +151,18 @@ class SimpleLRUCache {
   bool add(Key key, Value* value, size_t size);
 
   /// Same as add(), but the value starts pinned. Saves a map lookup if you
-  /// would otherwise do add() then get(). Keep in mind that if insertion
-  /// fails the key's pin count has NOT been incremented.
+  /// would otherwise do add() then get(). Keep in mind that if insertion fails
+  /// the key's pin count has NOT been incremented. If the addition is
+  /// successful, you must explicitly call 'release' with the same key after
+  /// use.
   bool addPinned(Key key, Value* value, size_t size);
 
   /// Gets an unowned pointer to the value associated with key.
   /// Returns nullptr if the key is not present in the cache.
   /// Once you are done using the returned non-null *value, you must call
-  /// release with the same key you passed to get.
+  /// 'release' with the same key you passed to get.
   ///
-  /// The returned pointer is guaranteed to remain valid until release
+  /// The returned pointer is guaranteed to remain valid until 'release'
   /// is called.
   ///
   /// Note that we return a non-const pointer, and multiple callers
@@ -168,7 +170,7 @@ class SimpleLRUCache {
   /// to manage your own locking.
   Value* get(const Key& key);
 
-  /// Unpins a key. You MUST call release on every key you have
+  /// Unpins a key. You MUST call 'release' on every key you have
   /// get'd once are you done using the value or bad things will
   /// happen (namely, memory leaks).
   void release(const Key& key);
