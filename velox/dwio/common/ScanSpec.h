@@ -28,8 +28,7 @@
 
 #include <vector>
 
-namespace facebook {
-namespace velox {
+namespace facebook::velox {
 namespace dwio::common {
 class ColumnStatistics;
 }
@@ -510,8 +509,7 @@ bool testFilter(
     const TypePtr& type);
 
 } // namespace common
-} // namespace velox
-} // namespace facebook
+} // namespace facebook::velox
 
 template <>
 struct fmt::formatter<facebook::velox::common::ScanSpec::ColumnType>

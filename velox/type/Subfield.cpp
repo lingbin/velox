@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "velox/type/Subfield.h"
+
+#include <string>
 #include "velox/type/Tokenizer.h"
 
 namespace facebook::velox::common {

@@ -69,10 +69,10 @@ SeekableArrayInputStream::SeekableArrayInputStream(
     const char* values,
     uint64_t size,
     uint64_t blkSize)
-    : data_(values), dataRead_{nullptr} {
-  length_ = size;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+    : data_(values),
+      dataRead_{nullptr},
+      length_(size),
+      blockSize_(blkSize == 0 ? length_ : blkSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
     std::unique_ptr<char[]> values,
@@ -80,18 +80,17 @@ SeekableArrayInputStream::SeekableArrayInputStream(
     uint64_t blkSize)
     : ownedData_(std::move(values)),
       data_(ownedData_.get()),
-      dataRead_{nullptr} {
-  length_ = size;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+      dataRead_{nullptr},
+      length_(size),
+      blockSize_(blkSize == 0 ? length_ : blkSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    std::function<std::tuple<const char*, uint64_t>()> read,
+    std::function<std::tuple<const char*, uint64_t>()> dataRead,
     uint64_t blkSize)
-    : data_(nullptr), dataRead_{std::move(read)} {
-  length_ = 0;
-  blockSize_ = blkSize;
-}
+    : data_(nullptr),
+      dataRead_{std::move(dataRead)},
+      length_(0),
+      blockSize_(blkSize) {}
 
 void SeekableArrayInputStream::loadIfAvailable() {
   if (FOLLY_LIKELY(dataRead_ == nullptr)) {
@@ -111,12 +110,12 @@ void SeekableArrayInputStream::loadIfAvailable() {
 
 bool SeekableArrayInputStream::Next(const void** buffer, int32_t* size) {
   loadIfAvailable();
-  const uint64_t currentSize = std::min(length_ - position_, blockSize_);
-  if (currentSize > 0) {
+  const uint64_t bytesToRead = std::min(length_ - position_, blockSize_);
+  if (bytesToRead > 0) {
     *buffer = data_ + position_;
-    *size = static_cast<int32_t>(currentSize);
-    position_ += currentSize;
-    totalRead_ += currentSize;
+    *size = static_cast<int32_t>(bytesToRead);
+    position_ += bytesToRead;
+    totalRead_ += bytesToRead;
     return true;
   }
 
@@ -163,25 +162,31 @@ std::string SeekableArrayInputStream::getName() const {
 }
 
 size_t SeekableArrayInputStream::positionSize() const {
-  // not compressed, so only need 1 position (uncompressed position)
+  // Not compressed, so only need 1 position (uncompressed position)
   return 1;
 }
 
-static uint64_t computeBlock(uint64_t request, uint64_t length) {
-  return std::min(length, request == 0 ? 256 * 1024 : request);
+namespace {
+
+constexpr uint64_t kDefaultBlockSize = 256 * 1024;
+
+uint64_t computeBlock(uint64_t request, uint64_t length) {
+  return std::min(length, request == 0 ? kDefaultBlockSize : request);
 }
+
+} // namespace
 
 SeekableFileInputStream::SeekableFileInputStream(
     std::shared_ptr<ReadFileInputStream> input,
     uint64_t offset,
-    uint64_t byteCount,
+    uint64_t length,
     memory::MemoryPool& pool,
     LogType logType,
     uint64_t blockSize)
     : input_(std::move(input)),
       logType_(logType),
       start_(offset),
-      length_(byteCount),
+      length_(length),
       blockSize_(computeBlock(blockSize, length_)),
       buffer_{pool} {}
 
@@ -240,7 +245,7 @@ std::string SeekableFileInputStream::getName() const {
 }
 
 size_t SeekableFileInputStream::positionSize() const {
-  // not compressed, so only need 1 position (uncompressed position)
+  // Not compressed, so only need 1 position (uncompressed position).
   return 1;
 }
 

@@ -34,7 +34,7 @@ std::unique_ptr<connector::DataSource> createDataSource(
   auto dataSource = connector.createDataSource(
       outputType, tableHandle, columnHandles, connectorQueryCtx);
   auto* staticFilters = dataSource->getFilters();
-  if (!staticFilters) {
+  if (staticFilters == nullptr) {
     VELOX_CHECK(!connector.canAddDynamicFilter());
     return dataSource;
   }

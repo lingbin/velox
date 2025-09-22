@@ -125,7 +125,7 @@ std::shared_ptr<cache::ScanTracker> Connector::getTracker(
       return newTracker;
     }
     std::shared_ptr<cache::ScanTracker> tracker = it->second.lock();
-    if (!tracker) {
+    if (tracker == nullptr) {
       tracker = std::make_shared<cache::ScanTracker>(
           scanId, unregisterTracker, loadQuantum);
       trackers[tracker->id()] = tracker;

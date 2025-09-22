@@ -106,8 +106,7 @@ class ColumnHandle : public ISerializable {
 
 using ColumnHandlePtr = std::shared_ptr<const ColumnHandle>;
 
-using ColumnHandleMap =
-    std::unordered_map<std::string, connector::ColumnHandlePtr>;
+using ColumnHandleMap = std::unordered_map<std::string, ColumnHandlePtr>;
 
 class ConnectorTableHandle;
 using ConnectorTableHandlePtr = std::shared_ptr<const ConnectorTableHandle>;
@@ -234,8 +233,8 @@ class DataSink {
   /// form. We don't expect any appendData() calls on a closed data sink object.
   virtual std::vector<std::string> close() = 0;
 
-  /// Called to abort this data sink object and we don't expect any appendData()
-  /// calls on an aborted data sink object.
+  /// Called to abort this data sink object, and we don't expect any
+  /// appendData() calls on an aborted data sink object.
   virtual void abort() = 0;
 
   /// Returns the stats of this data sink.
@@ -249,6 +248,7 @@ class DataSink {
 class DataSource {
  public:
   static constexpr int64_t kUnknownRowSize = -1;
+
   virtual ~DataSource() = default;
 
   /// Add split to process, then call 'next' multiple times to process the

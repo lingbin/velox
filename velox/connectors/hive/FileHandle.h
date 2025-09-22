@@ -98,8 +98,7 @@ struct hash<facebook::velox::FileHandleKey> {
 
 namespace facebook::velox {
 
-using FileHandleCache =
-    SimpleLRUCache<facebook::velox::FileHandleKey, FileHandle>;
+using FileHandleCache = SimpleLRUCache<FileHandleKey, FileHandle>;
 
 // Creates FileHandles via the Generator interface the CachedFactory requires.
 class FileHandleGenerator {
@@ -111,7 +110,7 @@ class FileHandleGenerator {
   std::unique_ptr<FileHandle> operator()(
       const FileHandleKey& filename,
       const FileProperties* properties,
-      filesystems::File::IoStats* stats);
+      filesystems::File::IoStats* stats) const;
 
  private:
   const std::shared_ptr<const config::ConfigBase> properties_;

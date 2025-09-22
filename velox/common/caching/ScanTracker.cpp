@@ -54,10 +54,10 @@ void ScanTracker::recordRead(
 
 std::string ScanTracker::toString() const {
   std::stringstream out;
-  out << "ScanTracker for " << id_ << std::endl;
+  out << "ScanTracker for " << id_ << '\n';
   for (const auto& [id, data] : data_) {
     out << id.id() << ": " << data.readBytes << "/" << data.referencedBytes
-        << std::endl;
+        << '\n';
   }
   return out.str();
 }

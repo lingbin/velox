@@ -178,8 +178,8 @@ folly::dynamic HiveTableHandle::serialize() const {
     pair["filter"] = filter->serialize();
     subfieldFilters.push_back(pair);
   }
-
   obj["subfieldFilters"] = subfieldFilters;
+
   if (remainingFilter_) {
     obj["remainingFilter"] = remainingFilter_->serialize();
   }
@@ -210,7 +210,7 @@ ConnectorTableHandlePtr HiveTableHandle::create(
   }
 
   common::SubfieldFilters subfieldFilters;
-  folly::dynamic subfieldFiltersObj = obj["subfieldFilters"];
+  const folly::dynamic& subfieldFiltersObj = obj["subfieldFilters"];
   for (const auto& subfieldFilter : subfieldFiltersObj) {
     common::Subfield subfield(subfieldFilter["subfield"].asString());
     auto filter =

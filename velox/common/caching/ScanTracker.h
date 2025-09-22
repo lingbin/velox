@@ -96,7 +96,7 @@ class ScanTracker {
   ScanTracker(
       std::string_view id,
       std::function<void(ScanTracker*)> unregisterer,
-      int32_t loadQuantum,
+      int32_t /*loadQuantum*/,
       FileGroupStats* fileGroupStats = nullptr)
       : id_(id),
         unregisterer_(std::move(unregisterer)),
