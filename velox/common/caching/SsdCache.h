@@ -109,7 +109,7 @@ class SsdCache {
   /// Returns the maximum capacity, rounded up from the capacity passed to the
   /// constructor.
   uint64_t maxBytes() const {
-    return files_[0]->maxRegions() * SsdFile::kRegionSize * files_.size();
+    return files_[0]->maxRegions() * SsdFile::kRegionSize * numShards_;
   }
 
   /// Returns true if no write is in progress. Atomically sets a write to be in
@@ -132,7 +132,7 @@ class SsdCache {
   /// Invoked to write checkpoints to all ssd files. This is used by Prestissimo
   /// worker operation.
   ///
-  /// NOTE: startWrite() must have been called first and it must have returned
+  /// NOTE: startWrite() must have been called first, and it must have returned
   /// true.
   void checkpoint();
 

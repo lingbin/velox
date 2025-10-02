@@ -85,7 +85,7 @@ void SsdPin::clear() {
   run_.clear();
 }
 
-void SsdPin::operator=(SsdPin&& other) {
+void SsdPin::operator=(SsdPin&& other) noexcept {
   if (file_ != nullptr) {
     file_->unpinRegion(run_.offset());
   }
@@ -179,6 +179,7 @@ SsdPin SsdFile::find(RawFileCacheKey key) {
   return SsdPin(*this, run);
 }
 
+// TODO(lingbin): 需要修改 erasedRegionSizes_？
 bool SsdFile::erase(RawFileCacheKey key) {
   FileCacheKey ssdKey{StringIdLease(fileIds(), key.fileNum), key.offset};
   std::lock_guard<std::shared_mutex> l(mutex_);

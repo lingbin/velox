@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include "velox/common/caching/StringIdMap.h"
 
 namespace facebook::velox {

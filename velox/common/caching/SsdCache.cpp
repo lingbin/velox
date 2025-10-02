@@ -94,6 +94,7 @@ void SsdCache::write(std::vector<CachePin> pins) {
   uint64_t bytes = 0;
   std::vector<std::vector<CachePin>> shards(numShards_);
   for (const auto& pin : pins) {
+    // TODO(lingbin): 只需要调用一次 checkedEntry()。
     bytes += pin.checkedEntry()->size();
     const auto& target = file(pin.checkedEntry()->key().fileNum.id());
     shards[target.shardId()].push_back(std::move(pin));

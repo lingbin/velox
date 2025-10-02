@@ -38,7 +38,7 @@ class SsdCacheTestHelper;
 /// only when the checksum feature is enabled, otherwise, its value is always 0.
 class SsdRun {
  public:
-  static constexpr int32_t kSizeBits = 23;
+  static constexpr uint32_t kSizeBits = 23;
 
   SsdRun() = default;
 
@@ -60,7 +60,7 @@ class SsdRun {
     checksum_ = other.checksum_;
   }
 
-  void operator=(SsdRun&& other) {
+  void operator=(SsdRun&& other) noexcept {
     fileBits_ = other.fileBits_;
     checksum_ = other.checksum_;
     other.fileBits_ = 0;
@@ -120,7 +120,7 @@ class SsdPin {
   ~SsdPin();
 
   void operator=(const SsdPin& other) = delete;
-  void operator=(SsdPin&&);
+  void operator=(SsdPin&&) noexcept;
 
   // Resets 'this' to default-constructed state.
   void clear();
@@ -386,7 +386,7 @@ class SsdFile {
     return fileName_ + kCheckpointExtension;
   }
 
-  /// Resets this' to a post-construction empty state. See SsdCache::clear().
+  /// Resets 'this' to a post-construction empty state. See SsdCache::clear().
   ///
   /// NOTE: this is only used by test and Prestissimo worker operation.
   void clear();
@@ -406,12 +406,12 @@ class SsdFile {
   }
 
   // Returns the region number corresponding to 'offset'.
-  static int32_t regionIndex(uint64_t offset) {
+  static constexpr int32_t regionIndex(uint64_t offset) {
     return offset / kRegionSize;
   }
 
   // Returns the offset within a region corresponding to 'offset'.
-  static int32_t regionOffset(uint64_t offset) {
+  static constexpr int32_t regionOffset(uint64_t offset) {
     return offset % kRegionSize;
   }
 
@@ -581,7 +581,7 @@ class SsdFile {
   // Indices of regions available for writing new entries.
   std::vector<int32_t> writableRegions_;
 
-  // Tracker for access frequencies and eviction.
+  // Tracker for access frequencies and eviction scores.
   SsdFileTracker tracker_;
 
   // Pin count for each region.
