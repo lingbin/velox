@@ -41,11 +41,16 @@ namespace facebook::velox::cache {
 
 namespace {
 
-void addEntryToIovecs(AsyncDataCacheEntry& entry, std::vector<iovec>& iovecs) {
+void addEntryToIovecs(
+    const AsyncDataCacheEntry& entry,
+    std::vector<iovec>& iovecs) {
   if (entry.tinyData() != nullptr) {
-    iovecs.push_back({entry.tinyData(), static_cast<size_t>(entry.size())});
+    iovecs.push_back(
+        {const_cast<char*>(entry.tinyData()),
+         static_cast<size_t>(entry.size())});
     return;
   }
+
   const auto& data = entry.data();
   iovecs.reserve(iovecs.size() + data.numRuns());
   int64_t bytesLeft = entry.size();
@@ -61,7 +66,7 @@ void addEntryToIovecs(AsyncDataCacheEntry& entry, std::vector<iovec>& iovecs) {
 }
 
 // Returns the number of entries in a cache 'entry'.
-uint32_t numIoVectorsFromEntry(AsyncDataCacheEntry& entry) {
+uint32_t numIoVectorsFromEntry(const AsyncDataCacheEntry& entry) {
   if (entry.tinyData() != nullptr) {
     return 1;
   }
@@ -372,7 +377,7 @@ void SsdFile::write(std::vector<CachePin>& pins) {
     int32_t writeLength = 0;
     std::vector<iovec> writeIovecs;
     for (auto i = writeIndex; i < pins.size(); ++i) {
-      auto* entry = pins[i].checkedEntry();
+      const auto* entry = pins[i].checkedEntry();
       const auto entrySize = entry->size();
       const auto numIovecs = numIoVectorsFromEntry(*entry);
       VELOX_CHECK_LE(numIovecs, IOV_MAX);
