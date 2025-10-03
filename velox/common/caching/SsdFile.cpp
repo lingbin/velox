@@ -272,17 +272,24 @@ std::optional<std::pair<uint64_t, int32_t>> SsdFile::getSpace(
     auto available = kRegionSize - offset;
     int64_t toWrite = 0;
     for (; next < pins.size(); ++next) {
-      auto* entry = pins[next].checkedEntry();
+      const auto* entry = pins[next].checkedEntry();
       if (entry->size() > available) {
         break;
       }
       available -= entry->size();
       toWrite += entry->size();
     }
+
     if (toWrite > 0) {
-      // At least some pins got space from this region. If the region is full
-      // the next call will get space from another region.
+      // At least one pin got space from this region.
       regionSizes_[region] += toWrite;
+      // 这里要添加一个 fast-path， 如果当前region已经
+      // 没有任何空间了（available==0）,那么就直接将这个region标记为满了，这样可以节省掉一个”循环“。
+      if (available == 0) {
+        // This region is full.
+        tracker_.regionFilled(region);
+        writableRegions_.erase(writableRegions_.begin());
+      }
       return std::make_pair<uint64_t, int32_t>(
           region * kRegionSize + offset, toWrite);
     }
