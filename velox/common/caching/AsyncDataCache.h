@@ -26,6 +26,7 @@
 
 #include "velox/common/base/BitUtil.h"
 #include "velox/common/base/CoalesceIo.h"
+#include "velox/common/base/Exceptions.h"
 #include "velox/common/base/Portability.h"
 #include "velox/common/base/SelectivityInfo.h"
 #include "velox/common/caching/FileGroupStats.h"
@@ -264,18 +265,17 @@ class AsyncDataCacheEntry {
   /// Sets access stats so that this is immediately evictable.
   void makeEvictable();
 
-  /// Moves the promise out of 'this'. Used in order to handle the
-  /// promise within the lock of the cache shard, so not within private
-  /// methods of 'this'.
-  std::unique_ptr<folly::SharedPromise<bool>> movePromiseLocked() {
-    return std::move(promise_);
-  }
-
   std::string toString() const;
 
  private:
   void release();
   void addReference();
+
+  // Moves the promise out of 'this'. Must be called inside the mutex of
+  // 'shard_'.
+  std::unique_ptr<folly::SharedPromise<bool>> movePromiseLocked() {
+    return std::move(promise_);
+  }
 
   // Returns a future that will be realized when a caller can retry getting
   // 'this'. Must be called inside the mutex of 'shard_'.
@@ -880,7 +880,8 @@ class AsyncDataCache : public memory::Cache {
   void clear();
 
  private:
-  static constexpr int32_t kNumShards = 4; // Must be power of 2.
+  // Must be power of 2.
+  static constexpr int32_t kNumShards = 4;
   static constexpr int32_t kShardMask = kNumShards - 1;
 
   static_assert((kNumShards & (kNumShards - 1)) == 0);

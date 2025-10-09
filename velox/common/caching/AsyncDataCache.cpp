@@ -90,7 +90,7 @@ void AsyncDataCacheEntry::release() {
     // Dereferencing an exclusive entry without converting to shared means that
     // the content could not be shared, e.g. error in loading.
     auto promise = shard_->removeEntry(this);
-    // Realize the promise outside of the shard mutex.
+    // Realize the promise outside the shard mutex.
     if (promise != nullptr) {
       promise->setValue(true);
     }
@@ -723,17 +723,17 @@ CachePin AsyncDataCache::findOrCreate(
     RawFileCacheKey key,
     uint64_t size,
     folly::SemiFuture<bool>* wait) {
-  const int shard = std::hash<RawFileCacheKey>()(key) & (kShardMask);
+  const int shard = std::hash<RawFileCacheKey>()(key) & kShardMask;
   return shards_[shard]->findOrCreate(key, size, wait);
 }
 
 void AsyncDataCache::makeEvictable(RawFileCacheKey key) {
-  const int shard = std::hash<RawFileCacheKey>()(key) & (kShardMask);
+  const int shard = std::hash<RawFileCacheKey>()(key) & kShardMask;
   return shards_[shard]->makeEvictable(key);
 }
 
 bool AsyncDataCache::exists(RawFileCacheKey key) const {
-  int shard = std::hash<RawFileCacheKey>()(key) & (kShardMask);
+  const int shard = std::hash<RawFileCacheKey>()(key) & kShardMask;
   return shards_[shard]->exists(key);
 }
 
@@ -848,7 +848,7 @@ uint64_t AsyncDataCache::shrink(uint64_t targetBytes) {
     MicrosecondTimer timer(&shrinkTimeUs);
     for (int shard = 0; shard < kNumShards; ++shard) {
       memory::Allocation unused;
-      evictedBytes += shards_[shardCounter_++ & (kShardMask)]->evict(
+      evictedBytes += shards_[shardCounter_++ & kShardMask]->evict(
           std::max<uint64_t>(kMinBytesToEvict, targetBytes - evictedBytes),
           // Cache shrink is triggered when server is under low memory pressure
           // so need to free up memory as soon as possible. So we always avoid
