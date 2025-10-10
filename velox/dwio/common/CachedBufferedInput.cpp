@@ -288,7 +288,7 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
         fsStats_(std::move(fsStats)),
         groupId_(groupId) {
     requests_.reserve(requests.size());
-    for (const auto& request : requests) {
+    for (auto* request : requests) {
       size_ += request->size;
       requests_.push_back(std::move(*request));
     }
@@ -335,19 +335,19 @@ class DwioCoalescedLoadBase : public cache::CoalescedLoad {
   }
 
   static std::vector<RawFileCacheKey> makeKeys(
-      std::vector<CacheRequest*>& requests) {
+      const std::vector<CacheRequest*>& requests) {
     std::vector<RawFileCacheKey> keys;
     keys.reserve(requests.size());
-    for (auto& request : requests) {
+    for (const auto* request : requests) {
       keys.push_back(request->key);
     }
     return keys;
   }
 
-  std::vector<int32_t> makeSizes(std::vector<CacheRequest*> requests) {
+  static std::vector<int32_t> makeSizes(std::vector<CacheRequest*> requests) {
     std::vector<int32_t> sizes;
     sizes.reserve(requests.size());
-    for (auto& request : requests) {
+    for (const auto& request : requests) {
       sizes.push_back(request->size);
     }
     return sizes;

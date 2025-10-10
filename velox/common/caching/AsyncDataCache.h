@@ -487,9 +487,9 @@ class CoalescedLoad {
 struct CacheStats {
   /// ============= Snapshot stats =============
 
-  /// Total size in 'tinyData_'
+  /// Total size in 'tinyData_'.
   int64_t tinySize{0};
-  /// Total size in 'data_'
+  /// Total size in 'data_'.
   int64_t largeSize{0};
   /// Unused capacity in 'tinyData_'.
   int64_t tinyPadding{0};
@@ -609,9 +609,9 @@ class CacheShard {
   /// Appends a batch of non-saved SSD savable entries in 'this' to 'pins'. This
   /// may have to be called several times since this keeps limits on the batch
   /// to write at one time. The savable entries are pinned for read. 'pins'
-  /// should be written or dropped before calling this a second time. If 'all'
-  /// is true, then appends all the non-savable SSD savable entries without
-  /// limitation check. 'saveAll' is set to true for Prestissimo worker
+  /// should be written or dropped before calling this a second time. If
+  /// 'saveAll' is true, then appends all the non-savable SSD savable entries
+  /// without limitation check. 'saveAll' is set to true for Prestissimo worker
   /// operation use case.
   void appendSsdSaveable(bool saveAll, std::vector<CachePin>& pins);
 

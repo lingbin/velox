@@ -41,6 +41,7 @@ struct CacheRequest {
   cache::RawFileCacheKey key;
   uint64_t size;
   cache::TrackingId trackingId;
+  // TODO(lingbin): 无用的变量？删除掉？
   cache::CachePin pin;
   cache::SsdPin ssdPin;
 

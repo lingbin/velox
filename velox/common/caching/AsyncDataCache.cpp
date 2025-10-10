@@ -377,7 +377,7 @@ uint64_t CacheShard::evict(
     memory::Allocation& acquired) {
   auto* ssdCache = cache_->ssdCache();
   const bool skipSsdSaveable =
-      (ssdCache != nullptr) && ssdCache->writeInProgress();
+      ssdCache != nullptr && ssdCache->writeInProgress();
   auto now = accessTime();
   std::vector<memory::Allocation> toFree;
   int64_t tinyEvicted = 0;
@@ -391,7 +391,7 @@ uint64_t CacheShard::evict(
     }
     int32_t counter = 0;
     int32_t numChecked = 0;
-    auto entryIndex = (clockHand_ % size);
+    auto entryIndex = clockHand_ % size;
     auto iter = entries_.begin() + entryIndex;
     while (++counter <= size) {
       if (++iter == entries_.end()) {
@@ -459,6 +459,7 @@ uint64_t CacheShard::evict(
     }
   }
 
+  // Release the memory outside the mutex.
   ClockTimer t(allocClocks_);
   freeAllocations(toFree);
   cache_->incrementCachedPages(
