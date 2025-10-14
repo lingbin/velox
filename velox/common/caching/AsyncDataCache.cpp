@@ -344,6 +344,8 @@ std::unique_ptr<folly::SharedPromise<bool>> CacheShard::removeEntry(
 }
 
 void CacheShard::removeEntryLocked(AsyncDataCacheEntry* entry) {
+  VELOX_DCHECK_NOT_NULL(entry);
+  VELOX_DCHECK(!entry->isShared(), "Shared pinned entry can not be removed");
   if (entry->key_.fileNum.hasValue()) {
     const auto it = entryMap_.find(
         RawFileCacheKey{entry->key_.fileNum.id(), entry->key_.offset});

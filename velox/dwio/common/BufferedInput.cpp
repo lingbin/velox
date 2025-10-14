@@ -81,7 +81,7 @@ void BufferedInput::load(const LogType logType) {
 void BufferedInput::readToBuffer(
     uint64_t offset,
     folly::Range<char*> allocated,
-    const LogType logType) {
+    const LogType logType) const {
   uint64_t usec = 0;
   {
     MicrosecondTimer timer(&usec);
@@ -145,11 +145,11 @@ void BufferedInput::sortRegions() {
   }
 
   // Sort indices from low to high regions.
-  // "e" will contain the positions to which each region should be sorted to
+  // "e" will contain the positions to which each region should be sorted to.
   std::sort(
       e.begin(), e.end(), [&](size_t a, size_t b) { return r[a] < r[b]; });
 
-  // Now actually sort. This way we sorted and saved the mapping of the sort
+  // Now actually sort. This way we sorted and saved the mapping of the sort.
   std::vector<Region> regions;
   regions.reserve(r.size());
   for (auto i : e) {
@@ -205,7 +205,7 @@ bool BufferedInput::tryMerge(Region& first, const Region& second) const {
     // The second region is inside first one if 'extension' is negative.
     if (extension > 0) {
       first.length += extension;
-      if ((input_->getStats() != nullptr) && gap > 0) {
+      if (input_->getStats() != nullptr && gap > 0) {
         input_->getStats()->incRawOverreadBytes(gap);
       }
     }
@@ -238,7 +238,7 @@ std::tuple<const char*, uint64_t> BufferedInput::readInternal(
   if (i.has_value()) {
     const auto vi = i.value();
     // There's a possibility that our user enqueued, then tried to read before
-    // calling load(). In that case, enqueuedToBufferOffset_ will be empty or
+    // calling load(). In that case, 'enqueuedToBufferOffset_' will be empty or
     // have the values from a previous load. So I want to make sure that he ends
     // up in a valid offset, and that this offset is <= offset. Otherwise, we
     // just go for the binary search.

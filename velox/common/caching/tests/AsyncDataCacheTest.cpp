@@ -250,7 +250,7 @@ class AsyncDataCacheTest : public ::testing::TestWithParam<TestParam> {
     int32_t bytesChecked = sizeof(int64_t);
     for (int32_t i = 0; i < alloc.numRuns(); ++i) {
       const memory::Allocation::PageRun run = alloc.runAt(i);
-      int64_t* ptr = reinterpret_cast<int64_t*>(run.data());
+      const int64_t* ptr = reinterpret_cast<int64_t*>(run.data());
       const int32_t numWords =
           memory::AllocationTraits::pageBytes(run.numPages()) / sizeof(void*);
       for (int32_t offset = 0; offset < numWords; ++offset) {
@@ -270,7 +270,7 @@ class AsyncDataCacheTest : public ::testing::TestWithParam<TestParam> {
     }
   }
 
-  CachePin newEntry(uint64_t offset, int32_t size) {
+  CachePin newEntry(uint64_t offset, int32_t size) const {
     folly::SemiFuture<bool> wait(false);
     try {
       RawFileCacheKey key{filenames_[0].id(), offset};
@@ -504,7 +504,7 @@ void AsyncDataCacheTest::loadBatch(
   if (!fromStorage.empty()) {
     std::vector<RawFileCacheKey> keys;
     std::vector<int32_t> sizes;
-    for (auto request : fromStorage) {
+    for (const auto* request : fromStorage) {
       keys.push_back(RawFileCacheKey{fileNum, request->offset});
       sizes.push_back(request->size);
     }
@@ -519,12 +519,12 @@ void AsyncDataCacheTest::loadBatch(
         load->loadOrFuture(nullptr);
       } catch (const std::exception&) {
         // Expecting error, ignore.
-      };
-      if (semaphore) {
+      }
+      if (semaphore != nullptr) {
         semaphore->release();
       }
     });
-  } else if (semaphore) {
+  } else if (semaphore != nullptr) {
     semaphore->release();
   }
 
@@ -624,7 +624,7 @@ void AsyncDataCacheTest::loadLoop(
             memory::ContiguousAllocation large;
             // Explicitly free 'large' on exit. Do not use MemoryPool for that
             // because we test the allocator's limits, not the pool/memory
-            // manager  limits.
+            // manager limits.
             auto guard =
                 folly::makeGuard([&]() { allocator_->freeContiguous(large); });
             while (!allocator_->allocateContiguous(
@@ -655,10 +655,10 @@ void AsyncDataCacheTest::loadLoop(
 TEST_P(AsyncDataCacheTest, pin) {
   constexpr int64_t kSize = 25000;
   initializeCache(1 << 20);
-  auto& exec = folly::QueuedImmediateExecutor::instance();
+  auto& executor = folly::QueuedImmediateExecutor::instance();
 
-  StringIdLease file(fileIds(), std::string_view("testingfile"));
-  uint64_t offset = 1000;
+  StringIdLease file(fileIds(), std::string_view("testing_file"));
+  const uint64_t offset = 1000;
   folly::SemiFuture<bool> wait(false);
   RawFileCacheKey key{file.id(), offset};
   auto pin = cache_->findOrCreate(key, kSize, &wait);
@@ -672,6 +672,8 @@ TEST_P(AsyncDataCacheTest, pin) {
   EXPECT_EQ(1, stats.numExclusive);
   EXPECT_LE(kSize, stats.largeSize);
 
+  // An entry in the 'exclusive' state cannot be copied, this is because two
+  // CachePin objects cannot point to the same entry in the 'exclusive' state.
   CachePin otherPin;
   EXPECT_THROW(otherPin = pin, VeloxException);
   EXPECT_TRUE(otherPin.empty());
@@ -680,13 +682,14 @@ TEST_P(AsyncDataCacheTest, pin) {
   otherPin = cache_->findOrCreate(key, kSize, &wait);
   EXPECT_FALSE(wait.isReady());
   EXPECT_TRUE(otherPin.empty());
+
   bool noLongerExclusive = false;
-  std::move(wait).via(&exec).thenValue([&](bool) { noLongerExclusive = true; });
+  std::move(wait).via(&executor).thenValue(
+      [&](bool) { noLongerExclusive = true; });
   initializeContents(key.fileNum + key.offset, pin.checkedEntry()->data());
   pin.checkedEntry()->setExclusiveToShared();
   pin.clear();
   EXPECT_TRUE(pin.empty());
-
   EXPECT_TRUE(noLongerExclusive);
 
   pin = cache_->findOrCreate(key, kSize, &wait);
@@ -697,13 +700,14 @@ TEST_P(AsyncDataCacheTest, pin) {
   otherPin = pin;
   EXPECT_EQ(2, pin.entry()->numPins());
   EXPECT_FALSE(pin.entry()->isPrefetch());
+
   auto largerPin = cache_->findOrCreate(key, kSize * 2, &wait);
   // We expect a new uninitialized entry with a larger size to displace the
   // previous one.
-
   EXPECT_TRUE(largerPin.checkedEntry()->isExclusive());
   largerPin.checkedEntry()->setExclusiveToShared();
   largerPin.clear();
+
   pin.clear();
   otherPin.clear();
   stats = cache_->refreshStats();
@@ -711,12 +715,14 @@ TEST_P(AsyncDataCacheTest, pin) {
   EXPECT_EQ(1, stats.numEntries);
   EXPECT_EQ(0, stats.numShared);
   EXPECT_EQ(0, stats.numExclusive);
+  EXPECT_EQ(1, stats.numStales);
 
   cache_->clear();
   stats = cache_->refreshStats();
   EXPECT_EQ(0, stats.largeSize);
   EXPECT_EQ(0, stats.numEntries);
   EXPECT_EQ(0, cache_->incrementPrefetchPages(0));
+  EXPECT_EQ(1, stats.numStales);
 }
 
 TEST_P(AsyncDataCacheTest, replace) {
@@ -782,15 +788,15 @@ TEST_P(AsyncDataCacheTest, largeEvict) {
 }
 
 TEST_P(AsyncDataCacheTest, outOfCapacity) {
-  const int64_t kMaxBytes = 64
-      << 20; // 64MB as MmapAllocator's min size is 64MB
-  const int32_t kSize = 16 << 10;
+  // 64MB as MmapAllocator's min size is 64MB.
+  constexpr int64_t kMaxBytes = 64 << 20;
+  constexpr int32_t kSize = 16 << 10;
   const int32_t kSizeInPages = memory::AllocationTraits::numPages(kSize);
   std::deque<CachePin> pins;
   std::deque<memory::Allocation> allocations;
   initializeCache(kMaxBytes);
   // We pin 2 16K entries and unpin 1. Eventually the whole capacity
-  // is pinned and we fail making a ew entry.
+  // is pinned and we fail making a new entry.
 
   uint64_t offset = 0;
   for (;;) {
@@ -803,7 +809,8 @@ TEST_P(AsyncDataCacheTest, outOfCapacity) {
   }
   memory::Allocation allocation;
   ASSERT_FALSE(allocator_->allocateNonContiguous(kSizeInPages, allocation));
-  // One 4 page entry below the max size of 4K 4 page entries in 16MB of
+  // 下面这段注释不需要了，删除掉。因为 现在最大容量已经不是16MB了，已经被修改为了64MB。
+  // One 4-page entry below the max size of 4K 4-page entries in 16MB of
   // capacity.
   ASSERT_EQ(16384, cache_->incrementCachedPages(0));
   ASSERT_EQ(16384, cache_->incrementPrefetchPages(0));
@@ -919,7 +926,7 @@ TEST_P(AsyncDataCacheTest, invalidSsdPath) {
           testPath));
 }
 
-TEST_P(AsyncDataCacheTest, cacheStats) {
+TEST_F(AsyncDataCacheTest, cacheStats) {
   CacheStats stats;
   stats.tinySize = 234;
   stats.largeSize = 1024;
@@ -1031,7 +1038,12 @@ TEST_P(AsyncDataCacheTest, cacheStatsWithSsd) {
   ASSERT_EQ(deltaStats.ssdStats->bytesWritten, 1);
   ASSERT_EQ(deltaStats.ssdStats->bytesRead, 1);
   const std::string expectedDeltaCacheStats =
-      "Cache size: 0B tinySize: 0B large size: 0B\nCache entries: 0 read pins: 0 write pins: 0 pinned shared: 0B pinned exclusive: 0B\n num write wait: 0 empty entries: 0\nCache access miss: 0 hit: 234 hit bytes: 0B eviction: 1024 savable eviction: 0 eviction checks: 0 aged out: 0 stales: 0\nPrefetch entries: 0 bytes: 0B\nAlloc Megaclocks 0";
+      "Cache size: 0B tinySize: 0B large size: 0B\n"
+      "Cache entries: 0 read pins: 0 write pins: 0 pinned shared: 0B pinned exclusive: 0B\n"
+      " num write wait: 0 empty entries: 0\n"
+      "Cache access miss: 0 hit: 234 hit bytes: 0B eviction: 1024 savable eviction: 0 eviction checks: 0 aged out: 0 stales: 0\n"
+      "Prefetch entries: 0 bytes: 0B\n"
+      "Alloc Megaclocks 0";
   ASSERT_EQ(deltaStats.toString(), expectedDeltaCacheStats);
 }
 
@@ -1080,14 +1092,14 @@ TEST_P(AsyncDataCacheTest, shrinkCache) {
   constexpr uint64_t kRamBytes = 128UL << 20;
   constexpr uint64_t kSsdBytes = 512UL << 20;
   constexpr int kTinyDataSize = AsyncDataCacheEntry::kTinyDataSize - 1;
-  const int numEntries{10};
+  constexpr int kNumEntries{10};
   constexpr int kLargeDataSize = kTinyDataSize * 2;
-  ASSERT_LE(numEntries * (kTinyDataSize + kLargeDataSize), kRamBytes);
+  ASSERT_LE(kNumEntries * (kTinyDataSize + kLargeDataSize), kRamBytes);
 
   std::vector<RawFileCacheKey> tinyCacheKeys;
   std::vector<RawFileCacheKey> largeCacheKeys;
   std::vector<StringIdLease> fileLeases;
-  for (int i = 0; i < numEntries; ++i) {
+  for (int i = 0; i < kNumEntries; ++i) {
     fileLeases.emplace_back(
         StringIdLease(fileIds(), fmt::format("shrinkCacheFile{}", i)));
     tinyCacheKeys.emplace_back(RawFileCacheKey{fileLeases.back().id(), 0});
@@ -1122,40 +1134,42 @@ TEST_P(AsyncDataCacheTest, shrinkCache) {
 
     initializeCache(kRamBytes, testData.hasSsd ? kSsdBytes : 0);
     std::vector<CachePin> pins;
-    for (int i = 0; i < numEntries; ++i) {
+    for (int i = 0; i < kNumEntries; ++i) {
       auto tinyPin = cache_->findOrCreate(tinyCacheKeys[i], kTinyDataSize);
       ASSERT_FALSE(tinyPin.empty());
-      ASSERT_TRUE(tinyPin.entry()->tinyData() != nullptr);
+      ASSERT_NE(tinyPin.entry()->tinyData(), nullptr);
       ASSERT_TRUE(tinyPin.entry()->data().empty());
       ASSERT_FALSE(tinyPin.entry()->isPrefetch());
       ASSERT_FALSE(tinyPin.entry()->ssdSaveable());
       pins.push_back(std::move(tinyPin));
+
       auto largePin = cache_->findOrCreate(largeCacheKeys[i], kLargeDataSize);
-      ASSERT_FALSE(largePin.entry()->tinyData() != nullptr);
+      ASSERT_NE(largePin.entry()->tinyData(), nullptr);
       ASSERT_FALSE(largePin.entry()->data().empty());
       ASSERT_FALSE(largePin.entry()->isPrefetch());
       ASSERT_FALSE(largePin.entry()->ssdSaveable());
       pins.push_back(std::move(largePin));
     }
+
     auto stats = cache_->refreshStats();
-    ASSERT_EQ(stats.numEntries, numEntries * 2);
+    ASSERT_EQ(stats.numEntries, kNumEntries * 2);
     ASSERT_EQ(stats.numEmptyEntries, 0);
-    ASSERT_EQ(stats.numExclusive, numEntries * 2);
+    ASSERT_EQ(stats.numExclusive, kNumEntries * 2);
     ASSERT_EQ(stats.numEvict, 0);
     ASSERT_EQ(stats.numHit, 0);
-    ASSERT_EQ(stats.tinySize, kTinyDataSize * numEntries);
-    ASSERT_EQ(stats.largeSize, kLargeDataSize * numEntries);
+    ASSERT_EQ(stats.tinySize, kTinyDataSize * kNumEntries);
+    ASSERT_EQ(stats.largeSize, kLargeDataSize * kNumEntries);
     ASSERT_EQ(stats.sharedPinnedBytes, 0);
     ASSERT_GE(
         stats.exclusivePinnedBytes,
-        (kTinyDataSize + kLargeDataSize) * numEntries);
+        (kTinyDataSize + kLargeDataSize) * kNumEntries);
     ASSERT_EQ(stats.prefetchBytes, 0);
     ASSERT_EQ(stats.numPrefetch, 0);
 
     const auto numMappedPagesBeforeShrink = allocator_->numMapped();
     ASSERT_GT(numMappedPagesBeforeShrink, 0);
 
-    // Everything gets pinged in memory.
+    // All entries are pinned in memory, so nothing can be freed.
     VELOX_ASSERT_THROW(cache_->shrink(0), "");
     ASSERT_EQ(cache_->shrink(testData.shrinkAll ? kRamBytes : 1), 0);
 
@@ -1167,11 +1181,14 @@ TEST_P(AsyncDataCacheTest, shrinkCache) {
       if (testData.shrinkAll) {
         ASSERT_GE(
             cache_->shrink(kRamBytes),
-            (kLargeDataSize + kTinyDataSize) * numEntries);
+            (kLargeDataSize + kTinyDataSize) * kNumEntries);
       } else {
         ASSERT_GE(cache_->shrink(2 * kTinyDataSize), kTinyDataSize);
       }
     } else {
+      // All entries will be removed when clearing pins because they were in
+      // exclusive mode. The subsequent 'shrink()' call returns 0 because there
+      // are no entry to evict.
       pins.clear();
       // We expect everything has been freed.
       ASSERT_EQ(
@@ -1182,9 +1199,9 @@ TEST_P(AsyncDataCacheTest, shrinkCache) {
     const auto numMappedPagesAfterShrink = allocator_->numMapped();
     if (testData.shrinkAll || testData.releaseAll) {
       ASSERT_EQ(stats.numEntries, 0);
-      ASSERT_EQ(stats.numEmptyEntries, 2 * numEntries);
+      ASSERT_EQ(stats.numEmptyEntries, 2 * kNumEntries);
       ASSERT_EQ(stats.numExclusive, 0);
-      ASSERT_EQ(stats.numEvict, 2 * numEntries);
+      ASSERT_EQ(stats.numEvict, 2 * kNumEntries);
       ASSERT_EQ(stats.numHit, 0);
       ASSERT_EQ(stats.tinySize, 0);
       ASSERT_EQ(stats.largeSize, 0);
@@ -1198,7 +1215,7 @@ TEST_P(AsyncDataCacheTest, shrinkCache) {
         ASSERT_LT(numMappedPagesAfterShrink, numMappedPagesBeforeShrink);
       }
     } else {
-      ASSERT_LT(stats.numEntries, 2 * numEntries);
+      ASSERT_LT(stats.numEntries, 2 * kNumEntries);
       ASSERT_GT(stats.numEntries, 0);
       ASSERT_GE(stats.numEmptyEntries, 1);
       ASSERT_EQ(stats.numExclusive, 0);
@@ -1255,7 +1272,7 @@ TEST_P(AsyncDataCacheTest, shutdown) {
         cache_->ssdCache()->stats().bytesWritten;
 
     if (asyncShutdown) {
-      // The written bytes before shutdown is not larger than before shutdown.
+      // The written bytes before shutdown is not larger than after shutdown.
       ASSERT_LE(bytesWrittenBeforeShutdown, bytesWrittenAfterShutdown);
     } else {
       // No new data has been written after shutdown.

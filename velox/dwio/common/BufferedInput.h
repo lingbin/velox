@@ -93,10 +93,12 @@ class BufferedInput {
 
   virtual std::unique_ptr<SeekableInputStream>
   read(uint64_t offset, uint64_t length, LogType logType) const {
+    // If the region is already in buffer - such as metadata.
     auto ret = readBuffer(offset, length);
     if (ret != nullptr) {
       return ret;
     }
+
     VLOG(1) << "Unplanned read. Offset: " << offset << ", Length: " << length;
     // We cannot do enqueue/load here because load() clears previously
     // loaded data. TODO: figure out how we can use the data cache for
@@ -159,6 +161,7 @@ class BufferedInput {
     const auto referencedBytes =
         trackingData.referencedBytes - trackingData.lastReferencedBytes;
     if (referencedBytes == 0) {
+      // TODO(lingbin): 应该是 100%, 这样第一个请求也会 进行预取？
       return 0;
     }
     const int pct = trackingData.readBytes / referencedBytes * 100;
@@ -169,8 +172,8 @@ class BufferedInput {
     return pct;
   }
 
-  // Move the requests in `noPrefetch' to `prefetch' if it is already covered by
-  // coalescing in `prefetch'.
+  // Move the requests in 'noPrefetch' to 'prefetch' if it is already covered by
+  // coalescing in 'prefetch'.
   template <typename Request, typename GetRegionOffset, typename GetRegionEnd>
   static void moveCoalesced(
       std::vector<Request>& prefetch,
@@ -236,7 +239,7 @@ class BufferedInput {
   void readToBuffer(
       uint64_t offset,
       folly::Range<char*> allocated,
-      const LogType logType);
+      const LogType logType) const;
 
   folly::Range<char*> allocate(const velox::common::Region& region) {
     // Save the file offset and the buffer to which we'll read it.
