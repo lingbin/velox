@@ -179,7 +179,7 @@ class BufferedInput {
   template <typename Request, typename GetRegionOffset, typename GetRegionEnd>
   static void moveCoalesced(
       std::vector<Request>& prefetch,
-      std::vector<int32_t>& ends,
+      std::vector<int32_t>& groupEnds,
       std::vector<Request>& noPrefetch,
       GetRegionOffset getRegionOffset,
       GetRegionEnd getRegionEnd) {
@@ -190,10 +190,10 @@ class BufferedInput {
     auto* oldPrefetch = prefetch.data() + noPrefetch.size();
     int numMoved = 0;
     int i = 0; // index into noPrefetch for read
-    int j = 0; // index into oldPrefetch
-    int k = 0; // index into prefetch
+    int j = 0; // index into oldPrefetch for read
+    int k = 0; // index into prefetch(expanded) for write
     int l = 0; // index into noPrefetch for write
-    for (auto& end : ends) {
+    for (auto& end : groupEnds) {
       prefetch[k++] = oldPrefetch[j++];
       while (j < end) {
         auto coalesceStart = getRegionEnd(oldPrefetch[j - 1]);
@@ -219,9 +219,9 @@ class BufferedInput {
     while (i < noPrefetch.size()) {
       noPrefetch[l++] = noPrefetch[i++];
     }
-    VELOX_CHECK_EQ(k, numOldPrefetch + numMoved);
+    VELOX_DCHECK_EQ(k, numOldPrefetch + numMoved);
     prefetch.resize(k);
-    VELOX_CHECK_EQ(l + numMoved, noPrefetch.size());
+    VELOX_DCHECK_EQ(l + numMoved, noPrefetch.size());
     noPrefetch.resize(l);
   }
 
