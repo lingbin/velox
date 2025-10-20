@@ -63,7 +63,7 @@ class StreamArena {
   virtual void clear();
 
   memory::MachinePageCount testingAllocationQuantum() const {
-    return allocationQuantum_;
+    return kAllocationQuantum_;
   }
 
  private:

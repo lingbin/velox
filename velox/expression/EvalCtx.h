@@ -92,7 +92,9 @@ class EvalErrors {
     rows.testSelected([&](vector_size_t row) {
       if (row < size_) {
         throwIfErrorAt(row);
+        return true;
       }
+      return false;
     });
   }
 

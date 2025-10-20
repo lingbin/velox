@@ -215,11 +215,11 @@ RowContainer::RowContainer(
     isVariableWidth |= !type->isFixedWidth();
   }
   if (hasProbedFlag) {
-    probedFlagOffset_ = flagOffset + firstAggregateOffset * 8;
+    probedFlagOffset_ = flagOffset + keysEndOffset * 8;
     ++flagOffset;
   }
   // Free flag.
-  freeFlagOffset_ = flagOffset + firstAggregateOffset * 8;
+  freeFlagOffset_ = flagOffset + keysEndOffset * 8;
   ++flagOffset;
   // Add 1 to the last null offset to get the number of bits.
   flagBytes_ = bits::nbytes(flagOffset);

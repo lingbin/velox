@@ -53,8 +53,6 @@ class ITypedExpr : public ISerializable {
     return kind_;
   }
 
-  virtual ~ITypedExpr() = default;
-
   const TypePtr& type() const {
     return type_;
   }
