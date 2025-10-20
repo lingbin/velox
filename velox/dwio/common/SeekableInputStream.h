@@ -53,18 +53,18 @@ class SeekableInputStream : public google::protobuf::io::ZeroCopyInputStream {
 class SeekableArrayInputStream : public SeekableInputStream {
  public:
   SeekableArrayInputStream(
-      const unsigned char* list,
+      const unsigned char* data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
   SeekableArrayInputStream(
-      const char* list,
+      const char* data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
   // Same as above, but takes ownership of the underlying data.
   SeekableArrayInputStream(
-      std::unique_ptr<char[]> list,
+      std::unique_ptr<char[]> data,
       uint64_t length,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
 
   explicit SeekableArrayInputStream(
       std::function<std::tuple<const char*, uint64_t>()> dataRead,
@@ -72,7 +72,7 @@ class SeekableArrayInputStream : public SeekableInputStream {
 
   ~SeekableArrayInputStream() override = default;
 
-  virtual bool Next(const void** data, int32_t* size) override;
+  virtual bool Next(const void** buffer, int32_t* size) override;
   virtual void BackUp(int32_t count) override;
   virtual bool SkipInt64(int64_t count) override;
   virtual google::protobuf::int64 ByteCount() const override;
@@ -97,6 +97,7 @@ class SeekableArrayInputStream : public SeekableInputStream {
   uint64_t length_;
   uint64_t position_{0};
   uint64_t blockSize_;
+
   int64_t totalRead_{0};
 };
 

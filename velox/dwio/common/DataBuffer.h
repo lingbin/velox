@@ -133,7 +133,7 @@ class DataBuffer {
       const DataBuffer<T>& src,
       uint64_t srcOffset,
       uint64_t items) {
-    // Does src have insufficient data
+    // src should have insufficient data.
     VELOX_CHECK_GE(src.size(), srcOffset + items);
     append(offset, src.data() + srcOffset, items);
   }
@@ -141,6 +141,14 @@ class DataBuffer {
   void append(uint64_t offset, const T* src, uint64_t items) {
     reserve(offset + items);
     unsafeAppend(offset, src, items);
+  }
+
+  void append(T value) {
+    if (size_ >= capacity_) {
+      // Increase capacity by 50%.
+      reserve(capacity_ + ((capacity_ + 1) / 2) + 1);
+    }
+    unsafeAppend(value);
   }
 
   /// Sets a value to the specified offset. If offset overflows current
@@ -184,14 +192,6 @@ class DataBuffer {
 
   void unsafeAppend(T value) {
     buf_[size_++] = value;
-  }
-
-  void append(T value) {
-    if (size_ >= capacity_) {
-      // Increase capacity by 50%.
-      reserve(capacity_ + ((capacity_ + 1) / 2) + 1);
-    }
-    unsafeAppend(value);
   }
 
   void clear() {

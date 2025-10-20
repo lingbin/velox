@@ -39,27 +39,27 @@ class DataBufferTest : public testing::Test {
 };
 
 TEST_F(DataBufferTest, ZeroOut) {
-  const uint8_t VALUE = 13;
+  static constexpr uint8_t kValue = 13;
   DataBuffer<uint8_t> buffer(*pool_, 16);
   for (auto i = 0; i < buffer.size(); i++) {
-    auto data = buffer.data();
+    auto* data = buffer.data();
     ASSERT_EQ(data[i], 0);
-    data[i] = VALUE;
+    data[i] = kValue;
   }
 
   buffer.resize(8);
   for (auto i = 0; i < buffer.size(); i++) {
-    auto data = buffer.data();
-    ASSERT_EQ(data[i], VALUE);
+    const auto* data = buffer.data();
+    ASSERT_EQ(data[i], kValue);
   }
 
-  auto currentSize = buffer.size();
+  const auto currentSize = buffer.size();
   ASSERT_EQ(currentSize, 8);
   buffer.resize(32);
   for (auto i = 0; i < buffer.size(); i++) {
-    auto data = buffer.data();
+    const auto* data = buffer.data();
     if (i < currentSize) {
-      ASSERT_EQ(data[i], VALUE);
+      ASSERT_EQ(data[i], kValue);
     } else {
       ASSERT_EQ(data[i], 0);
     }
@@ -68,20 +68,20 @@ TEST_F(DataBufferTest, ZeroOut) {
 
 TEST_F(DataBufferTest, At) {
   DataBuffer<uint8_t> buffer{*pool_};
-  for (auto i = 0; i != 15; ++i) {
+  for (auto i = 0; i < 15; ++i) {
     buffer.append(i);
   }
   ASSERT_EQ(15, buffer.size());
 
-  for (auto i = 0; i != 15; ++i) {
+  for (auto i = 0; i < 15; ++i) {
     EXPECT_EQ(i, buffer.at(i));
   }
 
   buffer.resize(8);
-  for (auto i = 0; i != 8; ++i) {
+  for (auto i = 0; i < 8; ++i) {
     EXPECT_EQ(i, buffer.at(i));
   }
-  for (auto i = 8; i != 42; ++i) {
+  for (auto i = 8; i < 42; ++i) {
     VELOX_ASSERT_THROW(buffer.at(i), "Accessing index out of range");
   }
 }
@@ -89,7 +89,7 @@ TEST_F(DataBufferTest, At) {
 TEST_F(DataBufferTest, Reset) {
   DataBuffer<uint8_t> buffer{*pool_};
   buffer.reserve(16);
-  for (auto i = 0; i != 15; ++i) {
+  for (auto i = 0; i < 15; ++i) {
     buffer.append(i);
   }
   ASSERT_EQ(15, buffer.size());
@@ -102,7 +102,7 @@ TEST_F(DataBufferTest, Reset) {
     buffer.reserve(12);
     EXPECT_EQ(0, buffer.size());
     EXPECT_EQ(12, buffer.capacity());
-    for (auto i = 0; i != 11; ++i) {
+    for (auto i = 0; i < 11; ++i) {
       buffer.append(i);
     }
     EXPECT_EQ(11, buffer.size());
@@ -117,7 +117,7 @@ TEST_F(DataBufferTest, Reset) {
     buffer.reserve(16);
     EXPECT_EQ(0, buffer.size());
     EXPECT_EQ(16, buffer.capacity());
-    for (auto i = 0; i != 15; ++i) {
+    for (auto i = 0; i < 15; ++i) {
       buffer.append(i);
     }
     EXPECT_EQ(15, buffer.size());
@@ -132,7 +132,7 @@ TEST_F(DataBufferTest, Reset) {
     buffer.reserve(32);
     EXPECT_EQ(0, buffer.size());
     EXPECT_EQ(32, buffer.capacity());
-    for (auto i = 0; i != 31; ++i) {
+    for (auto i = 0; i < 31; ++i) {
       buffer.append(i);
     }
     EXPECT_EQ(31, buffer.size());
@@ -141,17 +141,17 @@ TEST_F(DataBufferTest, Reset) {
 }
 
 TEST_F(DataBufferTest, Wrap) {
-  auto size = 26;
-  auto buffer = velox::AlignedBuffer::allocate<char>(size, pool_.get());
-  auto raw = buffer->asMutable<char>();
-  for (size_t i = 0; i < size; ++i) {
+  static constexpr auto kSize = 26;
+  auto buffer = velox::AlignedBuffer::allocate<char>(kSize, pool_.get());
+  auto* raw = buffer->asMutable<char>();
+  for (size_t i = 0; i < kSize; ++i) {
     raw[i] = 'a' + i;
   }
-  auto dataBuffer = DataBuffer<char>::wrap(buffer);
+  const auto dataBuffer = DataBuffer<char>::wrap(buffer);
   buffer = nullptr;
-  ASSERT_EQ(size, dataBuffer->size());
-  ASSERT_EQ(size, dataBuffer->capacity());
-  for (size_t i = 0; i < size; ++i) {
+  ASSERT_EQ(kSize, dataBuffer->size());
+  ASSERT_EQ(kSize, dataBuffer->capacity());
+  for (size_t i = 0; i < kSize; ++i) {
     ASSERT_EQ((*dataBuffer)[i], 'a' + i);
   }
 }
@@ -160,7 +160,7 @@ TEST_F(DataBufferTest, Move) {
   {
     DataBuffer<uint8_t> buffer{*pool_};
     buffer.reserve(16);
-    for (auto i = 0; i != 15; ++i) {
+    for (auto i = 0; i < 15; ++i) {
       buffer.append(i);
     }
     ASSERT_EQ(15, buffer.size());

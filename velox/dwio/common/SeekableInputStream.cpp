@@ -22,14 +22,14 @@
 namespace facebook::velox::dwio::common {
 
 void printBuffer(std::ostream& out, const char* buffer, uint64_t length) {
-  const uint64_t width = 24;
+  static constexpr uint64_t kWidth = 24;
   out << std::hex;
-  for (uint64_t line = 0; line < (length + width - 1) / width; ++line) {
-    out << std::setfill('0') << std::setw(7) << (line * width);
-    for (uint64_t byte = 0; byte < width && line * width + byte < length;
+  for (uint64_t line = 0; line < (length + kWidth - 1) / kWidth; ++line) {
+    out << std::setfill('0') << std::setw(7) << (line * kWidth);
+    for (uint64_t byte = 0; byte < kWidth && line * kWidth + byte < length;
          ++byte) {
       out << " " << std::setfill('0') << std::setw(2)
-          << static_cast<uint64_t>(0xff & buffer[line * width + byte]);
+          << static_cast<uint64_t>(0xff & buffer[line * kWidth + byte]);
     }
     out << "\n";
   }
@@ -57,47 +57,47 @@ void SeekableInputStream::readFully(char* buffer, size_t bufferSize) {
 }
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    const unsigned char* values,
+    const unsigned char* data,
     uint64_t size,
-    uint64_t blkSize)
-    : data_(reinterpret_cast<const char*>(values)), dataRead_{nullptr} {
-  length_ = size;
-  blockSize_ = blkSize == 0 ? length_ : blkSize;
-}
+    uint64_t blockSize)
+    : data_{reinterpret_cast<const char*>(data)},
+      dataRead_{nullptr},
+      length_{size},
+      blockSize_{blockSize == 0 ? length_ : blockSize} {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    const char* values,
+    const char* data,
     uint64_t size,
-    uint64_t blkSize)
-    : data_(values),
+    uint64_t blockSize)
+    : data_(data),
       dataRead_{nullptr},
       length_(size),
-      blockSize_(blkSize == 0 ? length_ : blkSize) {}
+      blockSize_(blockSize == 0 ? length_ : blockSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
-    std::unique_ptr<char[]> values,
+    std::unique_ptr<char[]> data,
     uint64_t size,
-    uint64_t blkSize)
-    : ownedData_(std::move(values)),
+    uint64_t blockSize)
+    : ownedData_(std::move(data)),
       data_(ownedData_.get()),
       dataRead_{nullptr},
       length_(size),
-      blockSize_(blkSize == 0 ? length_ : blkSize) {}
+      blockSize_(blockSize == 0 ? length_ : blockSize) {}
 
 SeekableArrayInputStream::SeekableArrayInputStream(
     std::function<std::tuple<const char*, uint64_t>()> dataRead,
-    uint64_t blkSize)
+    uint64_t blockSize)
     : data_(nullptr),
       dataRead_{std::move(dataRead)},
       length_(0),
-      blockSize_(blkSize) {}
+      blockSize_(blockSize) {}
 
 void SeekableArrayInputStream::loadIfAvailable() {
   if (FOLLY_LIKELY(dataRead_ == nullptr)) {
     return;
   }
   const auto result = dataRead_();
-  auto size = std::get<1>(result);
+  const auto size = std::get<1>(result);
   VELOX_CHECK_LT(size, MAX_UINT64, "invalid data size");
   data_ = std::get<0>(result);
   length_ = size;
