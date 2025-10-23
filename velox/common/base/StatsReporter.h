@@ -17,6 +17,7 @@
 #pragma once
 
 #include <folly/Singleton.h>
+#include <string>
 
 /// StatsReporter designed to assist in reporting various metrics of the
 /// application that uses velox library. The library itself does not implement
@@ -43,7 +44,7 @@
 /// After that, every call to RECORD_METRIC_VALUE increases the metric by the
 /// given value:
 ///
-///   By default the following will add 1 to the metric if not provided value
+/// By default the following will add 1 to the metric if not provided value.
 ///   RECORD_METRIC_VALUE("my_stat1");
 ///   RECORD_METRIC_VALUE("my_stat2", 10);
 ///   RECORD_METRIC_VALUE("my_stat1", numOfFailures);
@@ -52,7 +53,7 @@ namespace facebook::velox {
 
 enum class StatType {
   /// Tracks the average of the inserted values.
-  AVG,
+  kAvg,
   /// Tracks the sum of the inserted values.
   SUM,
   /// Tracks the sum of the inserted values per second.
@@ -65,7 +66,7 @@ enum class StatType {
 
 inline std::string statTypeString(StatType stat) {
   switch (stat) {
-    case StatType::AVG:
+    case StatType::kAvg:
       return "Avg";
     case StatType::SUM:
       return "Sum";

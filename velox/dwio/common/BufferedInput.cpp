@@ -23,9 +23,9 @@
 
 DEFINE_bool(wsVRLoad, false, "Use WS VRead API to load");
 
-using ::facebook::velox::common::Region;
-
 namespace facebook::velox::dwio::common {
+
+using facebook::velox::common::Region;
 
 static_assert(std::is_move_constructible<BufferedInput>());
 
@@ -95,7 +95,7 @@ void BufferedInput::readToBuffer(
 
 std::unique_ptr<SeekableInputStream> BufferedInput::enqueue(
     Region region,
-    const dwio::common::StreamIdentifier* /*sid*/) {
+    const StreamIdentifier* /*sid*/) {
   if (region.length == 0) {
     return std::make_unique<SeekableArrayInputStream>(
         static_cast<const char*>(nullptr), 0);

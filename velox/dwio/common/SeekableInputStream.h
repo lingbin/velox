@@ -68,7 +68,7 @@ class SeekableArrayInputStream : public SeekableInputStream {
 
   explicit SeekableArrayInputStream(
       std::function<std::tuple<const char*, uint64_t>()> dataRead,
-      uint64_t block_size = 0);
+      uint64_t blockSize = 0);
 
   ~SeekableArrayInputStream() override = default;
 
