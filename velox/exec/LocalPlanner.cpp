@@ -60,7 +60,7 @@ namespace {
 // If the upstream is partial limit, downstream is final limit and we want to
 // flush as soon as we can to reach the limit and do as little work as possible.
 bool eagerFlush(const core::PlanNode& node) {
-  if (auto* limit = dynamic_cast<const core::LimitNode*>(&node)) {
+  if (const auto* limit = dynamic_cast<const core::LimitNode*>(&node)) {
     return limit->isPartial() && limit->offset() + limit->count() < 10'000;
   }
   if (node.sources().empty()) {
