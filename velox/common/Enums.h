@@ -102,16 +102,17 @@ struct Enums {
     }                                                                       \
     return it->second;                                                      \
   }                                                                         \
-  std::ostream& operator<<(std::ostream& os, const EnumType& value) {       \
-    os << EnumType##Name::toName(value);                                    \
-    return os;                                                              \
-  }                                                                         \
                                                                             \
   EnumType EnumType##Name::to##EnumType(std::string_view name) {            \
     const auto maybeType = EnumType##Name::tryTo##EnumType(name);           \
     VELOX_CHECK(maybeType, "Invalid enum name: {}", name);                  \
     return *maybeType;                                                      \
-  }
+  }                                                                         \
+                                                                            \
+  std::ostream& operator<<(std::ostream& os, const EnumType& value) {       \
+    os << EnumType##Name::toName(value);                                    \
+    return os;                                                              \
+  }                                                                         \
 
 #define VELOX_DECLARE_EMBEDDED_ENUM_NAME(EnumType)     \
   static std::string_view toName(EnumType value);      \
