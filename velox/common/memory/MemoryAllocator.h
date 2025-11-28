@@ -124,11 +124,13 @@ struct Stats {
   /// Returns the size class index for a given size. Here the accounting is in
   /// steps of powers of two. Allocators may have their own size classes or
   /// allocate exact sizes.
-  static int32_t sizeIndex(int64_t size) {
-    if (size == 0) {
+  static int32_t sizeIndex(int64_t sizeBytes) {
+    VELOX_DCHECK_EQ(sizeBytes % AllocationTraits::kPageSize, 0);
+    if (sizeBytes == 0) {
       return 0;
     }
-    const auto power = bits::nextPowerOfTwo(size / AllocationTraits::kPageSize);
+    const auto power =
+        bits::nextPowerOfTwo(sizeBytes / AllocationTraits::kPageSize);
     return std::min(kNumSizes - 1, 63 - bits::countLeadingZeros(power));
   }
 
@@ -512,12 +514,10 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   // system by 'this' (via madvise calls).
   std::atomic<MachinePageCount> numMapped_{0};
 
-  // Number of pages allocated and explicitly mmap'd by the
-  // application via allocateContiguous, outside of
-  // 'sizeClasses'. These pages are counted in 'numAllocated_' and
-  // 'numMapped_'. Allocation requests are decided against
-  // 'numAllocated_' and 'numMapped_'. This counter is informational
-  // only.
+  // Number of pages allocated and explicitly mmap'd by the application via
+  // 'allocateContiguous', outside 'sizeClasses'. These pages are counted in
+  // 'numAllocated_' and 'numMapped_'. Allocation requests are decided against
+  // 'numAllocated_' and 'numMapped_'. This counter is informational only.
   std::atomic<MachinePageCount> numExternalMapped_{0};
 
   // Indicates if the failure injection is persistent or transient.

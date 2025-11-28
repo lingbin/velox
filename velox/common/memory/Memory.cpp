@@ -90,17 +90,17 @@ std::vector<std::shared_ptr<MemoryPool>> createSharedLeafMemoryPools(
 
 // Used by sys root memory pool for use case that expect a memory reclaimer to
 // set like QueryCtx.
-class SysMemoryReclaimer : public memory::MemoryReclaimer {
+class SysMemoryReclaimer : public MemoryReclaimer {
  public:
-  static std::unique_ptr<memory::MemoryReclaimer> create() {
-    return std::unique_ptr<memory::MemoryReclaimer>(new SysMemoryReclaimer());
+  static std::unique_ptr<MemoryReclaimer> create() {
+    return std::unique_ptr<MemoryReclaimer>(new SysMemoryReclaimer());
   }
 
   uint64_t reclaim(
-      memory::MemoryPool* pool,
+      MemoryPool* pool,
       uint64_t targetBytes,
       uint64_t maxWaitMs,
-      memory::MemoryReclaimer::Stats& stats) override {
+      MemoryReclaimer::Stats& stats) override {
     return 0;
   }
 
@@ -436,15 +436,15 @@ MemoryPool& deprecatedRootPool() {
   return deprecatedDefaultMemoryManager().deprecatedSysRootPool();
 }
 
-memory::MemoryPool* spillMemoryPool() {
-  return memory::MemoryManager::getInstance()->spillPool();
+MemoryPool* spillMemoryPool() {
+  return MemoryManager::getInstance()->spillPool();
 }
 
-bool isSpillMemoryPool(memory::MemoryPool* pool) {
+bool isSpillMemoryPool(MemoryPool* pool) {
   return pool == spillMemoryPool();
 }
 
-memory::MemoryPool* traceMemoryPool() {
-  return memory::MemoryManager::getInstance()->tracePool();
+MemoryPool* traceMemoryPool() {
+  return MemoryManager::getInstance()->tracePool();
 }
 } // namespace facebook::velox::memory

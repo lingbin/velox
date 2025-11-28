@@ -99,7 +99,7 @@ class MemoryManager {
     /// Number of pages in the largest size class in MmapAllocator.
     int32_t largestSizeClassPages{256};
 
-    /// If true, allocations larger than largest size class size will be
+    /// If true, allocations larger than the largest size class size will be
     /// delegated to ManagedMmapArena. Otherwise a system mmap call will be
     /// issued for each such allocation.
     ///
@@ -254,8 +254,8 @@ class MemoryManager {
   /// Returns the current total memory usage under this memory manager.
   int64_t getTotalBytes() const;
 
-  /// Returns the number of alive memory pools allocated from addRootPool() and
-  /// addLeafPool().
+  /// Returns the number of alive memory pools allocated from 'addRootPool()'
+  /// and 'addLeafPool()'.
   ///
   /// NOTE: this doesn't count the memory manager's internal default root and
   /// leaf memory pools.
@@ -310,6 +310,7 @@ class MemoryManager {
 
   // If not null, used to arbitrate the memory capacity among 'pools_'.
   const std::unique_ptr<MemoryArbitrator> arbitrator_;
+
   const uint16_t alignment_;
   const bool checkUsageLeak_;
   const bool coreOnAllocationFailureEnabled_;
@@ -369,13 +370,13 @@ MemoryPool& deprecatedSharedLeafPool();
 MemoryPool& deprecatedRootPool();
 
 /// Returns the system-wide memory pool for spilling memory usage.
-memory::MemoryPool* spillMemoryPool();
+MemoryPool* spillMemoryPool();
 
 /// Returns true if the provided 'pool' is the spilling memory pool.
-bool isSpillMemoryPool(memory::MemoryPool* pool);
+bool isSpillMemoryPool(MemoryPool* pool);
 
 /// Returns the system-wide memory pool for tracing memory usage.
-memory::MemoryPool* traceMemoryPool();
+MemoryPool* traceMemoryPool();
 
 FOLLY_ALWAYS_INLINE int32_t alignmentPadding(void* address, int32_t alignment) {
   auto extra = reinterpret_cast<uintptr_t>(address) % alignment;
