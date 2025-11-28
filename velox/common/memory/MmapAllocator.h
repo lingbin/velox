@@ -23,6 +23,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_set>
+#include <vector>
 
 #include <folly/ThreadCachedInt.h>
 
@@ -57,8 +58,8 @@ class MmapAllocator : public MemoryAllocator {
 
     int32_t largestSizeClass{256};
 
-    /// If set true, allocations larger than largest size class size will be
-    /// delegated to ManagedMmapArena. Otherwise a system mmap call will be
+    /// If set true, allocations larger than the largest size class size will be
+    /// delegated to ManagedMmapArena. Otherwise, a system mmap call will be
     /// issued for each such allocation.
     bool useMmapArena = false;
 
@@ -84,7 +85,7 @@ class MmapAllocator : public MemoryAllocator {
 
   explicit MmapAllocator(const Options& options);
 
-  ~MmapAllocator();
+  ~MmapAllocator() override;
 
   Kind kind() const override {
     return kind_;
@@ -104,10 +105,6 @@ class MmapAllocator : public MemoryAllocator {
   size_t capacity() const override {
     return AllocationTraits::pageBytes(capacity_);
   }
-
-  bool growContiguousWithoutRetry(
-      MachinePageCount increment,
-      ContiguousAllocation& allocation) override;
 
   void freeContiguous(ContiguousAllocation& allocation) override;
 
@@ -184,8 +181,8 @@ class MmapAllocator : public MemoryAllocator {
         MachinePageCount& numUnmapped,
         Allocation& out);
 
-    // Frees all pages of 'allocation' that fall in this size
-    // class. Erases the corresponding runs from 'allocation'.
+    // Frees all pages of 'allocation' that fall in this size class. Erases the
+    // corresponding runs from 'allocation'.
     MachinePageCount free(Allocation& allocation);
 
     // Checks that allocation and map counts match the corresponding bitmaps.
@@ -252,19 +249,19 @@ class MmapAllocator : public MemoryAllocator {
     // 'allocation'.
     void adviseAway(const Allocation& allocation);
 
-    // Allocates up to 'numPages' of mapped or unmapped pages from the
-    // free/mapped word at 'wordIndex'. 'numPages' is decremented by the number
-    // of allocated class pages, 'numUnmapped' is incremented by the count of
-    // machine pages needed to back the unmapped part of the new allocated runs.
-    // The memory runs are added to 'allocation'.
-    void allocateAny(
+    // Allocates up to 'numClassPages' of mapped or unmapped pages from the
+    // free/mapped word at 'wordIndex'. 'numClassPages' is decremented by the
+    // number of allocated class pages, 'numUnmapped' is incremented by the
+    // count of machine pages needed to back the unmapped part of the new
+    // allocated runs. The memory runs are added to 'allocation'.
+    void allocateAnyLocked(
         int32_t wordIndex,
-        ClassPageCount& numPages,
+        ClassPageCount& numClassPages,
         MachinePageCount& numUnmapped,
         Allocation& allocation);
 
     // Sets the mapped flag for the class pages in 'run' to 'value'
-    void setMappedBits(Allocation::PageRun run, bool value);
+    void setMappedBitsLocked(Allocation::PageRun run, bool value);
 
     // Number of size class pages. Number of valid bits in
     // 'pageAllocated_'/'pageMapped_'.
@@ -336,8 +333,7 @@ class MmapAllocator : public MemoryAllocator {
 
   bool growContiguousWithoutRetry(
       MachinePageCount increment,
-      ContiguousAllocation& allocation,
-      ReservationCallback reservationCB = nullptr);
+      ContiguousAllocation& allocation) override;
 
   void freeContiguousImpl(ContiguousAllocation& allocation);
 
@@ -375,7 +371,7 @@ class MmapAllocator : public MemoryAllocator {
   // advises them away. Returns the number of pages advised away.
   MachinePageCount adviseAway(MachinePageCount target);
 
-  bool useMalloc(uint64_t bytes);
+  bool useMalloc(uint64_t bytes) const;
 
   const Kind kind_;
 
