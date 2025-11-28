@@ -17,8 +17,10 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include <fmt/format.h>
 #include "velox/common/base/BitUtil.h"
@@ -70,7 +72,7 @@ class StlAllocator;
 /// node pool that corresponds to the plan node from which the operator is
 /// created. Operator and node pools are owned by the Task via 'childPools_'.
 ///
-/// The query pool is created from MemoryManager::addRootPool(), it has no
+/// The query pool is created from 'MemoryManager::addRootPool()', it has no
 /// parent and is the root node of its corresponding subtree. Each query pool is
 /// owned by QueryCtx (such as in Prestissimo), and the memory manager also
 /// tracks the current alive query pools in MemoryManager::pools_ through weak
@@ -79,15 +81,15 @@ class StlAllocator;
 /// Each child pool object holds a shared reference to its parent pool object.
 /// The parent object tracks its child pool objects through weak pointers
 /// protected by a mutex. The child pool object destruction first removes its
-/// weak pointer from its parent through dropChild() and then drops the shared
+/// weak pointer from its parent through 'dropChild()' and then drops the shared
 /// reference on the parent.
 ///
 /// NOTE: for the users that integrate at expression evaluation level, we don't
 /// need to build the memory pool hierarchy as described above. Users can either
-/// create a single memory pool from MemoryManager::addLeafPool() to share with
-/// all the concurrent expression evaluations or create one dedicated memory
-/// pool for each expression evaluation if they need per-expression memory quota
-/// enforcement.
+/// create a single memory pool from 'MemoryManager::addLeafPool()' to share
+/// with all the concurrent expression evaluations or create one dedicated
+/// memory pool for each expression evaluation if they need per-expression
+/// memory quota enforcement.
 ///
 /// In addition to providing memory allocation functions, the memory pool object
 /// also provides memory usage accounting.
@@ -501,7 +503,8 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   }
 
   // Overrides getPreferredSize to allow specializing behavior for this pool.
-  void setPreferredSize(std::function<size_t(size_t)> getPreferredSizeFunc);
+  void setPreferredSize(
+      const std::function<size_t(size_t)>& getPreferredSizeFunc);
 
  protected:
   static constexpr uint64_t kMB = 1 << 20;
@@ -551,7 +554,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// child memory pool tracking.
   virtual void dropChild(const MemoryPool* child);
 
-  virtual inline bool debugEnabled() const {
+  virtual bool debugEnabled() const {
     return debugOptions_.has_value();
   }
 
@@ -786,11 +789,11 @@ class MemoryPoolImpl : public MemoryPool {
     return (remainder == 0) ? size : (size + alignment_ - remainder);
   }
 
-  // Returns a rounded up delta based on adding 'delta' to 'size'. Adding the
-  // rounded delta to 'size' will result in 'size' a quantized size, rounded to
-  // the MB or 8MB for larger sizes.
-  FOLLY_ALWAYS_INLINE static int64_t roundedDelta(int64_t size, int64_t delta) {
-    return quantizedSize(size + delta) - size;
+  // Returns a rounded up delta based on adding 'delta' to 'reservedBytes'.
+  // Adding the rounded delta to 'reservedBytes' will result in 'reservedBytes'
+  // a quantized size, rounded to the MB or 8MB for larger sizes.
+  static int64_t roundedDelta(int64_t reservedBytes, int64_t delta) {
+    return quantizedSize(reservedBytes + delta) - reservedBytes;
   }
 
   // Reserve memory for a new allocation/reservation with specified 'size'.
@@ -798,22 +801,22 @@ class MemoryPoolImpl : public MemoryPool {
   // protection to prevent concurrent updates to the same leaf memory pool.
   // 'reserveNonThreadSafe' processes the memory reservation without mutex lock
   // at the leaf memory pool.
-  void reserve(uint64_t size, bool reserveOnly = false);
+  void reserve(uint64_t delta, bool reserveOnly = false);
 
   FOLLY_ALWAYS_INLINE void reserveNonThreadSafe(
-      uint64_t size,
+      uint64_t delta,
       bool reserveOnly = false) {
     VELOX_CHECK(isLeaf());
 
     int32_t numAttempts{0};
     for (;; ++numAttempts) {
-      int64_t increment = reservationSizeLocked(size);
+      int64_t increment = reservationSizeLocked(delta);
       if (FOLLY_LIKELY(increment == 0)) {
         if (FOLLY_UNLIKELY(reserveOnly)) {
           minReservationBytes_ = tsanAtomicValue(reservationBytes_);
         } else {
-          usedReservationBytes_ += size;
-          cumulativeBytes_ += size;
+          usedReservationBytes_ += delta;
+          cumulativeBytes_ += delta;
           maybeUpdatePeakBytesLocked(usedReservationBytes_);
         }
         sanityCheckLocked();
@@ -851,9 +854,9 @@ class MemoryPoolImpl : public MemoryPool {
 
   // Returns the reservation size that needs to be increased. If there is
   // sufficient unused memory reservation, this function returns zero.
-  FOLLY_ALWAYS_INLINE int64_t reservationSizeLocked(int64_t size) {
+  int64_t reservationSizeLocked(int64_t delta) const {
     const int64_t neededSize =
-        size - (reservationBytes_ - usedReservationBytes_);
+        delta - (reservationBytes_ - usedReservationBytes_);
     if (neededSize <= 0) {
       return 0;
     }

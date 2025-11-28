@@ -47,7 +47,7 @@ MmapArena::MmapArena(size_t capacityBytes) : byteSize_(capacityBytes) {
         folly::errnoStr(errno),
         capacityBytes);
   }
-  address_ = reinterpret_cast<uint8_t*>(ptr);
+  address_ = static_cast<uint8_t*>(ptr);
   addFreeBlock(reinterpret_cast<uintptr_t>(address_), byteSize_);
   freeBytes_ = byteSize_;
 }
