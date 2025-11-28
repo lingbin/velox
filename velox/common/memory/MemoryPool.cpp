@@ -428,7 +428,7 @@ size_t MemoryPool::getPreferredSize(size_t size) {
 }
 
 void MemoryPool::setPreferredSize(
-    std::function<size_t(size_t)> getPreferredSizeFunc) {
+    const std::function<size_t(size_t)>& getPreferredSizeFunc) {
   VELOX_CHECK_NOT_NULL(getPreferredSizeFunc);
   getPreferredSize_ = getPreferredSizeFunc;
 }
@@ -600,7 +600,7 @@ bool MemoryPoolImpl::transferTo(MemoryPool* dest, void* buffer, uint64_t size) {
     return false;
   }
   VELOX_CHECK_NOT_NULL(dest);
-  auto* destImpl = checked_pointer_cast<MemoryPoolImpl, MemoryPool>(dest);
+  auto* destImpl = checked_pointer_cast<MemoryPoolImpl>(dest);
   if (allocator_ != destImpl->allocator_) {
     return false;
   }
@@ -826,12 +826,12 @@ bool MemoryPoolImpl::maybeReserve(uint64_t increment) {
   return true;
 }
 
-void MemoryPoolImpl::reserve(uint64_t size, bool reserveOnly) {
+void MemoryPoolImpl::reserve(uint64_t delta, bool reserveOnly) {
   if (FOLLY_LIKELY(trackUsage_)) {
     if (FOLLY_LIKELY(threadSafe_)) {
-      reserveThreadSafe(size, reserveOnly);
+      reserveThreadSafe(delta, reserveOnly);
     } else {
-      reserveNonThreadSafe(size, reserveOnly);
+      reserveNonThreadSafe(delta, reserveOnly);
     }
   }
 }
@@ -922,6 +922,7 @@ void MemoryPoolImpl::growCapacity(MemoryPool* requestor, uint64_t size) {
     }
     throw;
   }
+
   // The memory pool might have been aborted during the time it leaves the
   // arbitration no matter the arbitration succeed or not.
   if (FOLLY_UNLIKELY(aborted())) {

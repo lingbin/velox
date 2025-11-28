@@ -196,7 +196,7 @@ int64_t MallocAllocator::freeNonContiguous(Allocation& allocation) {
   }
   MachinePageCount freedPages{0};
   for (int32_t i = 0; i < allocation.numRuns(); ++i) {
-    Allocation::PageRun run = allocation.runAt(i);
+    const Allocation::PageRun run = allocation.runAt(i);
     void* ptr = run.data();
     const int64_t numPages = run.numPages();
     freedPages += numPages;

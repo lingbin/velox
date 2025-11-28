@@ -75,9 +75,7 @@ bool eagerFlush(const core::PlanNode& node) {
 namespace detail {
 
 /// Returns true if source nodes must run in a separate pipeline.
-bool mustStartNewPipeline(
-    const std::shared_ptr<const core::PlanNode>& planNode,
-    int sourceIdx) {
+bool mustStartNewPipeline(const core::PlanNodePtr& planNode, int sourceIdx) {
   if (auto localMerge =
           std::dynamic_pointer_cast<const core::LocalMergeNode>(planNode)) {
     // LocalMerge's source runs on its own pipeline.
@@ -119,7 +117,7 @@ OperatorSupplier makeOperatorSupplier(ConsumerSupplier consumerSupplier) {
 }
 
 OperatorSupplier makeOperatorSupplier(
-    const std::shared_ptr<const core::PlanNode>& planNode) {
+    const core::PlanNodePtr& planNode) {
   if (auto localMerge =
           std::dynamic_pointer_cast<const core::LocalMergeNode>(planNode)) {
     return [localMerge](int32_t operatorId, DriverCtx* ctx) {
@@ -211,9 +209,9 @@ OperatorSupplier makeOperatorSupplier(
 }
 
 void plan(
-    const std::shared_ptr<const core::PlanNode>& planNode,
-    std::vector<std::shared_ptr<const core::PlanNode>>* currentPlanNodes,
-    const std::shared_ptr<const core::PlanNode>& consumerNode,
+    const core::PlanNodePtr& planNode,
+    std::vector<core::PlanNodePtr>* currentPlanNodes,
+    const core::PlanNodePtr& consumerNode,
     OperatorSupplier operatorSupplier,
     std::vector<std::unique_ptr<DriverFactory>>* driverFactories) {
   if (currentPlanNodes == nullptr) {
@@ -245,7 +243,7 @@ void plan(
 
 // Sometimes consumer limits the number of drivers its producer can run.
 uint32_t maxDriversForConsumer(
-    const std::shared_ptr<const core::PlanNode>& node) {
+    const core::PlanNodePtr& node) {
   if (std::dynamic_pointer_cast<const core::MergeJoinNode>(node)) {
     // MergeJoinNode must run single-threaded.
     return 1;
