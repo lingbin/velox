@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <atomic>
+#include <sstream>
 #include <utility>
 
 #include "velox/common/base/RuntimeMetrics.h"
@@ -172,7 +174,7 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
   const std::shared_ptr<memory::MemoryPool> pool_;
 
   int64_t sequence_{0};
-  std::atomic<bool> requestPending_{false};
+  std::atomic_bool requestPending_{false};
   bool atEnd_{false};
 };
 

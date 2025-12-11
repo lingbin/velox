@@ -31,7 +31,9 @@ using namespace facebook::velox::memory;
 
 std::string ArbitrationParticipant::Config::toString() const {
   return fmt::format(
-      "initCapacity {}, minCapacity {}, fastExponentialGrowthCapacityLimit {}, slowCapacityGrowRatio {}, minFreeCapacity {}, minFreeCapacityRatio {}, minReclaimBytes {}, minReclaimPct {}",
+      "initCapacity {}, minCapacity {}, fastExponentialGrowthCapacityLimit {}, "
+      "slowCapacityGrowRatio {}, minFreeCapacity {}, minFreeCapacityRatio {}, "
+      "minReclaimBytes {}, minReclaimPct {}",
       succinctBytes(initCapacity),
       succinctBytes(minCapacity),
       succinctBytes(fastExponentialGrowthCapacityLimit),
@@ -60,6 +62,7 @@ ArbitrationParticipant::Config::Config(
       minReclaimBytes(_minReclaimBytes),
       minReclaimPct(_minReclaimPct) {
   VELOX_CHECK_GE(slowCapacityGrowRatio, 0);
+  VELOX_CHECK_LE(slowCapacityGrowRatio, 1);
   VELOX_CHECK_EQ(
       fastExponentialGrowthCapacityLimit == 0,
       slowCapacityGrowRatio == 0,
@@ -178,12 +181,10 @@ uint64_t ArbitrationParticipant::maxShrinkCapacity() const {
         config_->minFreeCapacity);
     if (freeBytes <= minFreeBytes) {
       return 0;
-    } else {
-      return freeBytes - minFreeBytes;
     }
-  } else {
-    return freeBytes;
+    return freeBytes - minFreeBytes;
   }
+  return freeBytes;
 }
 
 bool ArbitrationParticipant::checkCapacityGrowth(uint64_t requestBytes) const {
@@ -215,7 +216,7 @@ void ArbitrationParticipant::getGrowTargets(
 }
 
 void ArbitrationParticipant::startArbitration(ArbitrationOperation* op) {
-  ContinueFuture waitPromise{ContinueFuture::makeEmpty()};
+  ContinueFuture future{ContinueFuture::makeEmpty()};
   {
     std::lock_guard<std::mutex> l(stateLock_);
     ++numRequests_;
@@ -225,7 +226,7 @@ void ArbitrationParticipant::startArbitration(ArbitrationOperation* op) {
           op,
           ContinuePromise{fmt::format(
               "Wait for arbitration on {}", op->participant()->name())}};
-      waitPromise = waitOp.waitPromise.getSemiFuture();
+      future = waitOp.waitPromise.getSemiFuture();
       waitOps_.emplace_back(std::move(waitOp));
     } else {
       runningOp_ = op;
@@ -236,8 +237,8 @@ void ArbitrationParticipant::startArbitration(ArbitrationOperation* op) {
       "facebook::velox::memory::ArbitrationParticipant::startArbitration",
       this);
 
-  if (waitPromise.valid()) {
-    waitPromise.wait();
+  if (future.valid()) {
+    future.wait();
   }
 }
 
@@ -362,11 +363,11 @@ uint64_t ArbitrationParticipant::abortLocked(
     VELOX_MEM_LOG(WARNING) << "Memory pool " << pool_->name()
                            << " is being aborted";
     pool_->abort(error);
+    VELOX_MEM_LOG(WARNING) << "Memory pool " << pool_->name() << " aborted";
   } catch (const std::exception& e) {
     VELOX_MEM_LOG(WARNING) << "Failed to abort memory pool "
                            << pool_->toString() << ", error: " << e.what();
   }
-  VELOX_MEM_LOG(WARNING) << "Memory pool " << pool_->name() << " aborted";
   // NOTE: no matter query memory pool abort throws or not, it should have been
   // marked as aborted to prevent any new memory arbitration operations.
   VELOX_CHECK(pool_->aborted());

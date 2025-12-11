@@ -283,6 +283,7 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPool(
   options.alignment = alignment_;
   options.maxCapacity = maxCapacity;
   options.trackUsage = true;
+  options.threadSafe = true;
   options.coreOnAllocationFailureEnabled = coreOnAllocationFailureEnabled_;
   options.getPreferredSize = getPreferredSize_;
   options.debugOptions = poolDebugOpts;
