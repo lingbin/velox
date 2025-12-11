@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include "velox/common/base/AsyncSource.h"
@@ -286,17 +287,17 @@ FOLLY_ALWAYS_INLINE std::ostream& operator<<(
 /// implementation that always reclaim memory from the child memory pool with
 /// most reclaimable memory. This is used by the query and plan node memory
 /// pools which don't need customized operations. A task memory pool needs to
-/// to pause a task execution before reclaiming memory from its child pools.
-/// This avoids any potential race condition between concurrent memory
-/// reclamation operation and the task activities. An operator memory pool needs
-/// to put the associated task driver thread into suspension state before
-/// entering into an arbitration process. It is because the memory arbitrator
-/// needs to pause a task execution before reclaim memory from the task. It is
-/// possible that the memory arbitration tries to reclaim memory from the task
-/// which initiates the memory arbitration request. If we don't put the driver
-/// thread into suspension state, then the memory arbitration process might
-/// run into deadlock as the task will never be paused. The operator memory pool
-/// also needs to reclaim the actually used memory from the associated operator
+/// pause a task execution before reclaiming memory from its child pools. This
+/// avoids any potential race condition between concurrent memory reclamation
+/// operation and the task activities. An operator memory pool needs to put the
+/// associated task driver thread into suspension state before entering into an
+/// arbitration process. It is because the memory arbitrator needs to pause a
+/// task execution before reclaim memory from the task. It is possible that the
+/// memory arbitration tries to reclaim memory from the task which initiates the
+/// memory arbitration request. If we don't put the driver thread into
+/// suspension state, then the memory arbitration process might run into
+/// deadlock as the task will never be paused. The operator memory pool also
+/// needs to reclaim the actually used memory from the associated operator
 /// through techniques such as disks spilling.
 class MemoryReclaimer {
  public:

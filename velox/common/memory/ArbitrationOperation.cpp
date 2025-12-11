@@ -15,7 +15,6 @@
  */
 
 #include "velox/common/memory/ArbitrationOperation.h"
-#include <mutex>
 
 #include "velox/common/base/Exceptions.h"
 #include "velox/common/base/RuntimeMetrics.h"
@@ -83,7 +82,7 @@ void ArbitrationOperation::setState(State state) {
 void ArbitrationOperation::start() {
   VELOX_CHECK_EQ(state_, State::kInit);
   participant_->startArbitration(this);
-  setState(ArbitrationOperation::State::kRunning);
+  setState(State::kRunning);
   VELOX_CHECK_EQ(startTimeNs_, 0);
   startTimeNs_ = getCurrentTimeNano();
 }
@@ -143,7 +142,7 @@ ArbitrationOperation::Stats ArbitrationOperation::stats() const {
 
   const uint64_t executionTimeNs = this->executionTimeNs();
 
-  VELOX_CHECK_GE(startTimeNs_, createTimeNs_);
+  VELOX_CHECK_LE(createTimeNs_, startTimeNs_);
   const uint64_t localArbitrationWaitTimeNs = startTimeNs_ - createTimeNs_;
   if (globalArbitrationStartTimeNs_ == 0) {
     return {
