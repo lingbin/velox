@@ -44,7 +44,7 @@ void RemoteConnectorSplit::registerSerDe() {
 
 namespace {
 std::unique_ptr<folly::IOBuf> mergePages(
-    std::vector<std::unique_ptr<SerializedPage>>& pages) {
+    const std::vector<std::unique_ptr<SerializedPage>>& pages) {
   VELOX_CHECK(!pages.empty());
   std::unique_ptr<folly::IOBuf> mergedBufs;
   for (const auto& page : pages) {
@@ -151,8 +151,9 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
     return BlockingReason::kNotBlocked;
   }
 
-  // We have a dataFuture and we may also have a splitFuture_.
+  VELOX_CHECK(dataFuture.valid());
 
+  // We have a dataFuture and we may also have a splitFuture_.
   if (splitFuture_.valid()) {
     // Block until data becomes available or more splits arrive.
     std::vector<ContinueFuture> futures;
@@ -163,7 +164,6 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
   }
 
   // Block until data becomes available.
-  VELOX_CHECK(dataFuture.valid());
   *future = std::move(dataFuture);
   return BlockingReason::kWaitForProducer;
 }
@@ -205,10 +205,10 @@ RowVectorPtr Exchange::getOutputFromColumnarPages(VectorSerde* serde) {
       inputStream_ == nullptr || columnarPageIdx_ < currentPages_.size());
 
   // Iterate through pages
-  for (; columnarPageIdx_ < currentPages_.size();) {
+  while (columnarPageIdx_ < currentPages_.size()) {
     auto& page = currentPages_[columnarPageIdx_];
 
-    // Track raw bytes for stats (only once per page)
+    // Track raw bytes for stats (only once per page).
     if (!inputStream_) {
       rawInputBytes += page->size();
       // Create stream for this page
@@ -229,16 +229,14 @@ RowVectorPtr Exchange::getOutputFromColumnarPages(VectorSerde* serde) {
       resultOffset = result_->size();
     }
 
-    // If page is fully consumed
     if (inputStream_->atEnd()) {
+      // Page is fully consumed, free memory immediately, and move to the next.
       inputStream_ = nullptr;
-      // free memory immediately
       page.reset();
-      // move to next page
       ++columnarPageIdx_;
     }
 
-    // Stop if accumulated enough rows for this batch
+    // Stop if accumulated enough rows for this batch.
     if (resultOffset >= numRows) {
       break;
     }
@@ -251,19 +249,15 @@ RowVectorPtr Exchange::getOutputFromColumnarPages(VectorSerde* serde) {
       result_->estimateFlatSize() / numOutputRows,
       estimatedRowSize_.value_or(1L));
 
-  // If processed all pages, clear the vector and reset state
+  // If processed all pages, clear the vector and reset state.
   if (columnarPageIdx_ >= currentPages_.size()) {
     VELOX_CHECK_NULL(inputStream_);
     currentPages_.clear();
     columnarPageIdx_ = 0;
   }
 
-  // Record stats
-  auto lockedStats = stats_.wlock();
-  lockedStats->rawInputBytes += rawInputBytes;
-  lockedStats->rawInputPositions += numOutputRows;
-  lockedStats->addInputVector(result_->estimateFlatSize(), numOutputRows);
-
+  // 如果第一个page不是从头开始，那么不包含在内。或者说：rawInputBytes中仅仅包含头部被处理的。
+  recordInputStats(rawInputBytes);
   return result_;
 }
 

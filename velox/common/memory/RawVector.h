@@ -36,7 +36,7 @@ class raw_vector {
   static_assert(
       std::is_trivially_destructible_v<T> && std::is_trivially_copyable_v<T>);
 
-  explicit raw_vector() {}
+  explicit raw_vector() = default;
 
   explicit raw_vector(int64_t size) {
     resize(size);

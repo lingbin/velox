@@ -498,7 +498,7 @@ void registerVeloxMetrics() {
       99,
       100);
 
-  // The distribution of a root memory pool cappacity growth attempts through
+  // The distribution of a root memory pool capacity growth attempts through
   // memory arbitration in range of [0, 256] with 32 buckets. It is configured
   // to report the count at P50, P90, P99, and P100 percentiles.
   DEFINE_HISTOGRAM_METRIC(

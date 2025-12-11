@@ -147,6 +147,7 @@ class NoopArbitrator : public MemoryArbitrator {
 thread_local MemoryArbitrationContext* arbitrationCtx{nullptr};
 } // namespace
 
+// static
 std::unique_ptr<MemoryArbitrator> MemoryArbitrator::create(
     const Config& config) {
   if (config.kind.empty()) {
@@ -487,10 +488,6 @@ ScopedMemoryArbitrationContext::~ScopedMemoryArbitrationContext() {
   arbitrationCtx = savedArbitrationCtx_;
 }
 
-const MemoryArbitrationContext* memoryArbitrationContext() {
-  return arbitrationCtx;
-}
-
 MemoryPoolArbitrationSection::MemoryPoolArbitrationSection(MemoryPool* pool)
     : pool_(pool) {
   VELOX_CHECK_NOT_NULL(pool_);
@@ -499,6 +496,10 @@ MemoryPoolArbitrationSection::MemoryPoolArbitrationSection(MemoryPool* pool)
 
 MemoryPoolArbitrationSection::~MemoryPoolArbitrationSection() {
   pool_->leaveArbitration();
+}
+
+const MemoryArbitrationContext* memoryArbitrationContext() {
+  return arbitrationCtx;
 }
 
 bool underMemoryArbitration() {

@@ -249,7 +249,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
 
   /// Re-allocates from an existing buffer with 'newSize' and update memory
   /// usage counting accordingly.
-  virtual void* reallocate(void* p, int64_t size, int64_t newSize) = 0;
+  virtual void* reallocate(void* p, int64_t oldSize, int64_t newSize) = 0;
 
   /// Frees an allocated buffer.
   virtual void free(void* p, int64_t size) = 0;
@@ -451,6 +451,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     uint64_t numReclaims{0};
     /// The number of internal memory reservation collisions caused by
     /// concurrent memory requests.
+    /// NOTE: this only applies for the leaf memory pool.
     uint64_t numCollisions{0};
     /// The number of memory capacity growth attempts through the memory
     /// arbitration.
@@ -621,7 +622,7 @@ class MemoryPoolImpl : public MemoryPool {
 
   void* allocateZeroFilled(int64_t numEntries, int64_t sizeEach) override;
 
-  void* reallocate(void* p, int64_t size, int64_t newSize) override;
+  void* reallocate(void* p, int64_t oldSize, int64_t newSize) override;
 
   void free(void* p, int64_t size) override;
 
@@ -1008,7 +1009,7 @@ class MemoryPoolImpl : public MemoryPool {
   // should be empty as all the memory allocations should have been freed on
   // memory pool destruction. We only check this if debug mode of this memory
   // pool is enabled.
-  void leakCheckDbg();
+  void leakCheckDbg() const;
 
   // Holds formatted string of dumped allocation records for a leaf memory pool,
   // along with the total pool size in bytes.
@@ -1037,7 +1038,7 @@ class MemoryPoolImpl : public MemoryPool {
     return dumpRecordsDbgLocked();
   }
 
-  void handleAllocationFailure(const std::string& failureMessage);
+  void handleAllocationFailure(const std::string& failureMessage) const;
 
   MemoryManager* const manager_;
   MemoryAllocator* const allocator_;
@@ -1089,6 +1090,8 @@ class MemoryPoolImpl : public MemoryPool {
 
   // The number of internal memory reservation collisions caused by concurrent
   // memory reservation requests.
+  //
+  // NOTE: this only applies for leaf memory pool.
   std::atomic_uint64_t numCollisions_{0};
 
   // The number of memory capacity growth attempts through the memory
