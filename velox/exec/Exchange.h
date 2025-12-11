@@ -19,8 +19,6 @@
 
 #include "velox/exec/ExchangeClient.h"
 #include "velox/exec/Operator.h"
-#include "velox/exec/OutputBufferManager.h"
-#include "velox/serializers/PrestoSerializer.h"
 #include "velox/serializers/RowSerializer.h"
 
 namespace facebook::velox::exec {

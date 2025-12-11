@@ -44,7 +44,7 @@ void RemoteConnectorSplit::registerSerDe() {
 
 namespace {
 std::unique_ptr<folly::IOBuf> mergePages(
-    std::vector<std::unique_ptr<SerializedPageBase>>& pages) {
+    const std::vector<std::unique_ptr<SerializedPageBase>>& pages) {
   VELOX_CHECK(!pages.empty());
   std::unique_ptr<folly::IOBuf> mergedBufs;
   for (const auto& page : pages) {
@@ -151,8 +151,9 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
     return BlockingReason::kNotBlocked;
   }
 
-  // We have a dataFuture and we may also have a splitFuture_.
+  VELOX_CHECK(dataFuture.valid());
 
+  // We have a dataFuture and we may also have a splitFuture_.
   if (splitFuture_.valid()) {
     // Block until data becomes available or more splits arrive.
     std::vector<ContinueFuture> futures;
@@ -163,7 +164,6 @@ BlockingReason Exchange::isBlocked(ContinueFuture* future) {
   }
 
   // Block until data becomes available.
-  VELOX_CHECK(dataFuture.valid());
   *future = std::move(dataFuture);
   return BlockingReason::kWaitForProducer;
 }

@@ -17,6 +17,9 @@
 #include "velox/common/memory/MemoryPool.h"
 
 #include <signal.h>
+#include <queue>
+
+#include <re2/re2.h>
 
 #include "velox/common/Casts.h"
 #include "velox/common/base/Counters.h"
@@ -24,8 +27,6 @@
 #include "velox/common/base/SuccinctPrinter.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/common/testutil/TestValue.h"
-
-#include <re2/re2.h>
 
 DEFINE_bool(
     velox_memory_pool_capacity_transfer_across_tasks,
@@ -115,7 +116,7 @@ std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
 // Invoked by visitChildren() to traverse the memory pool structure to build the
 // memory capacity exceeded exception error message.
 void treeMemoryUsageVisitor(
-    MemoryPool* pool,
+    const MemoryPool* pool,
     size_t indent,
     MemoryUsageHeap& topLeafMemUsages,
     bool skipEmptyPool,
@@ -171,7 +172,9 @@ std::string capacityToString(int64_t capacity) {
 
 std::string MemoryPool::Stats::toString() const {
   return fmt::format(
-      "usedBytes:{} reservedBytes:{} peakBytes:{} cumulativeBytes:{} numAllocs:{} numFrees:{} numReserves:{} numReleases:{} numShrinks:{} numReclaims:{} numCollisions:{} numCapacityGrowths:{}",
+      "usedBytes:{} reservedBytes:{} peakBytes:{} cumulativeBytes:{} "
+      "numAllocs:{} numFrees:{} numReserves:{} numReleases:{} numShrinks:{} "
+      "numReclaims:{} numCollisions:{} numCapacityGrowths:{}",
       succinctBytes(usedBytes),
       succinctBytes(reservedBytes),
       succinctBytes(peakBytes),
@@ -445,8 +448,8 @@ MemoryPoolImpl::MemoryPoolImpl(
       allocator_{manager_->allocator()},
       arbitrator_{manager_->arbitrator()},
       reclaimer_(std::move(reclaimer)),
-      // The memory manager sets the capacity through grow() according to the
-      // actually used memory arbitration policy.
+      // The memory arbitrator sets the capacity of root memory pools through
+      // 'grow()' according to the actually used memory arbitration policy.
       capacity_(parent_ != nullptr ? kMaxMemory : 0) {
   VELOX_CHECK(options.threadSafe || isLeaf());
 }
@@ -471,8 +474,8 @@ MemoryPoolImpl::~MemoryPoolImpl() {
     }
   }
   VELOX_DCHECK(
-      (usedReservationBytes_ == 0) && (reservationBytes_ == 0) &&
-          (minReservationBytes_ == 0),
+      usedReservationBytes_ == 0 && reservationBytes_ == 0 &&
+          minReservationBytes_ == 0,
       "Bad memory usage track state: {}",
       toString());
 
@@ -562,7 +565,7 @@ void* MemoryPoolImpl::allocateZeroFilled(int64_t numEntries, int64_t sizeEach) {
   return buffer;
 }
 
-void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
+void* MemoryPoolImpl::reallocate(void* p, int64_t oldSize, int64_t newSize) {
   CHECK_AND_INC_MEM_OP_STATS(this, Allocs);
   const auto alignedNewSize = sizeAlign(newSize);
   reserve(alignedNewSize);
@@ -575,14 +578,14 @@ void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
             "{} failed with new {} and old {} from {} {}",
             __FUNCTION__,
             succinctBytes(newSize),
-            succinctBytes(size),
+            succinctBytes(oldSize),
             toString(),
             allocator_->getAndClearFailureMessage()));
   }
   DEBUG_RECORD_ALLOC(this, newP, newSize);
   if (p != nullptr) {
-    ::memcpy(newP, p, std::min(size, newSize));
-    free(p, size);
+    ::memcpy(newP, p, std::min(oldSize, newSize));
+    free(p, oldSize);
   }
   return newP;
 }
@@ -1174,9 +1177,11 @@ bool MemoryPoolImpl::grow(uint64_t growBytes, uint64_t reservationBytes) {
   }
 
   capacity_ += growBytes;
+  // TODO(lingbin): 多余的 VELOX_CHECK_GE
   VELOX_CHECK_GE(capacity_, growBytes);
   if (reservationBytes > 0) {
     incrementReservationLocked(reservationBytes);
+    // TODO(lingbin): 多余的 VELOX_CHECK_LE
     VELOX_CHECK_LE(reservationBytes, reservationBytes_);
   }
   return true;
@@ -1356,7 +1361,7 @@ void MemoryPoolImpl::recordGrowDbg(const void* addr, uint64_t newSize) {
   allocResult->second.size = newSize;
 }
 
-void MemoryPoolImpl::leakCheckDbg() {
+void MemoryPoolImpl::leakCheckDbg() const {
   VELOX_CHECK(debugEnabled());
   if (debugAllocRecords_.empty()) {
     return;
@@ -1468,7 +1473,7 @@ std::string MemoryPoolImpl::dumpRecordsDbgLocked() const {
 }
 
 void MemoryPoolImpl::handleAllocationFailure(
-    const std::string& failureMessage) {
+    const std::string& failureMessage) const {
   if (coreOnAllocationFailureEnabled_) {
     VELOX_MEM_LOG(ERROR) << failureMessage;
     // SIGBUS is one of the standard signals in Linux that triggers a core
@@ -1482,4 +1487,5 @@ void MemoryPoolImpl::handleAllocationFailure(
 
   VELOX_MEM_ALLOC_ERROR(failureMessage);
 }
+
 } // namespace facebook::velox::memory
