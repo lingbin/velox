@@ -40,7 +40,7 @@ class SerializedPageBase {
 
 /// Corresponds to Presto SerializedPage, i.e. a container for serialized
 /// vectors in Presto wire format.
-class PrestoSerializedPage : public SerializedPageBase {
+class PrestoSerializedPage final : public SerializedPageBase {
  public:
   /// Construct from IOBuf chain.
   explicit PrestoSerializedPage(
