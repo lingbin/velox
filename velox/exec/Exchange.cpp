@@ -360,8 +360,7 @@ void Exchange::recordExchangeClientStats() {
     lockedStats->runtimeStats.insert({name, value});
   }
 
-  const auto iter =
-      exchangeClientStats.find(Operator::kBackgroundCpuTimeNanos);
+  const auto iter = exchangeClientStats.find(Operator::kBackgroundCpuTimeNanos);
   if (iter != exchangeClientStats.end()) {
     const CpuWallTiming backgroundTiming{
         static_cast<uint64_t>(iter->second.count),
