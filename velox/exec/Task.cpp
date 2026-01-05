@@ -1969,7 +1969,7 @@ BlockingReason Task::getSplitOrFuture(
   std::lock_guard<std::timed_mutex> l(mutex_);
   auto& splitsState = getPlanNodeSplitsStateLocked(planNodeId);
   auto& splitsStore = splitsState.groupSplitsStores[splitGroupId];
-  if (!splitsStore) {
+  if (splitsStore == nullptr) {
     setSplitsStore(
         splitsStore,
         std::make_unique<QueueSplitsStore>(!splitsState.sourceIsTableScan));

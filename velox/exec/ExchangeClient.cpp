@@ -119,23 +119,26 @@ ExchangeClient::collectStatsLocked() const {
   for (const auto& source : sources_) {
     if (source->supportsMetrics()) {
       for (const auto& [name, value] : source->metrics()) {
-        if (UNLIKELY(stats.count(name) == 0)) {
-          stats.insert(std::pair(name, RuntimeMetric(value.unit)));
-        }
-        stats[name].merge(value);
+        auto [iter, inserted] = stats.try_emplace(name, value.unit);
+        iter->second.merge(value);
       }
     } else {
       for (const auto& [name, value] : source->stats()) {
-        stats[name].addValue(value);
+        auto [iter, inserted] = stats.try_emplace(name);
+        iter->second.addValue(value);
       }
     }
   }
 
-  stats["peakBytes"] =
-      RuntimeMetric(queue_->peakBytes(), RuntimeCounter::Unit::kBytes);
-  stats["numReceivedPages"] = RuntimeMetric(queue_->receivedPages());
-  stats["averageReceivedPageBytes"] = RuntimeMetric(
-      queue_->averageReceivedPageBytes(), RuntimeCounter::Unit::kBytes);
+  stats.insert_or_assign(
+      "peakBytes",
+      RuntimeMetric(queue_->peakBytes(), RuntimeCounter::Unit::kBytes));
+  stats.insert_or_assign(
+      "numReceivedPages", RuntimeMetric(queue_->receivedPages()));
+  stats.insert_or_assign(
+      "averageReceivedPageBytes",
+      RuntimeMetric(
+          queue_->averageReceivedPageBytes(), RuntimeCounter::Unit::kBytes));
 
   return stats;
 }

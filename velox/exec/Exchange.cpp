@@ -116,6 +116,10 @@ void Exchange::getSplits(ContinueFuture* future) {
       continue;
     }
 
+    // A split without a connector split is a sentinel indicating that no more
+    // splits will be added for this ExchangeNode. Flush all the accumulated
+    // remote task ids and notify ExchangeClient that there will be no more
+    // remote sources.
     addRemoteTaskIds(remoteTaskIds);
     exchangeClient_->noMoreRemoteTasks();
     noMoreSplits_ = true;
