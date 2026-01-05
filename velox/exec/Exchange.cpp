@@ -74,11 +74,10 @@ Exchange::Exchange(
           driverCtx->queryConfig().preferredOutputBatchBytes()},
       serdeKind_{exchangeNode->serdeKind()},
       serdeOptions_{getVectorSerdeOptions(
-          common::stringToCompressionKind(operatorCtx_->driverCtx()
-                                              ->queryConfig()
-                                              .shuffleCompressionKind()),
+          common::stringToCompressionKind(
+              driverCtx->queryConfig().shuffleCompressionKind()),
           serdeKind_)},
-      processSplits_{operatorCtx_->driverCtx()->driverId == 0},
+      processSplits_{driverCtx->driverId == 0},
       driverId_{driverCtx->driverId},
       exchangeClient_{std::move(exchangeClient)} {}
 
