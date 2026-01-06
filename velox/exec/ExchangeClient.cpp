@@ -271,7 +271,7 @@ ExchangeClient::pickSourcesToRequestLocked() {
   while (availableSpace > 0 && !producingSources_.empty()) {
     auto& source = producingSources_.front().source;
     int64_t requestBytes = 0;
-    for (auto bytes : producingSources_.front().remainingBytes) {
+    for (const auto bytes : producingSources_.front().remainingBytes) {
       availableSpace -= bytes;
       if (availableSpace < 0) {
         break;
@@ -290,7 +290,6 @@ ExchangeClient::pickSourcesToRequestLocked() {
 
   if (queue_->totalBytes() + totalPendingBytes_ < minOutputBatchBytes_ &&
       !producingSources_.empty()) {
-    //
     // Two cases which we request an out-of-band data transfer:
     // 1. We have full capacity but still cannot initiate one single data
     //    transfer. Let the transfer happen in this case to avoid getting stuck.
