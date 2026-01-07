@@ -114,9 +114,9 @@ Copilot Chat：会提供详细解释，包括：
 - 订阅 GitHub Copilot 后，自动包含 Chat 功能
 - **无需单独付费**
 - 定价选项：
-  - **个人订阅**：约 $10/月 或 $100/年
-  - **企业订阅**：约 $19/月/用户
+  - **个人订阅**和**企业订阅**两种选项
   - 某些开源维护者和学生可免费使用
+  - 具体价格请访问 [GitHub Copilot 官方定价页面](https://github.com/features/copilot#pricing)
 
 ## 在 Velox 项目中的最佳实践
 
@@ -175,8 +175,9 @@ TEST_F(RegexpTest, testExtract) {
 - `Ctrl + Enter`：打开 Copilot 建议面板
 
 ### GitHub Copilot Chat
-- `Ctrl + Shift + I`：打开内联 Chat
-- `Ctrl + Alt + I`：打开侧边栏 Chat（可能因配置而异）
+- `Ctrl + Shift + I`（Windows/Linux）或 `Cmd + Shift + I`（macOS）：打开内联 Chat
+- 打开侧边栏 Chat：点击活动栏中的 Chat 图标，或在命令面板中搜索 "GitHub Copilot Chat"
+- 提示：可以在 VS Code 设置中自定义键盘快捷键
 
 ## 隐私和安全考虑
 
