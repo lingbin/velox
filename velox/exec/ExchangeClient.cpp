@@ -41,7 +41,7 @@ void ExchangeClient::addRemoteTaskId(const std::string& remoteTaskId) {
     } catch (const std::exception& e) {
       // 'remoteTaskId' can be very long. Truncate to 128 characters.
       VELOX_FAIL(
-          "Failed to create ExchangeSource: {}. Task ID: {}.",
+          "Failed to create ExchangeSource: {}. Remote Task ID: {}.",
           e.what(),
           remoteTaskId.substr(0, 128));
     }

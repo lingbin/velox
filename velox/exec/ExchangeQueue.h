@@ -15,15 +15,16 @@
  */
 #pragma once
 
-#include "velox/exec/SerializedPage.h"
-
 #include <mutex>
+
+#include <folly/container/F14Map.h>
+
+#include "velox/exec/SerializedPage.h"
 
 namespace facebook::velox::exec {
 
-/// Queue of results retrieved from source. Owned by shared_ptr by
-/// ExchangeClient and client threads and registered callbacks waiting for
-/// input.
+/// Queue of results retrieved from exchange sources. Owned by shared_ptr by
+/// ExchangeClient and ExchangeSources.
 class ExchangeQueue {
  public:
   explicit ExchangeQueue(

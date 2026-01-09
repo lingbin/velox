@@ -184,15 +184,12 @@ PartitionedOutput::PartitionedOutput(
       // out of the partitioned output buffer manager such as in Prestissimo,
       // the http server holds the buffers while sending the data response.
       bufferReleaseFn_([task = operatorCtx_->task()]() {}),
-      maxBufferedBytes_(ctx->task->queryCtx()
-                            ->queryConfig()
-                            .maxPartitionedOutputBufferSize()),
+      maxBufferedBytes_(ctx->queryConfig().maxPartitionedOutputBufferSize()),
       eagerFlush_(eagerFlush),
       serde_(getNamedVectorSerde(planNode->serdeKind())),
       serdeOptions_(getVectorSerdeOptions(
-          common::stringToCompressionKind(operatorCtx_->driverCtx()
-                                              ->queryConfig()
-                                              .shuffleCompressionKind()),
+          common::stringToCompressionKind(
+              ctx->queryConfig().shuffleCompressionKind()),
           planNode->serdeKind(),
           PartitionedOutput::minCompressionRatio())) {
   if (!planNode->isPartitioned()) {
@@ -438,6 +435,7 @@ RowVectorPtr PartitionedOutput::getOutput() {
     }
     return nullptr;
   }
+
   // All of 'output_' is written into the destinations. We are finishing, hence
   // move all the destinations to the output queue. This will not grow memory
   // and hence does not need blocking.

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <sstream>
 #include <utility>
 
@@ -50,13 +51,20 @@ class ExchangeSource : public std::enable_shared_from_this<ExchangeSource> {
     return false;
   }
 
-  /// Returns true if there is no request to the source pending or if
-  /// this should be retried. If true, the caller is expected to call
-  /// request(). This is expected to be called while holding lock over
-  /// queue_.mutex(). This sets the status of 'this' to be pending. The
-  /// caller is thus expected to call request() without holding a lock over
-  /// queue_.mutex(). This pattern prevents multiple exchange consumer
-  /// threads from issuing the same request.
+  /// Returns true if there is no request to the source pending or if this
+  /// should be retried. On a true return, the implementation (subclass) is
+  /// expected to set the internal state to 'pending' (by setting
+  /// 'requestPending_' to be true), and the caller is then required to call
+  /// 'request()' or 'requestDataSizes()'. Note that this method must be called
+  /// while holding 'queue_.mutex()', however, the subsequent call to
+  /// `request()` or `requestDataSizes()` must then be made after releasing the
+  /// lock. If multiple threads call this method concurrently((while holding
+  /// 'queue_.mutex()')), at most one thread will observe a true return value.
+  ///
+  /// This "synchronized check-then-act" pattern ensures that, even with
+  /// multiple local exchange consumer threads, there is at most one in-flight
+  /// request per remote source at any time (avoiding duplicate requests to the
+  /// same remote task).
   virtual bool shouldRequestLocked() = 0;
 
   struct Response {
