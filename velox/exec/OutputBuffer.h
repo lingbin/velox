@@ -21,9 +21,9 @@
 namespace facebook::velox::exec {
 
 /// nullptr in pages indicates that there is no more data.
-/// 'sequence' is the same as specified in BufferManager::getData call. The
+/// 'sequence' is the same as specified in 'BufferManager::getData' call. The
 /// caller is expected to advance sequence by the number of entries in groups
-/// and call BufferManager::acknowledge.
+/// and call 'BufferManager::acknowledge'.
 using DataAvailableCallback = std::function<void(
     std::vector<std::unique_ptr<folly::IOBuf>> pages,
     int64_t sequence,
@@ -33,10 +33,10 @@ using DataAvailableCallback = std::function<void(
 /// currently active or not. It is used by arbitrary output buffer to optimize
 /// the http based streaming shuffle in Prestissimo. For instance, the arbitrary
 /// output buffer shall skip sending data to inactive destination buffer and
-/// only send to the currently active ones to reduce the time that a buffer
-/// stays in a destination buffer. Note that once a data is sent to a
-/// destination buffer, it can't be sent to the other destination buffers no
-/// matter the current destination buffer is active or not.
+/// only send to the currently active ones to reduce the time that a data stays
+/// in a destination buffer. Note that once a data is sent to a destination
+/// buffer, it can't be sent to another destination buffers no matter the
+/// current destination buffer is active or not.
 using DataConsumerActiveCheckCallback = std::function<bool()>;
 
 struct DataAvailable {
@@ -94,7 +94,7 @@ class DestinationBuffer {
  public:
   /// The data transferred by the destination buffer has two phases:
   /// 1. Buffered: the data resides in the buffer after enqueued and before
-  ///              acked / deleted.
+  ///    acked or deleted.
   /// 2. Sent: the data is removed from the buffer after it is acked or deleted.
   struct Stats {
     void recordEnqueue(const SerializedPageBase& data);
@@ -396,9 +396,9 @@ class OutputBuffer {
   // applies for non-partitioned output buffer type.
   bool noMoreBuffers_{false};
 
-  // While noMoreBuffers_ is false, stores the enqueued data to
-  // broadcast to destinations that have not yet been initialized. Cleared
-  // after receiving no-more-broadcast-buffers signal.
+  // While noMoreBuffers_ is false, stores the enqueued data to broadcast to
+  // destinations that have not yet been initialized. Cleared after receiving
+  // no-more-broadcast-buffers signal.
   std::vector<std::shared_ptr<SerializedPageBase>> dataToBroadcast_;
 
   std::mutex mutex_;

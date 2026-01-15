@@ -63,7 +63,7 @@ std::vector<std::shared_ptr<SerializedPageBase>> ArbitraryBuffer::getPages(
     if (pages_.front() == nullptr) {
       // NOTE: keep the end marker in arbitrary buffer to signal all the
       // destination buffers after the buffers have all been consumed.
-      VELOX_CHECK_EQ(pages_.size(), 1);
+      VELOX_CHECK_EQ(pages_.size(), 1, "null marker found in the middle");
       pages.push_back(nullptr);
       break;
     }
@@ -166,6 +166,7 @@ DestinationBuffer::Data DestinationBuffer::getData(
       }
     }
   }
+
   bool atEnd = false;
   std::vector<int64_t> remainingBytes;
   remainingBytes.reserve(data_.size() - i);
@@ -177,6 +178,7 @@ DestinationBuffer::Data DestinationBuffer::getData(
     }
     remainingBytes.push_back(data_[i]->size());
   }
+
   if (!atEnd && arbitraryBuffer) {
     arbitraryBuffer->getAvailablePageSizes(remainingBytes);
   }
@@ -203,8 +205,9 @@ DataAvailable DestinationBuffer::getAndClearNotify() {
     VELOX_CHECK_NULL(aliveCheck_);
     return DataAvailable();
   }
+
   DataAvailable result;
-  result.callback = notify_;
+  result.callback = std::move(notify_);
   result.sequence = notifySequence_;
   auto data = getData(notifyMaxBytes_, notifySequence_, nullptr, nullptr);
   result.data = std::move(data.data);
