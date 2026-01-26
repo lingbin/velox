@@ -109,7 +109,7 @@ memory::MemoryPool* DriverCtx::addOperatorPool(
 
 std::optional<common::SpillConfig> DriverCtx::makeSpillConfig(
     int32_t operatorId) const {
-  const auto& queryConfig = task->queryCtx()->queryConfig();
+  const auto& queryConfig = this->queryConfig();
   if (!queryConfig.spillEnabled()) {
     return std::nullopt;
   }
@@ -243,7 +243,7 @@ void Driver::enqueue(std::shared_ptr<Driver> driver) {
     return;
   }
   driver->task()->queryCtx()->executor()->add(
-      [driver]() { Driver::run(driver); });
+      [driver = std::move(driver)]() { Driver::run(driver); });
 }
 
 void Driver::init(
@@ -408,8 +408,8 @@ CpuWallTiming Driver::processLazyIoStats(
       lockStats->lastLazyInputBytes = inputBytes;
     }
   }
-
   lockStats.unlock();
+
   cpuDelta = std::min<int64_t>(cpuDelta, timing.cpuNanos);
   wallDelta = std::min<int64_t>(wallDelta, timing.wallNanos);
   lockStats = operators_[0]->stats().wlock();
@@ -435,7 +435,7 @@ bool Driver::shouldYield() const {
   return execTimeMs() >= cpuSliceMs_;
 }
 
-bool Driver::checkUnderArbitration(ContinueFuture* future) {
+bool Driver::checkUnderArbitration(ContinueFuture* future) const {
   return task()->queryCtx()->checkUnderArbitration(future);
 }
 
@@ -1006,7 +1006,7 @@ int Driver::pushdownFilters(
   std::vector<int> numFiltersAccepted(filterSourceIndex);
   for (auto i = 0; i < channels.size(); ++i) {
     auto channel = channels[i];
-    int j = -1;
+    int32_t j = -1;
     for (j = filterSourceIndex - 1; j >= 0; --j) {
       auto* prevOp = operators_[j].get();
       if (j == 0) {
@@ -1023,6 +1023,7 @@ int Driver::pushdownFilters(
       // Continue walking upstream.
       channel = inputChannel.value();
     }
+    // TODO(lingbin):添加注释：已经无法再向前传递，并且当前算子也不接收dynamic filter
     if (!(j >= 0 && operators_[j]->canAddDynamicFilter())) {
       continue;
     }
@@ -1046,6 +1047,7 @@ int Driver::pushdownFilters(
       ++numFiltersAccepted[j];
     }
   }
+
   for (int j = 0; j < filterSourceIndex; ++j) {
     if (numFiltersAccepted[j] == 0) {
       continue;
@@ -1061,6 +1063,7 @@ int Driver::pushdownFilters(
     filterSource->addRuntimeStat(
         "dynamicFiltersProduced", RuntimeCounter(numFiltersProduced));
   }
+
   return numFiltersProduced;
 }
 

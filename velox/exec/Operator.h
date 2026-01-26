@@ -25,8 +25,8 @@
 
 namespace facebook::velox::exec {
 
-/// Represents a column that is copied from input to output, possibly
-/// with cardinality change, i.e. values removed or duplicated.
+/// Represents a column that is copied from input to output, possibly with
+/// cardinality change, i.e. values removed or duplicated.
 struct IdentityProjection {
   IdentityProjection(
       column_index_t _inputChannel,
