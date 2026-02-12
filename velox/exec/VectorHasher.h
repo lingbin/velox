@@ -30,14 +30,10 @@ namespace facebook::velox::exec {
 // index.
 class UniqueValue {
  public:
-  explicit UniqueValue(int64_t value) {
-    size_ = sizeof(int64_t);
-    data_ = value;
-  }
+  explicit UniqueValue(int64_t value) : data_(value), size_(sizeof(int64_t)) {}
 
-  explicit UniqueValue(const char* value, uint32_t size) {
-    size_ = size;
-    data_ = 0;
+  explicit UniqueValue(const char* value, uint32_t size)
+      : data_(0), size_(size) {
     if (size <= sizeof(data_)) {
       memcpy(&data_, value, size);
     } else {
@@ -77,7 +73,7 @@ class UniqueValue {
  private:
   uint64_t data_;
   uint32_t size_;
-  uint32_t id_{};
+  uint32_t id_{0};
 };
 
 struct UniqueValueHasher {
