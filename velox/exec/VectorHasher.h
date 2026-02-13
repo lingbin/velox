@@ -519,6 +519,7 @@ class VectorHasher {
 
   template <typename T>
   uint64_t valueId(T value) {
+    VELOX_DCHECK(std::is_integral_v<T>);
     auto int64Value = toInt64(value);
     if (isRange_) {
       if (int64Value > max_ || int64Value < min_) {
@@ -577,7 +578,7 @@ class VectorHasher {
 
   void setRangeOverflow();
 
-  inline void checkTypeSupportsValueIds() const {
+  void checkTypeSupportsValueIds() const {
     VELOX_DCHECK(
         typeSupportsValueIds(),
         "Value IDs cannot be used, the type {} is not supported.",
@@ -656,7 +657,7 @@ void VectorHasher::analyzeValue(StringView value);
 template <>
 inline uint64_t VectorHasher::valueId(StringView value) {
   auto size = value.size();
-  auto data = value.data();
+  const auto* data = value.data();
   if (isRange_) {
     if (size > kStringASRangeMaxSize) {
       return kUnmappable;
@@ -721,6 +722,7 @@ template <>
 inline uint64_t VectorHasher::valueId(bool value) {
   return value ? 2 : 1;
 }
+
 template <>
 inline uint64_t VectorHasher::valueId(Timestamp value) {
   if (FOLLY_UNLIKELY(
