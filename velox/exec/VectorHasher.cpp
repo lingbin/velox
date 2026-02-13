@@ -577,6 +577,8 @@ void VectorHasher::hashPrecomputed(
 }
 
 void VectorHasher::precompute(const BaseVector& value) {
+  // 问题：这里 values 可能为 LazyVector吗？
+  VELOX_DCHECK(value.isConstantEncoding());
   if (value.isNullAt(0)) {
     precomputedHash_ = kNullHash;
     return;
