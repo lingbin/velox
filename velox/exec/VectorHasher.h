@@ -307,7 +307,7 @@ class VectorHasher {
   // of the data type. For 'asDistinct' the values are added to the end of the
   // range of ids.
   void
-  cardinality(int32_t reservePct, uint64_t& asRange, uint64_t& asDistincts);
+  cardinality(int32_t reservePct, uint64_t& asRange, uint64_t& asDistinct);
 
   void analyze(
       char** groups,
@@ -356,14 +356,14 @@ class VectorHasher {
   }
 
  private:
-  static constexpr uint32_t kStringASRangeMaxSize = 7;
+  static constexpr uint32_t kStringAsRangeMaxSize = 7;
   static constexpr uint32_t kStringBufferUnitSize = 1024;
   static constexpr uint64_t kMaxDistinctStringsBytes = 1 << 20;
 
   // Maps a binary string of up to 7 bytes to int64_t. Each size maps
   // to a different numeric range, so leading zeros are considered.
   static inline int64_t stringAsNumber(const char* data, int32_t size) {
-    VELOX_DCHECK_LE(size, kStringASRangeMaxSize);
+    VELOX_DCHECK_LE(size, kStringAsRangeMaxSize);
     int64_t word =
         bits::loadPartialWord(reinterpret_cast<const uint8_t*>(data), size);
     return size == 0 ? 0 : word + (1L << (size * 8));
@@ -374,7 +374,7 @@ class VectorHasher {
     return value;
   }
 
-  inline int64_t toInt64(Timestamp timestamp) const {
+  static inline int64_t toInt64(Timestamp timestamp) {
     return timestamp.toMillis();
   }
 
@@ -659,7 +659,7 @@ inline uint64_t VectorHasher::valueId(StringView value) {
   auto size = value.size();
   const auto* data = value.data();
   if (isRange_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       return kUnmappable;
     }
     int64_t number = stringAsNumber(data, size);
@@ -677,7 +677,7 @@ inline uint64_t VectorHasher::valueId(StringView value) {
   }
   copyStringToLocal(&*pair.first);
   if (!rangeOverflow_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       setRangeOverflow();
     } else {
       updateRange(stringAsNumber(data, size));
@@ -694,7 +694,7 @@ inline uint64_t VectorHasher::lookupValueId(StringView value) const {
   auto size = value.size();
   auto data = value.data();
   if (isRange_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       return kUnmappable;
     }
     int64_t number = stringAsNumber(data, size);

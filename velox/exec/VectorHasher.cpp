@@ -163,6 +163,7 @@ bool VectorHasher::makeValueIdsFlatNoNulls<bool>(
   rows.applyToSelected([&](vector_size_t row) INLINE_LAMBDA {
     bool value = bits::isBitSet(values, row);
     uint64_t id = valueId(value);
+    VELOX_DCHECK_NE(id, kUnmappable);
     result[row] = multiplier_ == 1 ? id : result[row] + multiplier_ * id;
   });
   return true;
@@ -183,6 +184,7 @@ bool VectorHasher::makeValueIdsFlatWithNulls<bool>(
     }
     bool value = bits::isBitSet(values, row);
     uint64_t id = valueId(value);
+    VELOX_DCHECK_NE(id, kUnmappable);
     result[row] = multiplier_ == 1 ? id : result[row] + multiplier_ * id;
   });
   return true;
@@ -326,6 +328,7 @@ bool VectorHasher::makeValueIdsDecoded<bool, true>(
 
     bool value = bits::isBitSet(values, indices[row]);
     auto id = valueId(value);
+    VELOX_DCHECK_NE(id, kUnmappable);
     result[row] = multiplier_ == 1 ? id : result[row] + multiplier_ * id;
   });
   return true;
@@ -341,6 +344,7 @@ bool VectorHasher::makeValueIdsDecoded<bool, false>(
   rows.applyToSelected([&](vector_size_t row) INLINE_LAMBDA {
     bool value = bits::isBitSet(values, indices[row]);
     auto id = valueId(value);
+    VELOX_DCHECK_NE(id, kUnmappable);
     result[row] = multiplier_ == 1 ? id : result[row] + multiplier_ * id;
   });
   return true;
@@ -625,7 +629,7 @@ void VectorHasher::analyzeValue(StringView value) {
   size_t size = value.size();
   const auto* data = value.data();
   if (!rangeOverflow_) {
-    if (size > kStringASRangeMaxSize) {
+    if (size > kStringAsRangeMaxSize) {
       setRangeOverflow();
     } else {
       int64_t number = stringAsNumber(data, size);
@@ -800,17 +804,17 @@ int64_t addIdReserve(size_t numDistinct, int32_t reservePct) {
 void VectorHasher::cardinality(
     int32_t reservePct,
     uint64_t& asRange,
-    uint64_t& asDistincts) {
+    uint64_t& asDistinct) {
   if (!typeSupportsValueIds()) {
     asRange = kRangeTooLarge;
-    asDistincts = kRangeTooLarge;
+    asDistinct = kRangeTooLarge;
     return;
   }
 
   if (typeKind_ == TypeKind::BOOLEAN) {
     hasRange_ = true;
     asRange = 3;
-    asDistincts = 3;
+    asDistinct = 3;
     return;
   }
 
@@ -826,7 +830,7 @@ void VectorHasher::cardinality(
   } else {
     // We check that after the extension by reservePct the range of max - min
     // will still be in int64_t bounds.
-    VELOX_CHECK_GE(100, reservePct);
+    VELOX_CHECK_LE(reservePct, 100);
     static_assert(kMaxRange < std::numeric_limits<uint64_t>::max() / 4);
     // We pad the range by 'reservePct'%, half below and half above,
     // while staying within bounds of the type. We do not pad the
@@ -838,11 +842,11 @@ void VectorHasher::cardinality(
   }
 
   if (distinctOverflow_) {
-    asDistincts = kRangeTooLarge;
+    asDistinct = kRangeTooLarge;
     return;
   }
   // Padded count of values + 1 for null.
-  asDistincts = addIdReserve(uniqueValues_.size(), reservePct) + 1;
+  asDistinct = addIdReserve(uniqueValues_.size(), reservePct) + 1;
 }
 
 uint64_t VectorHasher::enableValueIds(uint64_t multiplier, int32_t reservePct) {
