@@ -48,7 +48,7 @@ void StreamArena::newRange(
           std::make_unique<memory::Allocation>(std::move(allocation_)));
     }
     pool_->allocateNonContiguous(
-        std::max(kAllocationQuantum_, numPages), allocation_);
+        std::max(kAllocationQuantum, numPages), allocation_);
     currentRun_ = 0;
     currentOffset_ = 0;
     size_ += allocation_.byteSize();
