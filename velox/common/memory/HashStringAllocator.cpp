@@ -153,13 +153,13 @@ void* HashStringAllocator::allocateFromPool(size_t size) {
 }
 
 void HashStringAllocator::freeToPool(void* ptr, size_t size) {
-  auto it = state_.allocationsFromPool().find(ptr);
+  auto iter = state_.allocationsFromPool().find(ptr);
   VELOX_CHECK(
-      it != state_.allocationsFromPool().end(),
+      iter != state_.allocationsFromPool().end(),
       "freeToPool for block not allocated from pool of HashStringAllocator");
   VELOX_CHECK_EQ(
-      size, it->second, "Bad size in HashStringAllocator::freeToPool()");
-  state_.allocationsFromPool().erase(it);
+      size, iter->second, "Bad size in HashStringAllocator::freeToPool()");
+  state_.allocationsFromPool().erase(iter);
   state_.sizeFromPool() -= size;
   state_.currentBytes() -= size;
   pool()->free(ptr, size);
@@ -258,7 +258,7 @@ HashStringAllocator::finishWrite(
 }
 
 void HashStringAllocator::newSlab() {
-  constexpr int32_t kSimdPadding = simd::kPadding - kHeaderSize;
+  constexpr int32_t kSimdPadding = simd::kPadding;
   const int64_t needed =
       state_.pool().allocatedBytes() >= state_.pool().hugePageThreshold()
       ? memory::AllocationTraits::kHugePageSize
@@ -270,7 +270,7 @@ void HashStringAllocator::newSlab() {
   // Sometimes the last range can be several huge pages for several huge page
   // sized arenas but checkConsistency() can interpret that.
   VELOX_CHECK_EQ(state_.pool().freeBytes(), 0);
-  const auto available = needed - kHeaderSize - kSimdPadding;
+  const auto available = needed - kSimdPadding;
   VELOX_CHECK_GT(available, 0);
 
   // Write end marker.
@@ -356,6 +356,7 @@ void HashStringAllocator::freeRestOfBlock(Header* header, int32_t keepBytes) {
   free(newHeader);
 }
 
+// static
 int32_t HashStringAllocator::freeListIndex(int size) {
   return std::min(size - kMinAlloc, kNumFreeLists - 1);
 }
@@ -418,10 +419,10 @@ HashStringAllocator::Header* HashStringAllocator::allocateFromFreeList(
     bool mustHaveSize,
     bool isFinalSize,
     int32_t freeListIndex) {
-  auto* item = state_.freeLists()[freeListIndex].next();
-  if (item == &state_.freeLists()[freeListIndex]) {
+  if (state_.freeLists()[freeListIndex].empty()) {
     return nullptr;
   }
+  auto* item = state_.freeLists()[freeListIndex].next();
   auto* found = headerOf(item);
   VELOX_CHECK(
       found->isFree() && (!mustHaveSize || found->size() >= preferredSize));
@@ -433,6 +434,7 @@ HashStringAllocator::Header* HashStringAllocator::allocateFromFreeList(
     next->clearPreviousFree();
   }
   state_.currentBytes() += blockBytes(found);
+
   if (isFinalSize) {
     freeRestOfBlock(found, preferredSize);
   }
@@ -448,6 +450,7 @@ void HashStringAllocator::free(Header* header) {
       headerToFree->clearContinued();
     }
     if (headerToFree->size() > kMaxAlloc &&
+        // TODO(lingbin): 删除这个条件，可以作为if语句内部的 VELOX_CHECK
         !state_.pool().isInCurrentRange(headerToFree) &&
         state_.allocationsFromPool().find(headerToFree) !=
             state_.allocationsFromPool().end()) {
@@ -465,19 +468,21 @@ void HashStringAllocator::free(Header* header) {
           headerToFree->setSize(
               headerToFree->size() + next->size() + kHeaderSize);
           next = castToHeader(headerToFree->end());
+          // TODO(lingbin): 添加注释，不存在连续的free-block
           VELOX_CHECK(next->isArenaEnd() || !next->isFree());
         }
       }
+
       if (headerToFree->isPreviousFree()) {
         auto* previousFree = getPreviousFree(headerToFree);
         removeFromFreeList(previousFree);
         previousFree->setSize(
             previousFree->size() + headerToFree->size() + kHeaderSize);
-
         headerToFree = previousFree;
       } else {
         ++state_.numFree();
       }
+
       const auto freedSize = headerToFree->size();
       const auto freeIndex = freeListIndex(freedSize);
       bits::setBit(state_.freeNonEmpty(), freeIndex);
@@ -500,7 +505,7 @@ int64_t HashStringAllocator::offset(Header* header, Position position) {
   for (;;) {
     VELOX_CHECK_NOT_NULL(header);
     const auto length = header->usableSize();
-    const auto offset = position.position - header->begin();
+    const int64_t offset = position.position - header->begin();
     if (offset >= 0 && offset <= length) {
       return size + offset;
     }
@@ -597,7 +602,8 @@ inline bool HashStringAllocator::storeStringFast(
           Header(header->size() - spaceTaken);
       freeHeader->setFree();
       header->clearFree();
-      ::memcpy(freeHeader->begin(), header->begin(), sizeof(CompactDoubleList));
+      std::memcpy(
+          freeHeader->begin(), header->begin(), sizeof(CompactDoubleList));
       freeList.nextMoved(
           reinterpret_cast<CompactDoubleList*>(freeHeader->begin()));
       header->setSize(roundedBytes);
@@ -614,7 +620,7 @@ inline bool HashStringAllocator::storeStringFast(
 
   simd::memcpy(header->begin(), bytes, numBytes);
   *reinterpret_cast<StringView*>(destination) =
-      StringView(reinterpret_cast<char*>(header->begin()), numBytes);
+      StringView(header->begin(), numBytes);
   return true;
 }
 
@@ -623,9 +629,11 @@ void HashStringAllocator::copyMultipartNoInline(
     char* group,
     int32_t offset) {
   const auto numBytes = srcStr.size();
+
   if (storeStringFast(srcStr.data(), numBytes, group + offset)) {
     return;
   }
+
   // Write the string as non-contiguous chunks.
   ByteOutputStream stream(this, false, false);
   auto position = newWrite(stream, numBytes);
@@ -648,7 +656,7 @@ std::string HashStringAllocator::toString() const {
       << state_.allocationsFromPool().size() << " allocations" << std::endl;
   out << "ranges: " << state_.pool().numRanges() << std::endl;
 
-  static const auto kHugePageSize = memory::AllocationTraits::kHugePageSize;
+  static constexpr auto kHugePageSize = memory::AllocationTraits::kHugePageSize;
 
   for (auto i = 0; i < state_.pool().numRanges(); ++i) {
     auto topRange = state_.pool().rangeAt(i);
@@ -678,7 +686,7 @@ std::string HashStringAllocator::toString() const {
 }
 
 int64_t HashStringAllocator::checkConsistency() const {
-  static const auto kHugePageSize = memory::AllocationTraits::kHugePageSize;
+  static constexpr auto kHugePageSize = memory::AllocationTraits::kHugePageSize;
 
   uint64_t numFree = 0;
   uint64_t freeBytes = 0;
@@ -768,4 +776,5 @@ int64_t HashStringAllocator::checkConsistency() const {
 bool HashStringAllocator::isEmpty() const {
   return state_.sizeFromPool() == 0 && checkConsistency() == 0;
 }
+
 } // namespace facebook::velox

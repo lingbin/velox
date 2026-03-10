@@ -57,6 +57,7 @@ std::string BufferInputStream::toString() const {
 }
 
 bool BufferInputStream::atEnd() const {
+  // TODO(lingbin): 去除这个分支，因为 构造函数保证了 current_ 一定不会为 nullptr.
   if (current_ == nullptr) {
     return false;
   }

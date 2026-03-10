@@ -91,8 +91,8 @@ class AllocationPool {
 
   /// Returns true if 'ptr' is inside the range allocations are made from.
   bool isInCurrentRange(void* ptr) const {
-    return reinterpret_cast<char*>(ptr) >= startOfRun_ &&
-        reinterpret_cast<char*>(ptr) < startOfRun_ + bytesInRun_;
+    return static_cast<char*>(ptr) >= startOfRun_ &&
+        static_cast<char*>(ptr) < startOfRun_ + bytesInRun_;
   }
 
   int64_t hugePageThreshold() const {
@@ -109,14 +109,14 @@ class AllocationPool {
   }
 
  private:
-  static constexpr int64_t kDefaultHugePageThreshold = 256 * 1024;
+  static constexpr int64_t kDefaultHugePageThreshold = 256 << 10; // 256 KB
   static constexpr int64_t kMaxMmapBytes = 512 << 20; // 512 MB
 
   // Returns the offset from 'startOfRun_' after which the last large
   // allocation must be grown. There are mapped addresses all the way
   // to 'bytesInRun_' ut they are not marked used by the
   // pool/allocator. So use growContiguous() to update this.
-  int64_t endOfReservedRun() {
+  int64_t endOfReservedRun() const {
     if (largeAllocations_.empty()) {
       return bytesInRun_;
     }
@@ -145,7 +145,7 @@ class AllocationPool {
   char* startOfRun_{nullptr};
 
   // Total addressable bytes from 'startOfRun_'. Not all are necessarily
-  // declared allocated in 'pool_'. See growLastAllocation().
+  // declared allocated in 'pool_'. See maybeGrowLastAllocation().
   int64_t bytesInRun_{0};
 
   // Offset of first unused byte from 'startOfRun_'.
