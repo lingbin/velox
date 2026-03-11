@@ -595,6 +595,9 @@ class VectorHasher {
   const bool typeProvidesCustomComparison_;
 
   DecodedVector decoded_;
+  // Cached hash values for dictionary vectors. The cache is used when the
+  // number of selected rows is larger than the number of rows in the base
+  // vector.
   raw_vector<uint64_t> cachedHashes_;
 
   // Single precomputed hash for constant partition keys.
