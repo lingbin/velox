@@ -16,8 +16,11 @@
 
 #pragma once
 
-#include <folly/Range.h>
 #include <cstdint>
+#include <string>
+#include <vector>
+
+#include <folly/Range.h>
 
 #include "velox/common/base/BitUtil.h"
 #include "velox/common/base/CheckedArithmetic.h"
@@ -77,8 +80,7 @@ class Allocation {
       VELOX_CHECK_LE(numPages, kMaxPagesInRun);
       VELOX_CHECK_EQ(
           word & ~kPointerMask, 0, "A pointer must have its 16 high bits 0");
-      data_ =
-          word | (static_cast<uint64_t>(numPages) << kPointerSignificantBits);
+      data_ = word | (numPages << kPointerSignificantBits);
     }
 
     template <typename T = uint8_t>
@@ -91,12 +93,14 @@ class Allocation {
     }
 
     uint64_t numBytes() const {
-      return numPages() * AllocationTraits::kPageSize;
+      return AllocationTraits::pageBytes(numPages());
     }
 
    private:
     uint64_t data_;
   };
+
+  static_assert(sizeof(PageRun) == sizeof(uint64_t));
 
   Allocation() = default;
   ~Allocation();

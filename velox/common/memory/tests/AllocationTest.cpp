@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
+#include "velox/common/memory/Allocation.h"
+
 #include <gtest/gtest.h>
 
 #include "velox/common/base/tests/GTestUtils.h"
-#include "velox/common/memory/Memory.h"
-
-using namespace ::testing;
-using namespace facebook::velox::memory;
 
 namespace facebook::velox::memory {
 
@@ -40,21 +38,21 @@ TEST_F(AllocationTest, basic) {
 // into the same PageRun even if two buffers are contiguous in memory space.
 TEST_F(AllocationTest, append) {
   Allocation allocation;
-  const uint64_t startBufAddrValue = 4096;
-  uint8_t* const firstBufAddr = reinterpret_cast<uint8_t*>(startBufAddrValue);
-  const int32_t kNumPages = 10;
+  constexpr uint64_t kStartBufAddrValue = 4096;
+  auto* const firstBufAddr = reinterpret_cast<uint8_t*>(kStartBufAddrValue);
+  constexpr int32_t kNumPages = 10;
   allocation.append(firstBufAddr, kNumPages);
   ASSERT_EQ(allocation.numPages(), kNumPages);
   ASSERT_EQ(allocation.numRuns(), 1);
 
-  uint8_t* const secondBufAddr = reinterpret_cast<uint8_t*>(
-      startBufAddrValue + kNumPages * AllocationTraits::kPageSize);
+  auto* const secondBufAddr = reinterpret_cast<uint8_t*>(
+      kStartBufAddrValue + kNumPages * AllocationTraits::kPageSize);
   allocation.append(secondBufAddr, kNumPages - 1);
   ASSERT_EQ(allocation.numPages(), kNumPages * 2 - 1);
   ASSERT_EQ(allocation.numRuns(), 2);
 
-  uint8_t* const thirdBufAddr = reinterpret_cast<uint8_t*>(
-      firstBufAddr + 4 * kNumPages * AllocationTraits::kPageSize);
+  uint8_t* const thirdBufAddr =
+      firstBufAddr + 4 * kNumPages * AllocationTraits::kPageSize;
   allocation.append(thirdBufAddr, kNumPages * 2);
   ASSERT_EQ(allocation.numPages(), kNumPages * 4 - 1);
   ASSERT_EQ(allocation.numRuns(), 3);
@@ -65,17 +63,17 @@ TEST_F(AllocationTest, append) {
 }
 
 TEST_F(AllocationTest, appendMove) {
-  const uint64_t startBufAddrValue = 4096;
-  uint8_t* const firstBufAddr = reinterpret_cast<uint8_t*>(startBufAddrValue);
-  const int32_t kNumPages = 10;
+  constexpr uint64_t kStartBufAddrValue = 4096;
+  auto* const firstBufAddr = reinterpret_cast<uint8_t*>(kStartBufAddrValue);
+  constexpr int32_t kNumPages = 10;
   Allocation allocation;
   allocation.append(firstBufAddr, kNumPages);
   ASSERT_EQ(allocation.numPages(), kNumPages);
   ASSERT_EQ(allocation.numRuns(), 1);
 
   Allocation otherAllocation;
-  uint8_t* const secondBufAddr = reinterpret_cast<uint8_t*>(
-      startBufAddrValue + kNumPages * AllocationTraits::kPageSize);
+  auto* const secondBufAddr = reinterpret_cast<uint8_t*>(
+      kStartBufAddrValue + kNumPages * AllocationTraits::kPageSize);
   otherAllocation.append(secondBufAddr, kNumPages);
   ASSERT_EQ(otherAllocation.numPages(), kNumPages);
 
@@ -91,14 +89,14 @@ TEST_F(AllocationTest, appendMove) {
 
 TEST_F(AllocationTest, maxPageRunLimit) {
   Allocation allocation;
-  const uint64_t vaildBufAddrValue = 4096;
-  uint8_t* validBufAddr = reinterpret_cast<uint8_t*>(vaildBufAddrValue);
+  constexpr uint64_t kValidBufAddrValue = 4096;
+  auto* validBufAddr = reinterpret_cast<uint8_t*>(kValidBufAddrValue);
   allocation.append(validBufAddr, Allocation::PageRun::kMaxPagesInRun);
   ASSERT_EQ(allocation.numPages(), Allocation::PageRun::kMaxPagesInRun);
   ASSERT_EQ(allocation.numRuns(), 1);
 
-  const uint64_t invaildBufAddrValue = 4096 * 1024;
-  uint8_t* invalidBufAddr = reinterpret_cast<uint8_t*>(invaildBufAddrValue);
+  constexpr uint64_t kInvalidBufAddrValue = 4096 * 1024;
+  auto* invalidBufAddr = reinterpret_cast<uint8_t*>(kInvalidBufAddrValue);
   VELOX_ASSERT_THROW(
       allocation.append(
           invalidBufAddr, Allocation::PageRun::kMaxPagesInRun + 1),

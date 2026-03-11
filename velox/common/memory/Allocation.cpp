@@ -25,7 +25,7 @@ Allocation::~Allocation() {
     pool_->freeNonContiguous(*this);
   }
   // NOTE: exception throw on object destruction will cause process crash.
-  if ((numPages_ != 0) || !runs_.empty()) {
+  if (numPages_ != 0 || !runs_.empty()) {
     VELOX_FAIL("Bad Allocation state on destruction: {}", toString());
   }
 }
@@ -112,9 +112,9 @@ MachinePageCount ContiguousAllocation::numPages() const {
 }
 
 std::optional<folly::Range<char*>> ContiguousAllocation::hugePageRange() const {
-  auto begin = reinterpret_cast<uintptr_t>(data_);
-  auto roundedBegin = bits::roundUp(begin, AllocationTraits::kHugePageSize);
-  auto roundedEnd = (begin + maxSize_) / AllocationTraits::kHugePageSize *
+  const auto begin = reinterpret_cast<uintptr_t>(data_);
+  const auto roundedBegin = bits::roundUp(begin, AllocationTraits::kHugePageSize);
+  const auto roundedEnd = (begin + maxSize_) / AllocationTraits::kHugePageSize *
       AllocationTraits::kHugePageSize;
   if (roundedEnd <= roundedBegin) {
     return std::nullopt;
