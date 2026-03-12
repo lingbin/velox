@@ -104,7 +104,7 @@ TEST_F(StreamArenaTest, newRange) {
       arena->newRange(testData.requestRangeSizes[i], nullptr, &range);
       ASSERT_EQ(range.size, testData.expectedRangeSizes[i]) << range.toString();
       ASSERT_EQ(range.position, 0);
-      ASSERT_TRUE(range.buffer != nullptr);
+      ASSERT_NE(range.buffer, nullptr);
     }
     ASSERT_EQ(
         testData.expectedContiguousAllocationSize +
@@ -122,10 +122,10 @@ TEST_F(StreamArenaTest, newRange) {
 }
 
 TEST_F(StreamArenaTest, randomRange) {
-  const int numRanges = 30;
+  constexpr int kNumRanges = 30;
   auto arena = newArena();
   ByteRange range;
-  for (int i = 0; i < numRanges; ++i) {
+  for (int i = 0; i < kNumRanges; ++i) {
     if (folly::Random::oneIn(3)) {
       const int requestSize = std::min(
           static_cast<int>(

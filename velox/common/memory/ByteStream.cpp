@@ -91,6 +91,7 @@ size_t BufferInputStream::remainingSize() const {
 }
 
 std::streampos BufferInputStream::tellp() const {
+  // TODO(lingbin): 删除这个判断，构造函数已经保证了 ranges_ 不可为空
   if (ranges_.empty()) {
     return 0;
   }
@@ -128,7 +129,7 @@ void BufferInputStream::nextRange() {
   VELOX_CHECK(current_ >= &ranges_[0]);
   const size_t rangeIndex = current_ - &ranges_[0];
   VELOX_CHECK_LT(
-      rangeIndex + 1, ranges_.size(), "Reading past end of BufferInputStream");
+      rangeIndex, ranges_.size() - 1, "Reading past end of BufferInputStream");
   ++current_;
   current_->position = 0;
 }
@@ -264,7 +265,7 @@ std::streampos ByteOutputStream::tellp() const {
   }
   assert(current_);
   int64_t size = 0;
-  for (auto& range : ranges_) {
+  for (const auto& range : ranges_) {
     if (&range == current_) {
       return current_->position + size;
     }
@@ -315,7 +316,7 @@ void ByteOutputStream::flush(OutputStream* out) {
   }
 }
 
-char* ByteOutputStream::writePosition() {
+char* ByteOutputStream::writePosition() const {
   if (ranges_.empty()) {
     return nullptr;
   }
@@ -350,7 +351,7 @@ void ByteOutputStream::extend(int64_t bytes) {
   allocatedBytes_ += current_->size;
   VELOX_CHECK_GT(allocatedBytes_, 0);
   if (isBits_) {
-    // size and position are in units of bits for a bits stream.
+    // 'size' and 'position' are in units of bits for a bits stream.
     current_->size *= 8;
   }
 }

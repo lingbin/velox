@@ -46,8 +46,9 @@ std::vector<ByteRange> byteRangesFromIOBuf(folly::IOBuf* iobuf);
 
 class OutputStreamListener {
  public:
-  virtual void onWrite(const char* /* s */, std::streamsize /* count */) {}
   virtual ~OutputStreamListener() = default;
+
+  virtual void onWrite(const char* /* s */, std::streamsize /* count */) {}
 };
 
 class OutputStream {
@@ -86,7 +87,7 @@ class BufferedOutputStream : public OutputStream {
     arena->newRange(bufferSize, nullptr, &buffer_);
   }
 
-  ~BufferedOutputStream() {
+  ~BufferedOutputStream() override {
     flush();
   }
 
@@ -308,7 +309,7 @@ class ByteOutputStream {
     ranges_.resize(1);
     ranges_[0] = range;
     current_ = ranges_.data();
-    VELOX_CHECK_GE(ranges_.back().size, lastWrittenPosition);
+    VELOX_CHECK_GE(range.size, lastWrittenPosition);
     lastRangeEnd_ = lastWrittenPosition;
   }
 
@@ -365,8 +366,9 @@ class ByteOutputStream {
               values.size() * sizeof(T)));
       return;
     }
+
     auto* target = current_->buffer + current_->position;
-    memcpy(target, values.data(), values.size() * sizeof(T));
+    std::memcpy(target, values.data(), values.size() * sizeof(T));
     current_->position += sizeof(T) * values.size();
   }
 
@@ -438,7 +440,7 @@ class ByteOutputStream {
 
   /// Returns the next byte that would be written to by a write. This is used
   /// after an append to release the remainder of the reserved space.
-  char* writePosition();
+  char* writePosition() const;
 
   int32_t testingAllocatedBytes() const {
     return allocatedBytes_;

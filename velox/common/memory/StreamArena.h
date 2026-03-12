@@ -61,7 +61,7 @@ class StreamArena {
   }
 
   /// Restores 'this' to post-construction state. Used in recycling streams for
-  /// serilizers.
+  /// serializers.
   virtual void clear();
 
   memory::MachinePageCount testingAllocationQuantum() const {
