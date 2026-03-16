@@ -27,7 +27,7 @@ class CountingOutputStream : public OutputStream {
  public:
   explicit CountingOutputStream() : OutputStream{nullptr} {}
 
-  void write(const char* /*s*/, std::streamsize count) override {
+  void write(const char* /*src*/, std::streamsize count) override {
     pos_ += count;
     if (numBytes_ < pos_) {
       numBytes_ = pos_;

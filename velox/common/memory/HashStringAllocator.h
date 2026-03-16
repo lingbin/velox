@@ -602,17 +602,17 @@ class HashStringAllocator::InputStream : public ByteInputStream {
     return byte;
   }
 
-  void readBytes(uint8_t* bytes, int32_t size) final {
+  void readBytes(uint8_t* dest, int32_t size) final {
     nextHeaderIfNeed();
     for (;;) {
       const auto available = range_.size - range_.position;
       if (size <= available) {
-        std::memcpy(bytes, range_.buffer + range_.position, size);
+        std::memcpy(dest, range_.buffer + range_.position, size);
         range_.position += size;
         return;
       }
-      std::memcpy(bytes, range_.buffer + range_.position, available);
-      bytes += available;
+      std::memcpy(dest, range_.buffer + range_.position, available);
+      dest += available;
       size -= available;
       VELOX_CHECK(header_->isContinued(), "Reading past end of stream");
       setHeader(header_->nextContinued());

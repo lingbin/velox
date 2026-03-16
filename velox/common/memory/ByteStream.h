@@ -58,7 +58,7 @@ class OutputStream {
 
   virtual ~OutputStream() = default;
 
-  virtual void write(const char* s, std::streamsize count) = 0;
+  virtual void write(const char* src, std::streamsize count) = 0;
 
   virtual std::streampos tellp() const = 0;
 
@@ -91,19 +91,19 @@ class BufferedOutputStream : public OutputStream {
     flush();
   }
 
-  void write(const char* s, std::streamsize count) override {
+  void write(const char* src, std::streamsize count) override {
     int64_t remaining = count;
     while (remaining > 0) {
       const int64_t copyLength =
           std::min(remaining, buffer_.size - buffer_.position);
       simd::memcpy(
-          buffer_.buffer + buffer_.position, s + count - remaining, copyLength);
+          buffer_.buffer + buffer_.position, src + count - remaining, copyLength);
       buffer_.position += copyLength;
       remaining -= copyLength;
       if (buffer_.position == buffer_.size) {
         flush();
         if (remaining >= buffer_.size) {
-          out_->write(s + count - remaining, remaining);
+          out_->write(src + count - remaining, remaining);
           break;
         }
       }
@@ -141,10 +141,10 @@ class OStreamOutputStream : public OutputStream {
       OutputStreamListener* listener = nullptr)
       : OutputStream(listener), out_(out) {}
 
-  void write(const char* s, std::streamsize count) override {
-    out_->write(s, count);
+  void write(const char* src, std::streamsize count) override {
+    out_->write(src, count);
     if (listener_) {
-      listener_->onWrite(s, count);
+      listener_->onWrite(src, count);
     }
   }
 
@@ -182,7 +182,11 @@ class ByteInputStream {
 
   virtual uint8_t readByte() = 0;
 
-  virtual void readBytes(uint8_t* bytes, int32_t size) = 0;
+  /// Reads 'size' bytes from the stream into 'dest'. If there are not enough
+  /// bytes remaining in the current buffer range, continues reading from
+  /// subsequent ranges until 'size' bytes have been read or end of stream is
+  /// reached.
+  virtual void readBytes(uint8_t* dest, int32_t size) = 0;
 
   template <typename T>
   T read() {
@@ -197,9 +201,11 @@ class ByteInputStream {
     return value;
   }
 
+  /// Template overload for reading bytes into any character type. Converts
+  /// the input pointer to uint8_t* and delegates to the base readBytes method.
   template <typename Char>
-  void readBytes(Char* data, int32_t size) {
-    readBytes(reinterpret_cast<uint8_t*>(data), size);
+  void readBytes(Char* dest, int32_t size) {
+    readBytes(reinterpret_cast<uint8_t*>(dest), size);
   }
 
   /// Returns a view over the read buffer for up to 'size' next bytes. The size
@@ -242,7 +248,7 @@ class BufferInputStream : public ByteInputStream {
 
   uint8_t readByte() override;
 
-  void readBytes(uint8_t* bytes, int32_t size) override;
+  void readBytes(uint8_t* dest, int32_t size) override;
 
   std::string_view nextView(int64_t size) override;
 

@@ -78,6 +78,7 @@ size_t BufferInputStream::size() const {
 }
 
 size_t BufferInputStream::remainingSize() const {
+  // TODO(lingbin): 去掉这个分支，构造函数保证了不会出现 “空的range列表”
   if (ranges_.empty()) {
     return 0;
   }
@@ -107,6 +108,7 @@ std::streampos BufferInputStream::tellp() const {
 }
 
 void BufferInputStream::seekp(std::streampos position) {
+  // TODO(lingbin): 去掉这个分支，构造函数保证了不会出现 “空的range列表”
   if (ranges_.empty() && position == 0) {
     return;
   }
@@ -142,14 +144,14 @@ uint8_t BufferInputStream::readByte() {
   return readByte();
 }
 
-void BufferInputStream::readBytes(uint8_t* bytes, int32_t size) {
+void BufferInputStream::readBytes(uint8_t* dest, int32_t size) {
   VELOX_CHECK_GE(size, 0, "Attempting to read negative number of bytes");
   int32_t offset = 0;
   for (;;) {
     const int32_t availableBytes = current_->size - current_->position;
     const int32_t readBytes = std::min(availableBytes, size);
     simd::memcpy(
-        bytes + offset, current_->buffer + current_->position, readBytes);
+        dest + offset, current_->buffer + current_->position, readBytes);
     offset += readBytes;
     size -= readBytes;
     current_->position += readBytes;
