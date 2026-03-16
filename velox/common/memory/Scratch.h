@@ -125,10 +125,9 @@ class ScratchPtr {
   void operator=(ScratchPtr&& other) = delete;
   void operator=(const ScratchPtr& other) = delete;
 
-  /// Returns a writable pointer to at least 'size' uninitialized
-  /// elements of T. The last element is followed by simd::kPadding
-  /// bytes to allow a full width SIMD store for any element. This may
-  /// be called once per lifetime.
+  /// Returns a writable pointer to at least 'size' uninitialized elements of T.
+  /// The last element is followed by simd::kPadding bytes to allow a full width
+  /// SIMD store for any element. This may be called once per lifetime.
   T* get(int32_t size) {
     VELOX_CHECK_NULL(ptr_);
     size_ = size;

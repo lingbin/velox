@@ -291,7 +291,6 @@ inline int128_t ByteInputStream::read<int128_t>() {
 /// seeking back to start to write a length header.
 class ByteOutputStream {
  public:
-  /// For output.
   explicit ByteOutputStream(
       StreamArena* arena,
       bool isBits = false,
@@ -460,7 +459,8 @@ class ByteOutputStream {
 
  private:
   // Returns a range of 'size' items of T. If there is no contiguous space in
-  // 'this', uses 'scratch' to make a temp block that is appended to 'this' in
+  // 'this', uses 'scratch' to make a temp block that is copied back to 'this'
+  // upon AppendWindow destruction.
   template <typename T>
   uint8_t* getAppendWindow(int32_t size, ScratchPtr<T>& scratchPtr) {
     const int32_t bytes = sizeof(T) * size;
@@ -472,19 +472,18 @@ class ByteOutputStream {
       current_->position += bytes;
       return current_->buffer + current_->position - bytes;
     }
-    // If the tail is not large enough, make  temp of the right size
-    // in scratch. Extend the stream so that there is guaranteed space to copy
-    // the scratch to the stream. This copy takes place in destruction of
-    // AppendWindow and must not allocate so that it is noexcept.
+    // If the tail is not large enough, make temp of the right size in scratch.
+    // Extend the stream so that there is guaranteed space to copy the scratch
+    // to the stream. This copy takes place in destruction of AppendWindow and
+    // must not allocate so that it is noexcept.
     ensureSpace(bytes);
     return reinterpret_cast<uint8_t*>(scratchPtr.get(size));
   }
 
   void extend(int64_t bytes);
 
-  // Calls extend() enough times to make sure 'bytes' bytes can be
-  // appended without new allocation. Does not change the append
-  // position.
+  // Calls extend() enough times to make sure 'bytes' bytes can be appended
+  // without new allocation. Does not change the append position.
   void ensureSpace(int32_t bytes);
 
   int64_t newRangeSize(int64_t bytes) const;
