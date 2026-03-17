@@ -18,7 +18,7 @@
 #include "folly/container/F14Map.h"
 #include "velox/common/base/Exceptions.h"
 
-namespace facebook::velox {
+namespace facebook::velox::detail {
 
 struct Enums {
   /// Helper function to invert a mapping from enum type to name.
@@ -35,7 +35,7 @@ struct Enums {
   }
 };
 
-} // namespace facebook::velox
+} // namespace facebook::velox::detail
 
 /// Helper macros to implement bi-direction mappings between enum values and
 /// names.
@@ -94,7 +94,8 @@ struct Enums {
                                                                             \
   std::optional<EnumType> EnumType##Name::tryTo##EnumType(                  \
       std::string_view name) {                                              \
-    static const auto kValues = facebook::velox::Enums::invertMap(Names()); \
+    static const auto kValues =                                             \
+        facebook::velox::detail::Enums::invertMap(Names());                 \
                                                                             \
     auto it = kValues.find(name);                                           \
     if (it == kValues.end()) {                                              \
@@ -112,7 +113,7 @@ struct Enums {
   std::ostream& operator<<(std::ostream& os, const EnumType& value) {       \
     os << EnumType##Name::toName(value);                                    \
     return os;                                                              \
-  }                                                                         \
+  }
 
 #define VELOX_DECLARE_EMBEDDED_ENUM_NAME(EnumType)     \
   static std::string_view toName(EnumType value);      \
@@ -132,7 +133,8 @@ struct Enums {
                                                                             \
   std::optional<Class::EnumType> Class::tryTo##EnumType(                    \
       std::string_view name) {                                              \
-    static const auto kValues = facebook::velox::Enums::invertMap(Names()); \
+    static const auto kValues =                                             \
+        facebook::velox::detail::Enums::invertMap(Names());                 \
                                                                             \
     auto it = kValues.find(name);                                           \
     if (it == kValues.end()) {                                              \
