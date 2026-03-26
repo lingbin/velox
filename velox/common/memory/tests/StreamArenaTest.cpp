@@ -49,7 +49,7 @@ class StreamArenaTest : public testing::Test {
 };
 
 TEST_F(StreamArenaTest, newRange) {
-  const int largestClassPageSize = 1 << 20;
+  constexpr int kLargestClassPageSize = 1 << 20;
   struct {
     std::vector<uint64_t> requestRangeSizes;
     std::vector<uint64_t> expectedRangeSizes;
@@ -65,33 +65,33 @@ TEST_F(StreamArenaTest, newRange) {
           succinctBytes(expectedContiguousAllocationSize));
     }
   } testSettings[] = {
-      {{largestClassPageSize + 1,
-        largestClassPageSize + 1,
-        largestClassPageSize + 1,
-        2 * largestClassPageSize},
-       {largestClassPageSize + AllocationTraits::kPageSize,
-        largestClassPageSize + AllocationTraits::kPageSize,
-        largestClassPageSize + AllocationTraits::kPageSize,
-        2 * largestClassPageSize},
+      {{kLargestClassPageSize + 1,
+        kLargestClassPageSize + 1,
+        kLargestClassPageSize + 1,
+        2 * kLargestClassPageSize},
+       {kLargestClassPageSize + AllocationTraits::kPageSize,
+        kLargestClassPageSize + AllocationTraits::kPageSize,
+        kLargestClassPageSize + AllocationTraits::kPageSize,
+        2 * kLargestClassPageSize},
        0,
-       largestClassPageSize * 5 + AllocationTraits::kPageSize * 3},
-      {{largestClassPageSize - 1,
+       kLargestClassPageSize * 5 + AllocationTraits::kPageSize * 3},
+      {{kLargestClassPageSize - 1,
         1,
-        largestClassPageSize + 1,
-        largestClassPageSize / 2,
+        kLargestClassPageSize + 1,
+        kLargestClassPageSize / 2,
         1,
         AllocationTraits::kPageSize + 1,
         AllocationTraits::kPageSize},
-       {largestClassPageSize - 1,
+       {kLargestClassPageSize - 1,
         1,
-        largestClassPageSize + AllocationTraits::kPageSize,
-        largestClassPageSize / 2,
+        kLargestClassPageSize + AllocationTraits::kPageSize,
+        kLargestClassPageSize / 2,
         1,
         AllocationTraits::kPageSize + 1,
         AllocationTraits::kPageSize - 2},
-       largestClassPageSize + largestClassPageSize / 2 +
+       kLargestClassPageSize + kLargestClassPageSize / 2 +
            AllocationTraits::kPageSize * 2,
-       largestClassPageSize + AllocationTraits::kPageSize}};
+       kLargestClassPageSize + AllocationTraits::kPageSize}};
 
   for (const auto& testData : testSettings) {
     SCOPED_TRACE(testData.debugString());

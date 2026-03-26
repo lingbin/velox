@@ -48,7 +48,7 @@ class OutputStreamListener {
  public:
   virtual ~OutputStreamListener() = default;
 
-  virtual void onWrite(const char* /* s */, std::streamsize /* count */) {}
+  virtual void onWrite(const char* /* data */, std::streamsize /* size */) {}
 };
 
 class OutputStream {
@@ -92,18 +92,18 @@ class BufferedOutputStream : public OutputStream {
   }
 
   void write(const char* src, std::streamsize count) override {
-    int64_t remaining = count;
-    while (remaining > 0) {
+    int64_t offset = 0;
+    while (offset < count) {
       const int64_t copyLength =
-          std::min(remaining, buffer_.size - buffer_.position);
+          std::min(count - offset, buffer_.size - buffer_.position);
       simd::memcpy(
-          buffer_.buffer + buffer_.position, src + count - remaining, copyLength);
+          buffer_.buffer + buffer_.position, src + offset, copyLength);
       buffer_.position += copyLength;
-      remaining -= copyLength;
+      offset += copyLength;
       if (buffer_.position == buffer_.size) {
         flush();
-        if (remaining >= buffer_.size) {
-          out_->write(src + count - remaining, remaining);
+        if (count - offset >= buffer_.size) {
+          out_->write(src + offset, count - offset);
           break;
         }
       }
@@ -165,16 +165,17 @@ class ByteInputStream {
  public:
   virtual ~ByteInputStream() = default;
 
-  /// Returns total number of bytes available in the stream.
+  /// Returns the total number of bytes available in the stream.
   virtual size_t size() const = 0;
 
   /// Returns true if all input has been read.
   virtual bool atEnd() const = 0;
 
-  /// Returns current position (number of bytes from the start) in the stream.
+  /// Returns the current position (number of bytes from the start) in the
+  /// stream.
   virtual std::streampos tellp() const = 0;
 
-  /// Moves current position to specified one.
+  /// Moves current position to the specified one.
   virtual void seekp(std::streampos pos) = 0;
 
   /// Returns the remaining size left from current reading position.
@@ -196,13 +197,14 @@ class ByteInputStream {
       current_->position += sizeof(T);
       return folly::loadUnaligned<T>(source);
     }
+
     T value;
     readBytes(&value, sizeof(T));
     return value;
   }
 
-  /// Template overload for reading bytes into any character type. Converts
-  /// the input pointer to uint8_t* and delegates to the base readBytes method.
+  /// Template overload for reading bytes into any character type. Converts the
+  /// input pointer to uint8_t* and delegates to the base 'readBytes()' method.
   template <typename Char>
   void readBytes(Char* dest, int32_t size) {
     readBytes(reinterpret_cast<uint8_t*>(dest), size);

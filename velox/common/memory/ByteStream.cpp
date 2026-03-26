@@ -382,7 +382,7 @@ void ByteOutputStream::ensureSpace(int32_t bytes) {
     extend(toExtend);
     toExtend -= current_->size;
   }
-  // Restore original position.
+  // Restore the original position.
   current_ = &ranges_[originalRangeIdx];
   current_->position = originalPosition;
 }

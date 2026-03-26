@@ -196,9 +196,9 @@ class PrestoVectorSerde : public VectorSerde {
 
 class PrestoOutputStreamListener : public OutputStreamListener {
  public:
-  void onWrite(const char* s, std::streamsize count) override {
+  void onWrite(const char* data, std::streamsize size) override {
     if (not paused_) {
-      crc_.process_bytes(s, count);
+      crc_.process_bytes(data, size);
     }
   }
 
