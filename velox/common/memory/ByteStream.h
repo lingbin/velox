@@ -310,7 +310,7 @@ class ByteOutputStream {
   // from a function.
   ByteOutputStream(ByteOutputStream&&) = default;
 
-  /// Sets 'this' to range over 'range'. lastWrittenPosition specifies the end
+  /// Sets 'this' to range over 'range'. 'lastWrittenPosition' specifies the end
   /// of any pre-existing content in 'range'.
   void setRange(ByteRange range, int32_t lastWrittenPosition) {
     ranges_.resize(1);
@@ -366,7 +366,7 @@ class ByteOutputStream {
       VELOX_FAIL("Cannot serialize OPAQUE data");
     }
 
-    if (current_->position + sizeof(T) * values.size() > current_->size) {
+    if (current_->position + values.size() * sizeof(T) > current_->size) {
       appendStringView(
           std::string_view(
               reinterpret_cast<const char*>(&values[0]),
@@ -376,7 +376,7 @@ class ByteOutputStream {
 
     auto* target = current_->buffer + current_->position;
     std::memcpy(target, values.data(), values.size() * sizeof(T));
-    current_->position += sizeof(T) * values.size();
+    current_->position += values.size() * sizeof(T);
   }
 
   inline void appendBool(bool value, int64_t count) {
@@ -465,11 +465,11 @@ class ByteOutputStream {
   // upon AppendWindow destruction.
   template <typename T>
   uint8_t* getAppendWindow(int32_t size, ScratchPtr<T>& scratchPtr) {
-    const int32_t bytes = sizeof(T) * size;
-    if (!current_) {
+    const int32_t bytes = size * sizeof(T);
+    if (current_ == nullptr) {
       extend(bytes);
     }
-    auto available = current_->size - current_->position;
+    const auto available = current_->size - current_->position;
     if (available >= bytes) {
       current_->position += bytes;
       return current_->buffer + current_->position - bytes;
@@ -522,10 +522,10 @@ class ByteOutputStream {
   // Pointer to the current element of 'ranges_'.
   ByteRange* current_{nullptr};
 
-  // Number of bits/bytes that have been written in the last element
-  // of 'ranges_'. In write situation, all non-last ranges are full
-  // and the last may be partly full. The position in the last range
-  // is not necessarily the end if there has been a seek.
+  // Number of bits/bytes that have been written in the last element of
+  // 'ranges_'. In a write situation, all non-last ranges are full and the last
+  // may be partly full. The position in the last range is not necessarily the
+  // end if there has been a seek.
   mutable int64_t lastRangeEnd_{0};
 
   template <typename T>

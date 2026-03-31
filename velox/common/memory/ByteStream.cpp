@@ -265,7 +265,7 @@ std::streampos ByteOutputStream::tellp() const {
   if (ranges_.empty()) {
     return 0;
   }
-  assert(current_);
+  VELOX_DCHECK_NOT_NULL(current_);
   int64_t size = 0;
   for (const auto& range : ranges_) {
     if (&range == current_) {
@@ -331,8 +331,8 @@ void ByteOutputStream::extend(int64_t bytes) {
                << current_->position << " vs. " << current_->size;
   }
 
-  // Check if rewriting existing content. If so, move to next range and start at
-  // 0.
+  // Check if rewriting existing content. If so, move to the next range and
+  // start at 0.
   if (current_ != nullptr && current_ != &ranges_.back()) {
     ++current_;
     current_->position = 0;
@@ -373,15 +373,17 @@ int64_t ByteOutputStream::newRangeSize(int64_t bytes) const {
 }
 
 void ByteOutputStream::ensureSpace(int32_t bytes) {
-  const auto available = current_->size - current_->position;
-  int64_t toExtend = bytes - available;
   const auto originalRangeIdx = current_ - ranges_.data();
   const auto originalPosition = current_->position;
+
+  const auto available = current_->size - current_->position;
+  int64_t toExtend = bytes - available;
   while (toExtend > 0) {
     current_->position = current_->size;
     extend(toExtend);
     toExtend -= current_->size;
   }
+
   // Restore the original position.
   current_ = &ranges_[originalRangeIdx];
   current_->position = originalPosition;

@@ -33,7 +33,7 @@ class Scratch {
 
   ~Scratch() {
     reserve(0);
-    ::free(items_);
+    std::free(items_);
     items_ = nullptr;
     capacity_ = 0;
     fill_ = 0;
@@ -80,15 +80,15 @@ class Scratch {
     folly::assume(capacity_ >= 0);
     if (newCapacity > capacity_) {
       auto* newItems =
-          static_cast<uint8_t*>(::malloc(sizeof(Item) * newCapacity));
+          static_cast<uint8_t*>(std::malloc(sizeof(Item) * newCapacity));
       if (fill_ > 0) {
-        ::memcpy(newItems, items_, fill_ * sizeof(Item));
+        std::memcpy(newItems, items_, fill_ * sizeof(Item));
       }
-      ::memset(
+      std::memset(
           newItems + fill_ * sizeof(Item),
           0,
           (newCapacity - fill_) * sizeof(Item));
-      ::free(items_);
+      std::free(items_);
       items_ = reinterpret_cast<Item*>(newItems);
       capacity_ = newCapacity;
     }
@@ -159,6 +159,14 @@ class ScratchPtr {
   T* ptr_{nullptr};
   int32_t size_{0};
   T inline_[inlineSize];
+
+  // Padding to support full-width SIMD stores at the end of 'inline_'. When
+  // inlineSize > 0, provides 'simd::kPadding' bytes of extra space after
+  // 'inline_' to allow SIMD instructions to safely write past the last element
+  // without buffer overflow.
+  //
+  // NOTE: This member must be declared after inline_ to ensure the correct
+  // memory layout.
   char padding_[inlineSize == 0 ? 0 : simd::kPadding];
 };
 
