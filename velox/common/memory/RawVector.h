@@ -134,18 +134,18 @@ class raw_vector {
     size_ = 0;
   }
 
-  void resize(int64_t size) {
-    if (LIKELY(size <= capacity_)) {
-      size_ = size;
+  void resize(int64_t newSize) {
+    if (LIKELY(newSize <= capacity_)) {
+      size_ = newSize;
       return;
     }
-    reserve(size);
-    size_ = size;
+    reserve(newSize);
+    size_ = newSize;
   }
 
-  void reserve(int64_t size) {
-    if (capacity_ < size) {
-      grow(size);
+  void reserve(int64_t newSize) {
+    if (capacity_ < newSize) {
+      grow(newSize);
     }
   }
 
@@ -237,7 +237,7 @@ class raw_vector {
     auto* newData = allocateData(size);
     const auto newCapacity = calculateCapacity(size);
     if (data_ != nullptr) {
-      memcpy(newData, data_, size_ * sizeof(T));
+      std::memcpy(newData, data_, size_ * sizeof(T));
       try {
         free();
       } catch (...) {

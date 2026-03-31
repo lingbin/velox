@@ -549,8 +549,8 @@ class AppendWindow {
                 reinterpret_cast<const char*>(scratchPtr_.get()),
                 scratchPtr_.size() * sizeof(T)));
       } catch (const std::exception& e) {
-        // This is impossible because construction ensures there is space for
-        // the bytes in the stream.
+        // This is impossible because 'getAppendWindow()' ensures there is space
+        // for the bytes in the stream.
         LOG(FATAL) << "throw from AppendWindow append: " << e.what();
       }
     }
