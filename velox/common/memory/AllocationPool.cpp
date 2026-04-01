@@ -85,21 +85,14 @@ char* AllocationPool::allocateFixed(uint64_t bytes, int32_t alignment) {
 void AllocationPool::maybeGrowLastAllocation(uint64_t bytesRequested) {
   const auto updateOffset = currentOffset_ + bytesRequested;
   if (updateOffset > endOfReservedRun()) {
-    VELOX_CHECK_GT(bytesInRun_, AllocationTraits::kHugePageSize);
-    // Only large allocations use ContiguousAllocation which supports grow().
-    // For small allocations in allocations_, the run is already fully allocated.
-    if (!largeAllocations_.empty()) {
-      const auto bytesToReserve = bits::roundUp(
-          updateOffset - endOfReservedRun(), AllocationTraits::kHugePageSize);
-      largeAllocations_.back().grow(AllocationTraits::numPages(bytesToReserve));
-      usedBytes_ += bytesToReserve;
-    } else {
-      // For small allocations, we should have enough space since the run
-      // is fully allocated. Just verify the offset is within bounds.
-      VELOX_CHECK_LE(updateOffset, bytesInRun_);
-    }
+    // This can only happen with large allocations where there are mapped
+    // addresses beyond what is marked used by the pool/allocator.
+    VELOX_DCHECK(!largeAllocations_.empty());
+    const auto bytesToReserve = bits::roundUp(
+        updateOffset - endOfReservedRun(), AllocationTraits::kHugePageSize);
+    largeAllocations_.back().grow(AllocationTraits::numPages(bytesToReserve));
+    usedBytes_ += bytesToReserve;
   }
-  // Only update currentOffset_ once it points to valid data.
   currentOffset_ = updateOffset;
 }
 
@@ -136,12 +129,12 @@ void AllocationPool::newRunImpl(MachinePageCount numPages) {
     bytesInRun_ = range.size();
     largeAllocations_.emplace_back(std::move(largeAlloc));
     currentOffset_ = 0;
-    usedBytes_ += AllocationTraits::pageBytes(pagesToAlloc);
+    usedBytes_ += AllocationTraits::kHugePageSize;
     return;
   }
 
   Allocation allocation;
-  auto roundedPages = std::max<int32_t>(kMinPages, numPages);
+  const auto roundedPages = std::max<int32_t>(kMinPages, numPages);
   pool_->allocateNonContiguous(roundedPages, allocation, roundedPages);
   VELOX_CHECK_EQ(allocation.numRuns(), 1);
   startOfRun_ = allocation.runAt(0).data<char>();
