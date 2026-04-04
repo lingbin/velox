@@ -185,7 +185,7 @@ class BlockingState {
       BlockingReason reason);
 
   ~BlockingState() {
-    numBlockedDrivers_--;
+    --numBlockedDrivers_;
   }
 
   static void setResume(std::shared_ptr<BlockingState> state);
@@ -334,7 +334,7 @@ struct PushdownFilters {
   /// Indices added here will never be removed.
   folly::F14FastSet<column_index_t> dynamicFilteredColumns;
 
-  /// Whether static filters has been added to filters.  This only needs to be
+  /// Whether static filters has been added to 'filters'.  This only needs to be
   /// done once per node by the first driver.
   bool staticFiltersInitialized = false;
 };

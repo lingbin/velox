@@ -31,6 +31,7 @@ folly::Range<char*> AllocationPool::rangeAt(int32_t index) const {
         run.data<char>(),
         run.data<char>() == startOfRun_ ? currentOffset_ : run.numBytes());
   }
+
   const auto largeIndex = index - allocations_.size();
   if (largeIndex < largeAllocations_.size()) {
     auto range = largeAllocations_[largeIndex].hugePageRange().value();
@@ -39,6 +40,7 @@ folly::Range<char*> AllocationPool::rangeAt(int32_t index) const {
     }
     return range;
   }
+
   VELOX_FAIL("Out of range index for rangeAt(): {}", index);
 }
 
@@ -90,6 +92,11 @@ void AllocationPool::maybeGrowLastAllocation(uint64_t bytesRequested) {
     VELOX_DCHECK(!largeAllocations_.empty());
     const auto bytesToReserve = bits::roundUp(
         updateOffset - endOfReservedRun(), AllocationTraits::kHugePageSize);
+    // The new reserved size (endOfReservedRun() + bytesToReserve) will not
+    // exceed bytesInRun_ because: (1) updateOffset <= bytesInRun_ (guaranteed
+    // by allocateFixed), (2) bytesInRun_ is huge-page-aligned, so rounding up
+    // updateOffset to a huge page boundary cannot exceed it.
+    VELOX_DCHECK_LE(endOfReservedRun() + bytesToReserve, bytesInRun_);
     largeAllocations_.back().grow(AllocationTraits::numPages(bytesToReserve));
     usedBytes_ += bytesToReserve;
   }
@@ -99,10 +106,10 @@ void AllocationPool::maybeGrowLastAllocation(uint64_t bytesRequested) {
 void AllocationPool::newRunImpl(MachinePageCount numPages) {
   if (usedBytes_ >= hugePageThreshold_ ||
       numPages > pool_->sizeClasses().back()) {
-    // At least 16 huge pages, no more than kMaxMmapBytes. The next is
-    // double the previous. Because the previous is a hair under the
-    // power of two because of fractional pages at ends of allocation,
-    // add an extra huge page size.
+    // At least 16 huge pages, no more than kMaxMmapBytes. The next is double
+    // the previous. Because the previous is a hair under the power of two
+    // because of fractional pages at ends of allocation, add an extra huge page
+    // size.
     int64_t nextSize = std::min(
         kMaxMmapBytes,
         std::max<int64_t>(

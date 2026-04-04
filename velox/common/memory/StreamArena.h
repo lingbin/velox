@@ -18,16 +18,18 @@
 #include <memory>
 #include <vector>
 
+#include "velox/common/memory/Allocation.h"
 #include "velox/common/memory/Memory.h"
 
 namespace facebook::velox {
 
 struct ByteRange;
 
-/// An abstract class that holds memory for serialized vector content. A single
-/// repartitioning target is one use case: The bytes held are released as a unit
-/// when the destination acknowledges receipt. Another use case is a hash table
-/// partition that holds complex types as serialized rows.
+/// An abstract class that holds memory for serialized vector content. One use
+/// case is repartitioning (shuffle), where each destination holds its own
+/// StreamArena instance: The bytes held are released as a unit when the
+/// destination acknowledges receipt. Another use case is a hash table partition
+/// that holds complex types as serialized rows.
 class StreamArena {
  public:
   explicit StreamArena(memory::MemoryPool* pool);

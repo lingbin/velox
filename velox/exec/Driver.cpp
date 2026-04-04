@@ -1103,10 +1103,12 @@ int Driver::pushdownFilters(
       // Continue walking upstream.
       channel = inputChannel.value();
     }
+
     // TODO(lingbin):添加注释：已经无法再向前传递，并且当前算子也不接收dynamic filter
     if (!(j >= 0 && operators_[j]->canAddDynamicFilter())) {
       continue;
     }
+
     common::FilterPtr filter;
     auto lkSource = pushdownFilters_->at(filterSourceIndex).wlock();
     if (makeFilter(i, filter)) {

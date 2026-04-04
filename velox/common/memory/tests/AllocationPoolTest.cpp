@@ -120,7 +120,7 @@ DEBUG_ONLY_TEST_F(AllocationPoolTest, oomCleanUp) {
   // AllocationPool, the AllocationPool is still in a valid state.
   auto test = [&](int32_t alignment) {
     auto allocationPool = std::make_unique<memory::AllocationPool>(pool_.get());
-    // Ensure we're beyond the huge page threshod.
+    // Ensure we're beyond the huge page threshold.
     allocationPool->setHugePageThreshold(32 << 10);
     allocationPool->allocateFixed(32 << 10, alignment);
 
