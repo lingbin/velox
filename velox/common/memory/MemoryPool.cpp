@@ -443,7 +443,7 @@ size_t MemoryPool::getPreferredSize(size_t size) {
 }
 
 void MemoryPool::setPreferredSize(
-    std::function<size_t(size_t)> getPreferredSizeFunc) {
+    const std::function<size_t(size_t)>& getPreferredSizeFunc) {
   VELOX_CHECK_NOT_NULL(getPreferredSizeFunc);
   getPreferredSize_ = getPreferredSizeFunc;
 }
@@ -903,6 +903,7 @@ std::shared_ptr<MemoryPool> MemoryPoolImpl::genChild(
       std::move(reclaimer),
       Options{
           .alignment = alignment_,
+          .maxCapacity = kMaxMemory,
           .trackUsage = trackUsage_,
           .threadSafe = threadSafe,
           .coreOnAllocationFailureEnabled = coreOnAllocationFailureEnabled_,
@@ -1005,6 +1006,7 @@ void MemoryPoolImpl::incrementReservationThreadSafe(
     return;
   }
 
+  // 只有root MemoryPool才走到这里。
   VELOX_CHECK_NULL(parent_);
 
   growCapacity(requestor, size);
@@ -1573,7 +1575,7 @@ std::string MemoryPoolImpl::dumpRecordsDbgLocked() const {
 }
 
 void MemoryPoolImpl::handleAllocationFailure(
-    const std::string& failureMessage) {
+    const std::string& failureMessage) const {
   if (coreOnAllocationFailureEnabled_) {
     VELOX_MEM_LOG(ERROR) << failureMessage;
     // SIGBUS is one of the standard signals in Linux that triggers a core

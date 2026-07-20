@@ -152,6 +152,7 @@ bool MemoryAllocator::isAlignmentValid(
        (allocateBytes & (alignmentBytes - 1)) == 0);
 }
 
+// static
 void MemoryAllocator::alignmentCheck(
     uint64_t allocateBytes,
     uint16_t alignmentBytes) {

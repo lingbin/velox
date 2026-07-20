@@ -66,10 +66,10 @@ void ArbitrationOperation::setState(State state) {
       VELOX_CHECK_EQ(state_, State::kInit);
       break;
     case State::kRunning:
-      VELOX_CHECK(this->state_ == State::kWaiting || state_ == State::kInit);
+      VELOX_CHECK(state_ == State::kWaiting || state_ == State::kInit);
       break;
     case State::kFinished:
-      VELOX_CHECK_EQ(this->state_, State::kRunning);
+      VELOX_CHECK_EQ(state_, State::kRunning);
       break;
     default:
       VELOX_UNREACHABLE(
@@ -102,11 +102,11 @@ uint64_t ArbitrationOperation::executionTimeNs() const {
   if (state_ == State::kFinished) {
     VELOX_CHECK_GE(finishTimeNs_, createTimeNs_);
     return finishTimeNs_ - createTimeNs_;
-  } else {
-    const auto currentTimeNs = getCurrentTimeNano();
-    VELOX_CHECK_GE(currentTimeNs, createTimeNs_);
-    return currentTimeNs - createTimeNs_;
   }
+
+  const auto currentTimeNs = getCurrentTimeNano();
+  VELOX_CHECK_GE(currentTimeNs, createTimeNs_);
+  return currentTimeNs - createTimeNs_;
 }
 
 bool ArbitrationOperation::hasTimeout() const {

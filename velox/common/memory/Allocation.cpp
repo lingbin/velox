@@ -56,8 +56,11 @@ void Allocation::appendMove(Allocation& other) {
   other.clear();
 }
 
-/*static*/ void
-Allocation::copy(const Allocation& source, Allocation& target, uint64_t bytes) {
+// static
+void Allocation::copy(
+    const Allocation& source,
+    Allocation& target,
+    uint64_t bytes) {
   VELOX_CHECK_LE(bytes, source.byteSize());
   VELOX_CHECK_LE(bytes, target.byteSize());
 

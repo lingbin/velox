@@ -355,11 +355,11 @@ class MemoryManager {
   const std::shared_ptr<MemoryPool> spillPool_;
   const std::shared_ptr<MemoryPool> cachePool_;
   const std::shared_ptr<MemoryPool> tracePool_;
+  const std::vector<std::shared_ptr<MemoryPool>> sharedLeafPools_;
 
-  // To protect 'pools_' and 'sharedLeafPools_'.
+  // To protect 'pools_'.
   mutable folly::SharedMutex mutex_;
   // All user root pools allocated from 'this'.
-  const std::vector<std::shared_ptr<MemoryPool>> sharedLeafPools_;
   std::unordered_map<std::string, std::weak_ptr<MemoryPool>> pools_;
 };
 

@@ -36,7 +36,7 @@ DECLARE_bool(velox_time_allocations);
 namespace facebook::velox::memory {
 
 struct SizeClassStats {
-  //// Size of the tracked size class  in pages.
+  /// Size of the tracked size class in pages.
   int32_t size{0};
 
   /// Cumulative CPU clocks spent inside allocation.
@@ -70,7 +70,7 @@ struct SizeClassStats {
     SizeClassStats result;
     result.size = size;
     result.allocateClocks = allocateClocks - other.allocateClocks;
-    result.allocateClocks = freeClocks - other.freeClocks;
+    result.freeClocks = freeClocks - other.freeClocks;
     result.numAllocations = numAllocations - other.numAllocations;
     result.totalBytes = totalBytes - other.totalBytes;
     return result;
@@ -187,20 +187,18 @@ class Cache {
   virtual MemoryAllocator* allocator() const = 0;
 };
 
-/// Sets a thread level failure message describing cache state. Used
-/// for example to expose why space could not be freed from
-/// cache. This is defined here with the abstract Cache base class
-/// and not the cache implementation because allocator cannot depend
-/// on cache.
+/// Sets a thread level failure message describing cache state. Used for example
+/// to expose why space could not be freed from cache. This is defined here with
+/// the abstract Cache base class and not the cache implementation because
+/// allocator cannot depend on cache.
 void setCacheFailureMessage(std::string message);
 
-/// Returns and clears a thread local message set with
-/// setCacheFailureMessage().
+/// Returns and clears a thread local message set with setCacheFailureMessage().
 std::string getAndClearCacheFailureMessage();
 
 /// This class provides interface for the actual memory allocations from memory
 /// pool. It allocates runs of machine pages from predefined size classes, and
-/// supports both contiguous and non-contiguous memory allocations. An
+/// supports both contiguous and non-contiguous memory allocations. A
 /// non-contiguous allocation that does not match a size class is composed of
 /// multiple runs from different size classes. To get 11 pages, one could have a
 /// run of 8, one of 2 and one of 1 page. This is intended for all high volume
@@ -259,12 +257,12 @@ class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator> {
   /// Defines the memory allocator kinds.
   enum class Kind {
     /// The default memory allocator kind which is implemented by
-    /// MallocAllocator. It delegates the memory allocations to std::malloc.
+    /// 'MallocAllocator'. It delegates the memory allocations to 'std::malloc'.
     kMalloc,
-    /// The memory allocator kind which is implemented by MmapAllocator. It
+    /// The memory allocator kind which is implemented by 'MmapAllocator'. It
     /// manages the large chunk of memory allocations on its own by leveraging
-    /// mmap and madvise, to optimize the memory fragmentation in the long
-    /// running service such as Prestissimo.
+    /// 'mmap' and 'madvise', to optimize the memory fragmentation in the
+    /// long-running service such as Prestissimo.
     kMmap,
   };
 

@@ -82,16 +82,19 @@ TEST_F(AllocationTest, append) {
   allocation.append(firstBufAddr, kNumPages);
   ASSERT_EQ(allocation.numPages(), kNumPages);
   ASSERT_EQ(allocation.numRuns(), 1);
+
   uint8_t* const secondBufAddr = reinterpret_cast<uint8_t*>(
       startBufAddrValue + kNumPages * AllocationTraits::kPageSize);
   allocation.append(secondBufAddr, kNumPages - 1);
   ASSERT_EQ(allocation.numPages(), kNumPages * 2 - 1);
   ASSERT_EQ(allocation.numRuns(), 2);
+
   uint8_t* const thirdBufAddr = reinterpret_cast<uint8_t*>(
       firstBufAddr + 4 * kNumPages * AllocationTraits::kPageSize);
   allocation.append(thirdBufAddr, kNumPages * 2);
   ASSERT_EQ(allocation.numPages(), kNumPages * 4 - 1);
   ASSERT_EQ(allocation.numRuns(), 3);
+
   VELOX_ASSERT_THROW(allocation.append(thirdBufAddr, kNumPages), "");
   allocation.clear();
 }
@@ -115,8 +118,8 @@ TEST_F(AllocationTest, appendMove) {
   // is left empty.
   allocation.appendMove(otherAllocation);
   ASSERT_EQ(kNumPages * 2, allocation.numPages());
-  ASSERT_EQ(0, otherAllocation.numPages());
   ASSERT_EQ(2, allocation.numRuns());
+  ASSERT_EQ(0, otherAllocation.numPages());
   ASSERT_EQ(0, otherAllocation.numRuns());
   allocation.clear();
 }
