@@ -336,7 +336,7 @@ std::shared_ptr<MemoryPool> MemoryPool::addLeafChild(
     std::unique_ptr<MemoryReclaimer> _reclaimer) {
   CHECK_POOL_MANAGEMENT_OP(addLeafChild);
   // NOTE: we shall only set reclaimer in a child pool if its parent has also
-  // set. Otherwise it should be mis-configured.
+  // set. Otherwise, it should be mis-configured.
   VELOX_CHECK(
       reclaimer() != nullptr || _reclaimer == nullptr,
       "Child memory pool {} shall only set memory reclaimer if its parent {} has also set",
@@ -366,7 +366,7 @@ std::shared_ptr<MemoryPool> MemoryPool::addAggregateChild(
     std::unique_ptr<MemoryReclaimer> _reclaimer) {
   CHECK_POOL_MANAGEMENT_OP(addAggregateChild);
   // NOTE: we shall only set reclaimer in a child pool if its parent has also
-  // set. Otherwise it should be mis-configured.
+  // set. Otherwise, it should be mis-configured.
   VELOX_CHECK(
       reclaimer() != nullptr || _reclaimer == nullptr,
       "Child memory pool {} shall only set memory reclaimer if its parent {} has also set",
@@ -377,7 +377,7 @@ std::shared_ptr<MemoryPool> MemoryPool::addAggregateChild(
   VELOX_CHECK_EQ(
       children_.count(name),
       0,
-      "Child memory pool {} already exists in {}",
+      "Aggregate child memory pool {} already exists in {}",
       name,
       name_);
   auto child = genChild(
@@ -417,7 +417,7 @@ std::exception_ptr MemoryPool::abortError() const {
   return abortError_;
 }
 
-size_t MemoryPool::preferredSize(size_t size) {
+size_t MemoryPool::preferredSize(size_t size) const {
   const auto preferredSize = getPreferredSize_(size);
   VELOX_CHECK_GE(preferredSize, size);
   return preferredSize;
@@ -597,8 +597,8 @@ void* MemoryPoolImpl::allocateZeroFilled(int64_t numEntries, int64_t sizeEach) {
 
 void* MemoryPoolImpl::reallocate(void* p, int64_t size, int64_t newSize) {
   CHECK_AND_INC_MEM_OP_STATS(this, Allocs);
-  const auto alignedNewSize = sizeAlign(newSize);
   const auto alignedOldSize = sizeAlign(size);
+  const auto alignedNewSize = sizeAlign(newSize);
   reserve(alignedNewSize);
 
   // Two fully separate branches are kept here intentionally so the legacy
@@ -672,10 +672,11 @@ void* MemoryPoolImpl::allocateAligned(int64_t size, uint32_t alignment) {
     release(alignedSize);
     VELOX_MEM_ALLOC_ERROR(
         fmt::format(
-            "allocateAligned failed with {} aligned to {} from {}",
+            "allocateAligned failed with {} aligned to {} from {} {}",
             succinctBytes(size),
             alignment,
-            toString()));
+            toString(),
+            allocator_->getAndClearFailureMessage()));
   }
   return buffer;
 }
@@ -935,17 +936,17 @@ bool MemoryPoolImpl::maybeReserve(uint64_t increment) {
   return true;
 }
 
-void MemoryPoolImpl::reserve(uint64_t size, bool reserveOnly) {
+void MemoryPoolImpl::reserve(uint64_t delta, bool reserveOnly) {
   if (FOLLY_LIKELY(trackUsage_)) {
     if (FOLLY_LIKELY(threadSafe_)) {
-      reserveThreadSafe(size, reserveOnly);
+      reserveThreadSafe(delta, reserveOnly);
     } else {
-      reserveNonThreadSafe(size, reserveOnly);
+      reserveNonThreadSafe(delta, reserveOnly);
     }
   }
 }
 
-void MemoryPoolImpl::reserveThreadSafe(uint64_t size, bool reserveOnly) {
+void MemoryPoolImpl::reserveThreadSafe(uint64_t delta, bool reserveOnly) {
   VELOX_CHECK(isLeaf());
 
   int32_t numAttempts = 0;
@@ -953,13 +954,13 @@ void MemoryPoolImpl::reserveThreadSafe(uint64_t size, bool reserveOnly) {
   for (;; ++numAttempts) {
     {
       std::lock_guard<std::mutex> l(mutex_);
-      increment = reservationSizeLocked(size);
+      increment = reservationSizeLocked(delta);
       if (increment == 0) {
         if (reserveOnly) {
           minReservationBytes_ = tsanAtomicValue(reservationBytes_);
         } else {
-          usedReservationBytes_ += size;
-          cumulativeBytes_ += size;
+          usedReservationBytes_ += delta;
+          cumulativeBytes_ += delta;
           maybeUpdatePeakBytesLocked(usedReservationBytes_);
         }
         sanityCheckLocked();

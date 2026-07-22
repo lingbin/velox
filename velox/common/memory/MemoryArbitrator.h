@@ -110,6 +110,8 @@ class MemoryArbitrator {
     }
   };
 
+  virtual ~MemoryArbitrator() = default;
+
   using Factory = std::function<std::unique_ptr<MemoryArbitrator>(
       const MemoryArbitrator::Config& config)>;
 
@@ -146,8 +148,6 @@ class MemoryArbitrator {
   const Config& config() const {
     return config_;
   }
-
-  virtual ~MemoryArbitrator() = default;
 
   /// Invoked by the memory manager to shutdown the memory arbitrator to stop
   /// serving new memory arbitration requests.
@@ -339,7 +339,7 @@ class MemoryReclaimer {
 
   /// Invoked by the memory arbitrator after finishes the memory arbitration
   /// processing and is used in pair with 'enterArbitration'. For example, an
-  /// operator memory pool needs to moves the associated driver execution out of
+  /// operator memory pool needs to move the associated driver execution out of
   /// the suspension state.
   ///
   /// NOTE: it is guaranteed to be called also on failure path if

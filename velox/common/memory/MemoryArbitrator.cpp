@@ -201,10 +201,12 @@ uint64_t MemoryReclaimer::run(
   VELOX_CHECK_GE(reclaimedBytes, 0);
   stats.reclaimExecTimeUs += execTimeUs;
   stats.reclaimedBytes += reclaimedBytes;
+
   RECORD_HISTOGRAM_METRIC_VALUE(
       kMetricOpMemoryReclaimTimeMs, execTimeUs / 1'000);
   RECORD_HISTOGRAM_METRIC_VALUE(kMetricOpMemoryReclaimedBytes, reclaimedBytes);
   RECORD_METRIC_VALUE(kMetricOpMemoryReclaimCount);
+
   addThreadLocalRuntimeStat(
       "memoryReclaimWallNanos",
       RuntimeCounter(execTimeUs * 1'000, RuntimeCounter::Unit::kNanos));
@@ -443,7 +445,7 @@ std::strong_ordering MemoryArbitrator::Stats::operator<=>(
   UPDATE_COUNTER(numNonReclaimableAttempts);
 #undef UPDATE_COUNTER
   VELOX_CHECK(
-      !((gtCount > 0) && (ltCount > 0)),
+      !(gtCount > 0 && ltCount > 0),
       "gtCount {} ltCount {}",
       gtCount,
       ltCount);
@@ -480,7 +482,7 @@ ScopedMemoryArbitrationContext::ScopedMemoryArbitrationContext(
 }
 
 ScopedMemoryArbitrationContext::ScopedMemoryArbitrationContext()
-    : savedArbitrationCtx_(arbitrationCtx), currentArbitrationCtx_() {
+    : savedArbitrationCtx_(arbitrationCtx) {
   arbitrationCtx = &currentArbitrationCtx_;
 }
 

@@ -136,7 +136,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
     int64_t maxCapacity{kMaxMemory};
 
     /// If true, tracks the memory usage from the leaf memory pool and aggregate
-    /// up to the root memory pool for capacity enforcement. Otherwise there is
+    /// up to the root memory pool for capacity enforcement. Otherwise, there is
     /// no memory usage tracking.
     ///
     /// NOTE: there are some use cases which doesn't need the memory usage
@@ -321,18 +321,16 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// memory allocation.
   virtual const std::vector<MachinePageCount>& sizeClasses() const = 0;
 
-  /// Makes a large contiguous mmap of 'numPages'. The new mapped
-  /// pages are returned in 'out' on success. Any formly mapped pages
-  /// referenced by 'out' is unmapped in all the cases even if the
-  /// allocation fails. If 'maxPages' is not given, this defaults to
-  /// 'numPages'. 'maxPages' gives the size of the mmap in
-  /// addresses. 'numPages' gives the amount to declare as
-  /// used. growContiguous() is used to increase the
-  /// reservation up to 'maxPages'. This allows reserving a large
-  /// range of addresses for huge pages. The range can be larger than
-  /// is likely to be used because usage can be declared as needed but
-  /// the number of huge pages  can be set according to an assumption of large
-  /// utilization.
+  /// Makes a large contiguous mmap of 'numPages'. The new mapped pages are
+  /// returned in 'out' on success. Any formly mapped pages referenced by 'out'
+  /// is unmapped in all the cases even if the allocation fails. If 'maxPages'
+  /// is not given, this defaults to 'numPages'. 'maxPages' gives the size of
+  /// the mmap in addresses. 'numPages' gives the amount to declare as used.
+  /// growContiguous() is used to increase the reservation up to 'maxPages'.
+  /// This allows reserving a large range of addresses for huge pages. The range
+  /// can be larger than is likely to be used because usage can be declared as
+  /// needed but the number of huge pages can be set according to an assumption
+  /// of large utilization.
   virtual void allocateContiguous(
       MachinePageCount numPages,
       ContiguousAllocation& out,
@@ -348,7 +346,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// Rounds up to a power of 2 >= size, or to a size halfway between
   /// two consecutive powers of two, i.e 8, 12, 16, 24, 32, .... This
   /// coincides with JEMalloc size classes.
-  size_t preferredSize(size_t size);
+  size_t preferredSize(size_t size) const;
 
   /// Returns the memory allocation alignment size applied internally by this
   /// memory pool object.  Must be a power of two.
@@ -401,7 +399,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   virtual int64_t reservedBytes() const = 0;
 
   /// Checks if it is likely that the reservation on this memory pool can be
-  /// incremented by 'size'. Returns false if this seems unlikely. Otherwise
+  /// incremented by 'size'. Returns false if this seems unlikely. Otherwise,
   /// attempts the reservation increment and returns true if succeeded.
   virtual bool maybeReserve(uint64_t size) = 0;
 
@@ -411,7 +409,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// usage.
   virtual void release() = 0;
 
-  /// Memory arbitration related interfaces.
+  // Memory arbitration related interfaces.
 
   /// Returns the free memory capacity in bytes that haven't been reserved for
   /// use from the root of this memory pool. The memory arbitrator can reclaim
@@ -904,7 +902,7 @@ class MemoryPoolImpl : public MemoryPool {
     }
   }
 
-  void reserveThreadSafe(uint64_t size, bool reserveOnly = false);
+  void reserveThreadSafe(uint64_t delta, bool reserveOnly = false);
 
   // Increments the reservation and checks against limits at root memory pool.
   // Provokes root memory pool to grow capacity through arbitrator if exceeds
