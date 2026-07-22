@@ -44,6 +44,7 @@ DECLARE_bool(velox_suppress_memory_capacity_exceeding_error_message);
 using facebook::velox::common::testutil::TestValue;
 
 namespace facebook::velox::memory {
+
 namespace {
 // Check if memory operation is allowed and increment the named stats.
 #define CHECK_AND_INC_MEM_OP_STATS(pool, stats)                       \
@@ -105,7 +106,7 @@ struct MemoryUsageComp {
 using MemoryUsageHeap =
     std::priority_queue<MemoryUsage, std::vector<MemoryUsage>, MemoryUsageComp>;
 
-static constexpr size_t kCapMessageIndentSize = 4;
+constexpr size_t kCapMessageIndentSize = 4;
 
 std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
   std::vector<MemoryUsage> usages;
@@ -118,10 +119,10 @@ std::vector<MemoryUsage> sortMemoryUsages(MemoryUsageHeap& heap) {
   return usages;
 }
 
-// Invoked by visitChildren() to traverse the memory pool structure to build the
-// memory capacity exceeded exception error message.
+// Invoked by 'visitChildren()' to traverse the memory pool structure to build
+// the memory capacity exceeded exception error message.
 void treeMemoryUsageVisitor(
-    MemoryPool* pool,
+    const MemoryPool* pool,
     size_t indent,
     MemoryUsageHeap& topLeafMemUsages,
     bool skipEmptyPool,
@@ -143,7 +144,7 @@ void treeMemoryUsageVisitor(
     if (stats.empty()) {
       return;
     }
-    static const size_t kTopNLeafMessages = 10;
+    static constexpr size_t kTopNLeafMessages = 10;
     topLeafMemUsages.push(usage);
     if (topLeafMemUsages.size() > kTopNLeafMessages) {
       topLeafMemUsages.pop();
@@ -1464,7 +1465,7 @@ void MemoryPoolImpl::recordGrowDbg(const void* addr, uint64_t newSize) {
   allocResult->second.size = newSize;
 }
 
-void MemoryPoolImpl::leakCheckDbg() {
+void MemoryPoolImpl::leakCheckDbg() const{
   VELOX_CHECK(debugEnabled());
   if (debugAllocRecords_.empty()) {
     return;
@@ -1480,11 +1481,11 @@ void MemoryPoolImpl::treeAllocationRecordsDbg(
     std::vector<MemoryPoolDump>& poolDumps) const {
   VELOX_CHECK(debugEnabled());
   {
-    std::lock_guard<std::mutex> debugAllocLock(debugAllocMutex_);
+    std::lock_guard<std::mutex> l(debugAllocMutex_);
     if (!debugAllocRecords_.empty()) {
       MemoryPoolDump dump{
           .dumpedRecords = fmt::format(
-              "Memory pool '{}' - {}", name(), dumpRecordsDbgLocked()),
+              "Memory pool '{}' - {}", name_, dumpRecordsDbgLocked()),
           .bytes = reservedBytes(),
       };
       poolDumps.emplace_back(std::move(dump));
@@ -1542,20 +1543,22 @@ std::string MemoryPoolImpl::dumpRecordsDbgLocked() const {
       "Found {} allocations with {} total size:\n",
       debugAllocRecords_.size(),
       succinctBytes(reservedBytes()));
+
   struct AllocationStats {
-    uint64_t size{0};
+    uint64_t numBytes{0};
     uint64_t numAllocations{0};
   };
+
   std::unordered_map<std::string, AllocationStats> sizeAggregatedRecords;
-  for (const auto& itr : debugAllocRecords_) {
-    const auto& allocationRecord = itr.second;
+  for (const auto& [_, allocationRecord] : debugAllocRecords_) {
     const auto stackStr = allocationRecord.callStack.toString();
     if (sizeAggregatedRecords.count(stackStr) == 0) {
       sizeAggregatedRecords[stackStr] = AllocationStats();
     }
-    sizeAggregatedRecords[stackStr].size += allocationRecord.size;
+    sizeAggregatedRecords[stackStr].numBytes += allocationRecord.size;
     ++sizeAggregatedRecords[stackStr].numAllocations;
   }
+
   std::vector<std::pair<std::string, AllocationStats>> sortedRecords(
       sizeAggregatedRecords.begin(), sizeAggregatedRecords.end());
   std::sort(
@@ -1563,13 +1566,13 @@ std::string MemoryPoolImpl::dumpRecordsDbgLocked() const {
       sortedRecords.end(),
       [](const std::pair<std::string, AllocationStats>& a,
          std::pair<std::string, AllocationStats>& b) {
-        return a.second.size > b.second.size;
+        return a.second.numBytes > b.second.numBytes;
       });
   for (const auto& pair : sortedRecords) {
     oss << fmt::format(
         "======== {} allocations of {} total size ========\n{}\n",
         pair.second.numAllocations,
-        succinctBytes(pair.second.size),
+        succinctBytes(pair.second.numBytes),
         pair.first);
   }
   return oss.str();
@@ -1590,4 +1593,5 @@ void MemoryPoolImpl::handleAllocationFailure(
 
   VELOX_MEM_ALLOC_ERROR(failureMessage);
 }
+
 } // namespace facebook::velox::memory

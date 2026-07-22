@@ -403,7 +403,7 @@ class MemoryPool : public std::enable_shared_from_this<MemoryPool> {
   /// attempts the reservation increment and returns true if succeeded.
   virtual bool maybeReserve(uint64_t size) = 0;
 
-  /// If a minimum reservation has been set with maybeReserve(), resets the
+  /// If a minimum reservation has been set with 'maybeReserve()', resets the
   /// minimum reservation. If the current usage is below the minimum
   /// reservation, decreases reservation and usage down to the rounded actual
   /// usage.
@@ -940,19 +940,19 @@ class MemoryPoolImpl : public MemoryPool {
 
   void incrementReservationLocked(uint64_t bytes);
 
-  // Release memory reservation for an allocation free or memory release with
-  // specified 'size'. If 'releaseOnly' is true, then we only release the unused
-  // reservation if 'minReservationBytes_' is set. 'releaseThreadSafe' processes
-  // the memory reservation release with mutex lock protection at the leaf
-  // memory pool while 'releaseNonThreadSafe' doesn't.
-  void release(uint64_t bytes, bool releaseOnly = false);
-
-  void releaseThreadSafe(uint64_t size, bool releaseOnly);
-
   // Invoked to grow capacity of the root memory pool from the memory
   // arbitrator. 'requestor' is the leaf memory pool that triggers the memory
   // capacity growth. 'size' is the memory capacity growth in bytes.
   void growCapacity(MemoryPool* requestor, uint64_t size);
+
+  // Release memory reservation for an allocation free or memory release with
+  // specified 'size'. If 'releaseOnly' is true, then we only release the unused
+  // reservation if 'minReservationBytes_' is set. 'releaseThreadSafe()'
+  // processes the memory reservation release with mutex lock protection at the
+  // leaf memory pool while 'releaseNonThreadSafe' doesn't.
+  void release(uint64_t bytes, bool releaseOnly = false);
+
+  void releaseThreadSafe(uint64_t size, bool releaseOnly);
 
   FOLLY_ALWAYS_INLINE void releaseNonThreadSafe(
       uint64_t size,
