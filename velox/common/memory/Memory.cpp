@@ -121,13 +121,6 @@ class SysMemoryReclaimer : public MemoryReclaimer {
     return false;
   }
 
-  /// Invoked by the memory arbitrator to abort memory 'pool' and the associated
-  /// query execution when encounters non-recoverable memory reclaim error or
-  /// fails to reclaim enough free capacity. The abort is a synchronous
-  /// operation and we expect most of used memory to be freed after the abort
-  /// completes. 'error' should be passed in as the direct cause of the
-  /// abortion. It will be propagated all the way to task level for accurate
-  /// error exposure.
   void abort(MemoryPool* pool, const std::exception_ptr& error) override {
     VELOX_UNSUPPORTED("SysMemoryReclaimer::abort is not supported");
   }
@@ -208,7 +201,7 @@ MemoryManager& MemoryManager::deprecatedGetInstance(
     return *instance;
   }
 
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = state.instance.load(std::memory_order_acquire);
   if (instance != nullptr) {
     return *instance;
@@ -221,7 +214,7 @@ MemoryManager& MemoryManager::deprecatedGetInstance(
 // static
 void MemoryManager::initialize(const MemoryManager::Options& options) {
   auto& state = singletonState();
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = state.instance.load(std::memory_order_acquire);
   VELOX_CHECK_NULL(
       instance,
@@ -248,14 +241,14 @@ bool MemoryManager::testInstance() {
 MemoryManager& MemoryManager::testingSetInstance(
     const MemoryManager::Options& options) {
   auto& state = singletonState();
-  std::lock_guard<std::mutex> l(state.mutex);
+  std::lock_guard l(state.mutex);
   auto* instance = new MemoryManager(options);
   delete state.instance.exchange(instance, std::memory_order_acq_rel);
   return *instance;
 }
 
 std::shared_ptr<MemoryPoolImpl> MemoryManager::createRootPool(
-    std::string poolName,
+    const std::string& poolName,
     std::unique_ptr<MemoryReclaimer>& reclaimer,
     MemoryPool::Options& options) {
   auto pool = std::make_shared<MemoryPoolImpl>(
@@ -327,9 +320,9 @@ std::shared_ptr<MemoryPool> MemoryManager::addRootPoolImpl(
   auto pool = createRootPool(poolName, reclaimer, options);
   if (!disableMemoryPoolTracking_) {
     try {
-      std::unique_lock guard{mutex_};
+      std::lock_guard guard{mutex_};
       if (pools_.find(poolName) != pools_.end()) {
-        VELOX_FAIL("Duplicate root pool name found: {}", poolName);
+        VELOX_FAIL("Duplicate root memory pool name found: {}", poolName);
       }
       pools_.emplace(poolName, pool);
     } catch (const VeloxRuntimeError&) {
@@ -369,7 +362,7 @@ void MemoryManager::dropPool(MemoryPool* pool) {
   if (disableMemoryPoolTracking_) {
     return;
   }
-  std::unique_lock guard{mutex_};
+  std::lock_guard guard{mutex_};
   auto it = pools_.find(pool->name());
   if (it == pools_.end()) {
     VELOX_FAIL("The dropped memory pool {} not found", pool->name());
@@ -389,7 +382,7 @@ int64_t MemoryManager::getTotalBytes() const {
 size_t MemoryManager::numPools() const {
   size_t numPools = sysRoot_->getChildCount();
   {
-    std::shared_lock guard{mutex_};
+    std::lock_guard guard{mutex_};
     numPools += pools_.size() - sharedLeafPools_.size();
   }
   return numPools;
@@ -435,10 +428,10 @@ std::string MemoryManager::toString(bool detail) const {
 
 std::vector<std::shared_ptr<MemoryPool>> MemoryManager::getAlivePools() const {
   std::vector<std::shared_ptr<MemoryPool>> pools;
-  std::shared_lock guard{mutex_};
   pools.reserve(pools_.size());
-  for (const auto& entry : pools_) {
-    auto pool = entry.second.lock();
+  std::lock_guard guard{mutex_};
+  for (const auto& [_, weakPtrPool] : pools_) {
+    auto pool = weakPtrPool.lock();
     if (pool != nullptr) {
       pools.push_back(std::move(pool));
     }
@@ -477,7 +470,7 @@ MemoryPool* spillMemoryPool() {
   return MemoryManager::getInstance()->spillPool();
 }
 
-bool isSpillMemoryPool(MemoryPool* pool) {
+bool isSpillMemoryPool(const MemoryPool* pool) {
   return pool == spillMemoryPool();
 }
 

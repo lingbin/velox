@@ -64,7 +64,6 @@ namespace facebook::velox::memory {
 class MemoryManager {
  public:
   struct Options {
-    Options() {}
     /// Specifies the default memory allocation alignment.
     uint16_t alignment{MemoryAllocator::kDefaultAlignment};
 
@@ -162,7 +161,7 @@ class MemoryManager {
     /// The string kind of memory arbitrator used in the memory manager.
     ///
     /// NOTE: the arbitrator will only be created if its kind is set explicitly.
-    /// Otherwise MemoryArbitrator::create returns a NoopArbitrator.
+    /// Otherwise, MemoryArbitrator::create returns a NoopArbitrator.
     std::string arbitratorKind{};
 
     /// Provided by the query system to validate the state after a memory pool
@@ -181,6 +180,8 @@ class MemoryManager {
     /// size. If not set, uses the memory pool's default get preferred size
     /// function.
     std::function<size_t(size_t)> getPreferredSize{nullptr};
+
+    Options() {}
   };
 
   explicit MemoryManager(const Options& options = Options{});
@@ -316,7 +317,7 @@ class MemoryManager {
 
  private:
   std::shared_ptr<MemoryPoolImpl> createRootPool(
-      std::string poolName,
+      const std::string& poolName,
       std::unique_ptr<MemoryReclaimer>& reclaimer,
       MemoryPool::Options& options);
 
@@ -402,13 +403,14 @@ MemoryPool& deprecatedRootPool();
 MemoryPool* spillMemoryPool();
 
 /// Returns true if the provided 'pool' is the spilling memory pool.
-bool isSpillMemoryPool(MemoryPool* pool);
+bool isSpillMemoryPool(const MemoryPool* pool);
 
 /// Returns the system-wide memory pool for tracing memory usage.
 MemoryPool* traceMemoryPool();
 
-FOLLY_ALWAYS_INLINE int32_t alignmentPadding(void* address, int32_t alignment) {
-  auto extra = reinterpret_cast<uintptr_t>(address) % alignment;
+FOLLY_ALWAYS_INLINE int32_t
+alignmentPadding(const void* address, int32_t alignment) {
+  const auto extra = reinterpret_cast<uintptr_t>(address) % alignment;
   return extra == 0 ? 0 : alignment - extra;
 }
 } // namespace facebook::velox::memory
