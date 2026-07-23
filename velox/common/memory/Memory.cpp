@@ -382,7 +382,7 @@ int64_t MemoryManager::getTotalBytes() const {
 size_t MemoryManager::numPools() const {
   size_t numPools = sysRoot_->getChildCount();
   {
-    std::lock_guard guard{mutex_};
+    std::shared_lock guard{mutex_};
     numPools += pools_.size() - sharedLeafPools_.size();
   }
   return numPools;
@@ -429,7 +429,7 @@ std::string MemoryManager::toString(bool detail) const {
 std::vector<std::shared_ptr<MemoryPool>> MemoryManager::getAlivePools() const {
   std::vector<std::shared_ptr<MemoryPool>> pools;
   pools.reserve(pools_.size());
-  std::lock_guard guard{mutex_};
+  std::shared_lock guard{mutex_};
   for (const auto& [_, weakPtrPool] : pools_) {
     auto pool = weakPtrPool.lock();
     if (pool != nullptr) {
