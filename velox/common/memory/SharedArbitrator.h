@@ -87,20 +87,22 @@ class SharedArbitrator : public memory::MemoryArbitrator {
     static uint64_t maxMemoryArbitrationTimeNs(
         const std::unordered_map<std::string, std::string>& configs);
 
-    /// When shrinking capacity, the shrink bytes will be adjusted in a way such
-    /// that AFTER shrink, the stricter (whichever is smaller) of the following
-    /// conditions is met, in order to better fit the pool's current memory
-    /// usage:
-    /// - Free capacity is greater or equal to capacity *
-    /// 'memoryPoolMinFreeCapacityPct'
-    /// - Free capacity is greater or equal to 'memoryPoolMinFreeCapacity'
+    /// Limits how much free capacity memory arbitration can shrink from a
+    /// query memory pool, so that the pool keeps enough free capacity for
+    /// its future allocations without triggering another arbitration round.
+    /// After shrink, the pool keeps at least the smaller of the following:
+    /// - capacity * 'memoryPoolMinFreeCapacityPct'
+    /// - 'memoryPoolMinFreeCapacity'
     ///
-    /// NOTE: In the conditions when original requested shrink bytes ends up
-    /// with more free capacity than above 2 conditions, the adjusted shrink
-    /// bytes is not respected.
+    /// For example, with capacity 1GB, 'memoryPoolMinFreeCapacityPct' 0.25
+    /// and 'memoryPoolMinFreeCapacity' 128MB, the free capacity kept after
+    /// shrink is the smaller of 1GB * 0.25 = 256MB and 128MB, which is
+    /// 128MB. So a pool with 400MB of free capacity gives up at most 272MB
+    /// through shrink.
     ///
-    /// NOTE: Capacity shrink adjustment is enabled when both
-    /// 'memoryPoolMinFreeCapacityPct' and 'memoryPoolMinFreeCapacity' are set.
+    /// NOTE: this limit applies only when both 'memoryPoolMinFreeCapacity'
+    /// and 'memoryPoolMinFreeCapacityPct' are set. It is bypassed when a
+    /// pool releases all its free capacity at once and for inactive pools.
     static constexpr std::string_view kMemoryPoolMinFreeCapacity{
         "memory-pool-min-free-capacity"};
     static constexpr std::string_view kDefaultMemoryPoolMinFreeCapacity{
