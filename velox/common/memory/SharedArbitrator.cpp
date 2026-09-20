@@ -491,7 +491,7 @@ void SharedArbitrator::addPool(const std::shared_ptr<MemoryPool>& pool) {
   {
     std::lock_guard<std::mutex> l(stateMutex_);
     const uint64_t minBytesToReserve = std::min(
-        scopedParticipant->maxCapacity(), scopedParticipant->minCapacity());
+        scopedParticipant->maxCapacity(), participantConfig_.minCapacity);
     const uint64_t maxBytesToReserve = std::max(
         minBytesToReserve,
         std::min(
