@@ -146,7 +146,7 @@ MemoryManager::MemoryManager(const MemoryManager::Options& options)
           std::string(kSysRootName),
           MemoryPool::Kind::kAggregate,
           nullptr,
-          nullptr,
+          SysMemoryReclaimer::create(),
           // NOTE: the default root memory pool has no capacity limit, and it is
           // used for system usage in production such as disk spilling.
           MemoryPool::Options{
@@ -160,7 +160,6 @@ MemoryManager::MemoryManager(const MemoryManager::Options& options)
       cachePool_{addLeafPool("__sys_caching__")},
       tracePool_{addLeafPool("__sys_tracing__")},
       sharedLeafPools_(createSharedLeafMemoryPools(*sysRoot_)) {
-  sysRoot_->setReclaimer(SysMemoryReclaimer::create());
   VELOX_CHECK_NOT_NULL(allocator_);
   VELOX_CHECK_NOT_NULL(arbitrator_);
   VELOX_USER_CHECK_GE(capacity(), 0);
