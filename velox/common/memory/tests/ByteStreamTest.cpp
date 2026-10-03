@@ -103,6 +103,7 @@ TEST_F(ByteStreamTest, outputStream) {
     reference->write(data.data(), data.size());
   }
   EXPECT_EQ(reference->tellp(), out->tellp());
+
   for (auto i = 0; i < 100; ++i) {
     std::string data;
     data.resize(6000);
@@ -144,8 +145,8 @@ TEST_F(ByteStreamTest, bufferedOutputStream) {
   auto buffered =
       std::make_unique<BufferedOutputStream>(out.get(), arena.get(), 50);
 
-  std::stringstream referenceSStream;
-  auto reference = std::make_unique<OStreamOutputStream>(&referenceSStream);
+  std::stringstream referenceStream;
+  auto reference = std::make_unique<OStreamOutputStream>(&referenceStream);
   for (auto i = 0; i < 1000; ++i) {
     std::string data;
     data.resize((3 * i) % 200);
@@ -169,7 +170,7 @@ TEST_F(ByteStreamTest, bufferedOutputStream) {
 
   buffered->flush();
 
-  auto str = referenceSStream.str();
+  auto str = referenceStream.str();
   auto iobuf = out->getIOBuf();
   auto outData = iobuf->coalesce();
   EXPECT_EQ(
@@ -328,7 +329,7 @@ TEST_F(ByteStreamTest, bits) {
       // Every second uses the fast path for aligned source and append only.
       auto numBits = std::min<int32_t>(
           totalBits - offset, bitSizes[counter % bitSizes.size()]);
-      if (counter % 1 == 0) {
+      if (counter % 2 == 0) {
         bitStream.appendBits(bits.data(), offset, offset + numBits);
       } else {
         uint64_t aligned[10];
@@ -362,7 +363,7 @@ TEST_F(ByteStreamTest, bits) {
 }
 
 TEST_F(ByteStreamTest, appendWindow) {
-  // A littel over 1MB. We must test appendss that involve multiple extend()
+  // A little over 1MB. We must test appendss that involve multiple extend()
   // calls for one window.
   constexpr int32_t kNumWords = 140000;
   Scratch scratch;

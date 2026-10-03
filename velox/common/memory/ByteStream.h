@@ -264,6 +264,7 @@ class BufferInputStream : public ByteInputStream {
   // buffers can be made by specialization.
   void nextRange();
 
+  // TODO(lingbin): 这个方法没有被使用，它是private的，可以被安全删除。
   const std::vector<ByteRange>& ranges() const {
     return ranges_;
   }

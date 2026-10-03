@@ -132,14 +132,14 @@ uint8_t BufferInputStream::readByte() {
   return readByte();
 }
 
-void BufferInputStream::readBytes(uint8_t* bytes, int32_t size) {
+void BufferInputStream::readBytes(uint8_t* dest, int32_t size) {
   VELOX_CHECK_GE(size, 0, "Attempting to read negative number of bytes");
   int32_t offset = 0;
   for (;;) {
     const int32_t availableBytes = current_->size - current_->position;
     const int32_t readBytes = std::min(availableBytes, size);
     simd::memcpy(
-        bytes + offset, current_->buffer + current_->position, readBytes);
+        dest + offset, current_->buffer + current_->position, readBytes);
     offset += readBytes;
     size -= readBytes;
     current_->position += readBytes;
@@ -306,7 +306,7 @@ void ByteOutputStream::flush(OutputStream* out) {
   }
 }
 
-char* ByteOutputStream::writePosition() {
+char* ByteOutputStream::writePosition() const{
   if (ranges_.empty()) {
     return nullptr;
   }
@@ -408,7 +408,7 @@ struct FreeData {
 FreeData* newFreeData(
     const std::shared_ptr<StreamArena>& arena,
     const std::function<void()>& releaseFn) {
-  auto freeData = new FreeData();
+  auto* freeData = new FreeData();
   freeData->arena = arena;
   freeData->releaseFn = releaseFn;
   return freeData;
@@ -433,7 +433,7 @@ std::unique_ptr<folly::IOBuf> IOBufOutputStream::getIOBuf(
   for (auto& range : ranges) {
     auto numValues =
         &range == &ranges.back() ? out_->lastRangeEnd() : range.size;
-    auto userData = newFreeData(arena_, releaseFn);
+    auto* userData = newFreeData(arena_, releaseFn);
     auto newBuf = folly::IOBuf::takeOwnership(
         reinterpret_cast<char*>(range.buffer), numValues, freeFunc, userData);
     if (iobuf) {

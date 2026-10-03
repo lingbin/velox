@@ -31,14 +31,14 @@
 
 namespace {
 
-bool validateDataFormat(const char* flagname, const std::string& value) {
+bool validateDataFormat(const char* flagName, const std::string& value) {
   if ((value.compare("parquet") == 0) || (value.compare("dwrf") == 0)) {
     return true;
   }
   std::cout
       << fmt::format(
              "Invalid value for --{}: {}. Allowed values are [\"parquet\", \"dwrf\"]",
-             flagname,
+             flagName,
              value)
       << std::endl;
   return false;
@@ -67,9 +67,8 @@ DEFINE_int32(num_io_threads, 8, "Threads for speculative IO");
 DEFINE_string(
     test_flags_file,
     "",
-    "Path to a file containing gflafs and "
-    "values to try. Produces results for each flag combination "
-    "sorted on performance");
+    "Path to a file containing gflags and values to try. Produces results for "
+    "each flag combination sorted on performance");
 DEFINE_bool(
     full_sorted_stats,
     true,
