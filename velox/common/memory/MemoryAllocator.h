@@ -87,6 +87,7 @@ struct Stats {
   /// allocation is recorded to the class corresponding to the closest
   /// power of 2 >= the allocation size.
   static constexpr int32_t kNumSizes = 20;
+
   Stats() {
     for (size_t i = 0; i < sizes.size(); ++i) {
       sizes[i].size = 1 << i;

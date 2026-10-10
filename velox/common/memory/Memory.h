@@ -91,16 +91,16 @@ class MemoryManager {
     int64_t allocatorCapacity{kMaxMemory};
 
     /// If true, uses MmapAllocator for memory allocation which manages the
-    /// physical memory allocation on its own through std::mmap techniques. If
+    /// physical memory allocation on its own through 'std::mmap' techniques. If
     /// false, use MallocAllocator which delegates the memory allocation to
-    /// std::malloc.
+    /// 'std::malloc'.
     bool useMmapAllocator{false};
 
     /// Number of pages in the largest size class in MmapAllocator.
     int32_t largestSizeClassPages{256};
 
     /// If true, allocations larger than the largest size class size will be
-    /// delegated to ManagedMmapArena. Otherwise, a system mmap call will be
+    /// delegated to ManagedMmapArena. Otherwise, a system 'mmap' call will be
     /// issued for each such allocation.
     ///
     /// NOTE: this only applies for MmapAllocator.
@@ -114,15 +114,15 @@ class MemoryManager {
 
     /// If not zero, reserve 'smallAllocationReservePct'% of space from
     /// 'allocatorCapacity' for ad hoc small allocations. And those allocations
-    /// are delegated to std::malloc. If 'maxMallocBytes' is 0, this value will
-    /// be disregarded.
+    /// are delegated to 'std::malloc'. If 'maxMallocBytes' is 0, this value
+    /// will be disregarded.
     ///
     /// NOTE: this only applies for MmapAllocator.
     uint32_t smallAllocationReservePct{0};
 
     /// The allocation threshold less than which an allocation is delegated to
-    /// std::malloc(). If it is zero, then we don't delegate any allocation
-    /// std::malloc, and 'smallAllocationReservePct' will be automatically set
+    /// 'std::malloc()'. If it is zero, then we don't delegate any allocation
+    /// 'std::malloc', and 'smallAllocationReservePct' will be automatically set
     /// to 0 disregarding any passed in value.
     ///
     /// NOTE: this only applies for MmapAllocator.
@@ -140,7 +140,7 @@ class MemoryManager {
     uint32_t allocationSizeThresholdWithReservation{1 << 20};
 
     /// If true, MallocAllocator uses malloc for contiguous allocations instead
-    /// of mmap/munmap.
+    /// of 'mmap'/'munmap'.
     ///
     /// NOTE: this only applies for MallocAllocator.
     bool mallocContiguousEnabled{false};

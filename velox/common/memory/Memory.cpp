@@ -48,6 +48,7 @@ std::shared_ptr<MemoryAllocator> createAllocator(
     const MemoryManager::Options& options) {
   MemoryAllocator::Options allocatorOptions;
   allocatorOptions.capacity = options.allocatorCapacity;
+
   if (options.useMmapAllocator) {
     allocatorOptions.largestSizeClass = options.largestSizeClassPages;
     allocatorOptions.useMmapArena = options.useMmapArena;
@@ -56,19 +57,18 @@ std::shared_ptr<MemoryAllocator> createAllocator(
         options.smallAllocationReservePct;
     allocatorOptions.maxMallocBytes = options.maxMallocBytes;
     return std::make_shared<MmapAllocator>(allocatorOptions);
-  } else {
-    allocatorOptions.reservationByteLimit =
-        options.allocationSizeThresholdWithReservation;
-    allocatorOptions.mallocContiguousEnabled = options.mallocContiguousEnabled;
-    return std::make_shared<MallocAllocator>(allocatorOptions);
   }
+
+  allocatorOptions.reservationByteLimit =
+      options.allocationSizeThresholdWithReservation;
+  allocatorOptions.mallocContiguousEnabled = options.mallocContiguousEnabled;
+  return std::make_shared<MallocAllocator>(allocatorOptions);
 }
 
 std::unique_ptr<MemoryArbitrator> createArbitrator(
     const MemoryManager::Options& options) {
   // TODO: consider to reserve a small amount of memory to compensate for the
-  //  non-reclaimable cache memory which are pinned by query accesses if
-  //  enabled.
+  // non-reclaimable cache memory which are pinned by query accesses if enabled.
 
   return MemoryArbitrator::create(
       {.kind = options.arbitratorKind,
@@ -153,6 +153,7 @@ MemoryManager::MemoryManager(const MemoryManager::Options& options)
               .alignment = alignment_,
               .maxCapacity = kMaxMemory,
               .trackUsage = options.trackDefaultUsage,
+              .threadSafe = true,
               .coreOnAllocationFailureEnabled =
                   options.coreOnAllocationFailureEnabled,
               .getPreferredSize = getPreferredSize_})},
